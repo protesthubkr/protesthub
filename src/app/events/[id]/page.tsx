@@ -2,8 +2,10 @@ import { notFound } from "next/navigation";
 import {
   CanceledEventPage,
   EventDetailClient,
-} from "@/components/event-detail-client";
+} from "@/features/public-events/event-detail-client";
 import { getEventById } from "@/lib/events";
+
+export const revalidate = 60;
 
 export default async function EventPage({
   params,

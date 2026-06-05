@@ -74,3 +74,10 @@ http://localhost:3000/admin/candidates?secret=INGEST_SECRET
 ```
 
 핵심 기획 문서는 상위 `docs/` 디렉터리에 있습니다.
+
+## Architecture and maintenance
+
+구현 구조와 LLM 유지보수 절차는 아래 문서를 먼저 확인하세요.
+
+- `docs/architecture.md`: route, feature, lib 계층과 데이터 흐름
+- `docs/llm-maintenance.md`: LLM 에이전트용 작업 절차, 검증 체크리스트, 불변 조건

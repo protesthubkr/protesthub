@@ -37,8 +37,14 @@ create table if not exists event_dates (
 create index if not exists event_dates_date_time_idx
   on event_dates (event_date, start_time);
 
+create index if not exists event_dates_event_id_date_time_idx
+  on event_dates (event_id, event_date, start_time);
+
 create index if not exists public_events_status_region_idx
   on public_events (status, region);
+
+create index if not exists public_events_status_source_account_idx
+  on public_events (status, source_account_name);
 
 create index if not exists public_events_issue_tags_idx
   on public_events using gin (issue_tags);
@@ -178,3 +184,18 @@ select
 from public_events e
 left join event_dates d on d.event_id = e.id
 group by e.id;
+
+create or replace view public_event_occurrences as
+select
+  e.id,
+  e.title,
+  e.venue,
+  e.region,
+  e.source_account_name,
+  e.issue_tags,
+  e.primary_issue,
+  d.event_date::text as occurrence_date,
+  to_char(d.start_time, 'HH24:MI') as occurrence_start_time
+from public_events e
+join event_dates d on d.event_id = e.id
+where e.status = 'published';

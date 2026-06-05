@@ -1,3 +1,7 @@
+import { buildStructuredEventPrompt } from "./structured-event-prompt";
+import { STRUCTURED_EVENT_ISSUE_TAGS, STRUCTURED_EVENT_REGIONS } from "./structured-event-options";
+import { STRUCTURED_EVENT_SCHEMA } from "./structured-event-schema";
+
 export type StructuredEventExtractionInput = {
   sourceAccountName: string;
   sourcePostUrl: string;
@@ -53,129 +57,6 @@ const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
 const DEFAULT_EXTRACTION_MODEL = "gpt-5-nano";
 const DEFAULT_EXTRACTION_FALLBACK_MODEL = "gpt-5-mini";
 const MIN_CONFIDENCE_FOR_PRIMARY_MODEL = 70;
-
-const ISSUE_TAGS = [
-  "노동",
-  "환경",
-  "여성",
-  "젠더",
-  "장애",
-  "주거",
-  "평화",
-  "정당",
-];
-
-const REGIONS = [
-  "",
-  "서울",
-  "부산",
-  "대구",
-  "인천",
-  "광주",
-  "대전",
-  "울산",
-  "세종",
-  "경기",
-  "강원",
-  "충북",
-  "충남",
-  "전북",
-  "전남",
-  "경북",
-  "경남",
-  "제주",
-];
-
-const STRUCTURED_EVENT_SCHEMA = {
-  type: "object",
-  additionalProperties: false,
-  required: [
-    "is_event",
-    "confidence",
-    "title",
-    "description",
-    "venue",
-    "address",
-    "region",
-    "organizers",
-    "dates",
-    "issue_tags",
-    "primary_issue",
-    "format",
-    "status_hint",
-    "exclusion_reason",
-    "evidence",
-  ],
-  properties: {
-    is_event: { type: "boolean" },
-    confidence: { type: "integer" },
-    title: { type: "string" },
-    description: { type: "string" },
-    venue: { type: "string" },
-    address: { type: "string" },
-    region: { type: "string", enum: REGIONS },
-    organizers: { type: "array", items: { type: "string" } },
-    dates: {
-      type: "array",
-      items: {
-        type: "object",
-        additionalProperties: false,
-        required: ["date", "start_time"],
-        properties: {
-          date: { type: "string" },
-          start_time: { type: "string" },
-        },
-      },
-    },
-    issue_tags: {
-      type: "array",
-      items: { type: "string", enum: ISSUE_TAGS },
-    },
-    primary_issue: { type: "string", enum: ["", ...ISSUE_TAGS] },
-    format: {
-      type: "string",
-      enum: [
-        "집회",
-        "시위",
-        "기자회견",
-        "문화제",
-        "행진",
-        "농성",
-        "피켓팅",
-        "추모제",
-        "기타",
-        "해당 없음",
-      ],
-    },
-    status_hint: {
-      type: "string",
-      enum: [
-        "publish_candidate",
-        "needs_review",
-        "ignore",
-        "canceled",
-        "duplicate_unknown",
-      ],
-    },
-    exclusion_reason: { type: "string" },
-    evidence: {
-      type: "object",
-      additionalProperties: false,
-      required: [
-        "title_source",
-        "date_source",
-        "place_source",
-        "issue_source",
-      ],
-      properties: {
-        title_source: { type: "string" },
-        date_source: { type: "string" },
-        place_source: { type: "string" },
-        issue_source: { type: "string" },
-      },
-    },
-  },
-};
 
 export class StructuredExtractionConfigError extends Error {
   constructor(message = "OPENAI_API_KEY is not configured.") {
@@ -238,7 +119,7 @@ async function requestStructuredEvent(
           content: [
             {
               type: "input_text",
-              text: buildExtractionPrompt(input),
+              text: buildStructuredEventPrompt(input),
             },
           ],
         },
@@ -266,33 +147,6 @@ async function requestStructuredEvent(
     provider: "openai_responses",
     result: sanitizeStructuredEventResult(parseStructuredOutput(payload)),
   };
-}
-
-function buildExtractionPrompt(input: StructuredEventExtractionInput) {
-  return [
-    "You extract Korean protest/rally event information into strict JSON.",
-    "Use only the provided source text and OCR text. Do not infer missing fields.",
-    `Today is ${input.today} in Asia/Seoul. If all event dates are before today, set status_hint to ignore.`,
-    "This service is for people who want to find upcoming protests/rallies to participate in.",
-    "Treat public assemblies, demonstrations, marches, rallies, press conferences, sit-ins, vigils, picketing, memorial gatherings, and civic action days as events.",
-    "Do not treat statements, press releases, election campaign canvassing, donation requests, seminars, webinars, lectures, private meetings, or retrospective reports as publishable events unless they clearly announce a public participation action.",
-    "For dates without a year, use 2026.",
-    "Return date as YYYY-MM-DD and start_time as HH:MM. Use an empty string when unknown.",
-    "Place fields: venue is the broad public place shown as 장소. Include the region/city when present, e.g. '경남 창원시청 앞'.",
-    "Place fields: address is the specific landmark or meeting point shown as 상세장소. Do not repeat venue text, e.g. source '장소: 경남 창원시청 앞 최윤덕 동상' -> venue '경남 창원시청 앞', address '최윤덕 동상'.",
-    "Write description as a concise Korean public listing summary, not a raw post copy. Do not include URLs.",
-    "Use only these issue tags: 노동, 환경, 여성, 젠더, 장애, 주거, 평화, 정당.",
-    "If the source says canceled or postponed without a replacement date, set status_hint to canceled.",
-    "",
-    `Source account: ${input.sourceAccountName}`,
-    `Source URL: ${input.sourcePostUrl}`,
-    "",
-    "[post text]",
-    input.textSnapshot || "(empty)",
-    "",
-    "[OCR text]",
-    input.ocrText || "(empty)",
-  ].join("\n");
 }
 
 function getExtractionModel() {
@@ -344,7 +198,9 @@ function getFallbackReasons(
 function sanitizeStructuredEventResult(
   result: StructuredEventResult,
 ): StructuredEventResult {
-  const issueTags = result.issue_tags.filter((tag) => ISSUE_TAGS.includes(tag));
+  const issueTags = result.issue_tags.filter((tag) =>
+    STRUCTURED_EVENT_ISSUE_TAGS.includes(tag),
+  );
   const place = normalizePlaceFields({
     venue: result.venue.trim(),
     address: result.address.trim(),
@@ -365,7 +221,7 @@ function sanitizeStructuredEventResult(
       }))
       .filter((date) => date.date),
     issue_tags: issueTags,
-    primary_issue: ISSUE_TAGS.includes(result.primary_issue)
+    primary_issue: STRUCTURED_EVENT_ISSUE_TAGS.includes(result.primary_issue)
       ? result.primary_issue
       : "",
   };
@@ -404,7 +260,7 @@ function normalizePlaceFields({
 }
 
 function stripLeadingRegion(value: string) {
-  const region = REGIONS.filter(Boolean).find((item) =>
+  const region = STRUCTURED_EVENT_REGIONS.filter(Boolean).find((item) =>
     value.startsWith(`${item} `),
   );
 

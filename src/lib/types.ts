@@ -33,9 +33,22 @@ export type PublicEvent = {
   dates: EventDate[];
 };
 
-export type EventOccurrence = PublicEvent & {
+export type EventListOccurrence = {
+  id: string;
+  title: string;
+  venue: string;
+  region: string;
+  sourceAccountName: string;
+  issueTags: IssueKey[];
+  primaryIssue: IssueKey;
   occurrenceDate: string;
   occurrenceStartTime: string | null;
+};
+
+export type EventOccurrenceWindow = {
+  events: EventListOccurrence[];
+  hasMoreEvents: boolean;
+  nextFromDate: string;
 };
 
 export type FilterStep = "issue" | "region" | "organizer";

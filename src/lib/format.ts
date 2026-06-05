@@ -58,19 +58,6 @@ export function formatKoreanDateTime(dateTime: string) {
   return `${year}.${month}.${day} ${hour}:${minute}`;
 }
 
-export function formatDateRange(dates: string[]) {
-  if (dates.length === 0) {
-    return "";
-  }
-
-  const sorted = [...dates].sort();
-  if (sorted.length === 1) {
-    return formatShortDate(sorted[0]);
-  }
-
-  return `${formatShortDate(sorted[0])}~${formatShortDate(sorted[sorted.length - 1])}`;
-}
-
 export function formatTime(time: string | null) {
   return time ?? "시간 미정";
 }

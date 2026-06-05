@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { isAdminSecretValid } from "@/lib/admin-auth";
-import { analyzePastEventNotice } from "@/lib/event-date-filter";
 import {
   CANDIDATE_STATUS_FILTERS,
   type CandidateReviewScope,
@@ -12,6 +11,7 @@ import {
   parseCandidateReviewScope,
   parseCandidateStatusFilter,
 } from "@/lib/admin-candidates";
+import { analyzePastEventNotice } from "@/lib/event-date-filter";
 import { ISSUE_OPTIONS } from "@/lib/issues";
 import { runOpenAiPosterOcr, type OcrImage } from "@/lib/ocr/openai";
 import { getOcrCandidateReasons } from "@/lib/ocr/signals";
@@ -20,6 +20,7 @@ import { REGION_OPTIONS } from "@/lib/regions";
 import { hasStoredStructuredEvent } from "@/lib/structured-event-storage";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import type { IssueKey } from "@/lib/types";
+import { getAdminCandidatesHref } from "./navigation";
 
 type CandidateForOcr = {
   id: string;
@@ -130,7 +131,7 @@ export async function publishCandidateEvent(formData: FormData) {
 
   const candidate = candidateData as unknown as CandidateForPublish;
 
-  if (!hasStructuredEvent(candidate.extraction_payload)) {
+  if (!hasStoredStructuredEvent(candidate.extraction_payload)) {
     throw new Error("공개하려면 먼저 구조화 추출을 실행해야 합니다.");
   }
 
@@ -511,10 +512,6 @@ function getPublishEventDates(formData: FormData) {
   return dates;
 }
 
-function hasStructuredEvent(payload: Record<string, unknown> | null) {
-  return hasStoredStructuredEvent(payload);
-}
-
 async function getFirstCandidateImageUrl(mediaKeys: string[]) {
   const media = await getMediaForOcr(mediaKeys);
   const firstImage = media.find((item) => item.url || item.preview_image_url);
@@ -549,11 +546,9 @@ function getAdminRedirectPath(
   returnStatus: CandidateStatusFilter,
   returnScope: CandidateReviewScope,
 ) {
-  const params = new URLSearchParams({
+  return getAdminCandidatesHref({
     secret,
     status: returnStatus,
     scope: returnScope,
   });
-
-  return `/admin/candidates?${params.toString()}`;
 }
