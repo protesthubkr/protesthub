@@ -50,10 +50,14 @@ export function EventDetailClient({ event }: { event: PublicEvent }) {
             <dt>장소</dt>
             <dd>
               <strong>{event.venue}</strong>
-              {" "}
-              <span>{event.address}</span>
             </dd>
           </div>
+          {event.address ? (
+            <div className="detail-fact-row">
+              <dt>상세장소</dt>
+              <dd>{event.address}</dd>
+            </div>
+          ) : null}
           <div className="detail-fact-row">
             <dt>출처</dt>
             <dd>{event.sourceAccountName}</dd>
@@ -149,10 +153,14 @@ export function CanceledEventPage({ event }: { event: PublicEvent }) {
             <dt>장소</dt>
             <dd>
               <strong>{event.venue}</strong>
-              {" "}
-              <span>{event.address}</span>
             </dd>
           </div>
+          {event.address ? (
+            <div className="detail-fact-row">
+              <dt>상세장소</dt>
+              <dd>{event.address}</dd>
+            </div>
+          ) : null}
           <div className="detail-fact-row">
             <dt>취소 출처</dt>
             <dd>{event.sourceAccountName}</dd>

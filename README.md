@@ -15,6 +15,7 @@ Next.js, Vercel, Supabase 기반 시위/집회 정보 모아보기 MVP입니다.
 - 취소됨 상세 페이지
 - Supabase 연결 준비와 mock data fallback
 - X raw 수집 파이프라인 스파이크
+- X 후보 내부 검수 화면
 
 ## Getting Started
 
@@ -46,6 +47,17 @@ X 기반 수집을 실행하려면 `supabase/schema.sql`을 적용하고 `.env.e
 - `X_OPERATING_USER_ID`
 - `INGEST_SECRET`
 
+선택값:
+
+- `X_POSTS_PER_ACCOUNT`: 계정별로 한 번에 가져올 최대 포스트 수, 기본 10
+- `X_MAX_FOLLOWING_ACCOUNTS`: 팔로잉 계정 조회 상한, 기본 100
+- `X_INCLUDE_REPLIES`: replies 수집 여부, 기본 `false`
+- `OPENAI_API_KEY`: 검수 화면의 포스터 OCR 실행용
+- `OPENAI_OCR_MODEL`: OCR에 사용할 OpenAI 모델, 기본 `gpt-5-mini`
+- `OPENAI_OCR_IMAGE_DETAIL`: 이미지 입력 세부 수준, 기본 `high`
+- `OPENAI_EXTRACTION_MODEL`: 집회 후보 구조화 추출 모델, 기본 `gpt-5-nano`
+- `OPENAI_EXTRACTION_FALLBACK_MODEL`: 구조화 결과가 낮은 신뢰도이거나 핵심 필드가 빠졌을 때 한 번 재시도할 모델, 기본 `gpt-5-mini`
+
 수동 실행:
 
 ```bash
@@ -53,6 +65,12 @@ curl -X POST http://localhost:3000/api/ingest/x \
   -H "Authorization: Bearer $INGEST_SECRET"
 ```
 
-수집 결과는 `x_ingest_runs`, `x_accounts`, `x_posts`, `x_media`, `x_event_candidates`에 저장됩니다. 후보는 관리자 검수 전 공개 목록에 노출되지 않습니다.
+수집 결과는 `x_ingest_runs`, `x_accounts`, `x_posts`, `x_media`, `x_event_candidates`에 저장됩니다. X 원문은 `note_tweet.text`가 있으면 일반 `text`보다 우선 저장합니다. 수집 이력이 있는 계정은 계정별 최신 저장 포스트 이후(`since_id`)만 가져오고, 저장 포스트가 없는 계정은 직전 성공 수집 시작 시각 이후(`start_time`)만 가져옵니다. 직전 성공 수집 기록이 없는 최초 실행에서만 최신 포스트 묶음으로 bootstrap합니다. 후보는 관리자 검수 전 공개 목록에 노출되지 않습니다. 후보 생성은 본문 또는 미디어가 있는 수집 포스트를 대상으로 하며, 본문에 `일시`와 `장소`가 모두 포함된 경우에만 `needs_review`로 보내고 나머지는 `ignored`로 분류합니다. 본문 또는 OCR 텍스트의 일정 날짜가 모두 한국시간 오늘 이전이면 `ignored`로 자동 제외합니다. `OPENAI_API_KEY`가 있으면 검수 카드에서 포스터 OCR을 실행하고, 본문/OCR 텍스트를 집회명, 날짜, 장소, 주최, 의제 태그, 형식으로 구조화해 `extraction_payload.structured_event`에 저장할 수 있습니다.
+
+내부 검수 화면:
+
+```text
+http://localhost:3000/admin/candidates?secret=INGEST_SECRET
+```
 
 핵심 기획 문서는 상위 `docs/` 디렉터리에 있습니다.

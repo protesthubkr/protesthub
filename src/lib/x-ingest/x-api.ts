@@ -22,7 +22,9 @@ const TWEET_FIELDS = [
   "created_at",
   "edit_history_tweet_ids",
   "entities",
+  "note_tweet",
   "referenced_tweets",
+  "text",
 ].join(",");
 
 const TWEET_EXPANSIONS = [
@@ -90,18 +92,25 @@ export async function fetchFollowingAccounts({
 
 export async function fetchUserPosts({
   bearerToken,
+  includeReplies,
   userId,
   maxResults,
   sinceId,
+  startTime,
 }: {
   bearerToken: string;
+  includeReplies: boolean;
   userId: string;
   maxResults: number;
   sinceId?: string;
+  startTime?: string;
 }) {
   const url = new URL(`${X_API_BASE_URL}/users/${userId}/tweets`);
   url.searchParams.set("max_results", String(maxResults));
-  url.searchParams.set("exclude", "retweets");
+  url.searchParams.set(
+    "exclude",
+    includeReplies ? "retweets" : "retweets,replies",
+  );
   url.searchParams.set("tweet.fields", TWEET_FIELDS);
   url.searchParams.set("expansions", TWEET_EXPANSIONS);
   url.searchParams.set("media.fields", MEDIA_FIELDS);
@@ -109,6 +118,8 @@ export async function fetchUserPosts({
 
   if (sinceId) {
     url.searchParams.set("since_id", sinceId);
+  } else if (startTime) {
+    url.searchParams.set("start_time", startTime);
   }
 
   return fetchX<XTimelineResponse>(url, bearerToken);
@@ -131,9 +142,15 @@ async function fetchX<T>(url: URL, bearerToken: string): Promise<T> {
 }
 
 async function readJsonSafely(response: Response) {
+  const text = await response.text();
+
+  if (!text) {
+    return null;
+  }
+
   try {
-    return await response.json();
+    return JSON.parse(text) as unknown;
   } catch {
-    return await response.text();
+    return text;
   }
 }

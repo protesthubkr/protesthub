@@ -21,6 +21,9 @@ export type XMedia = {
 export type XPost = {
   id: string;
   text?: string;
+  note_tweet?: {
+    text?: string;
+  };
   author_id?: string;
   created_at?: string;
   conversation_id?: string;
@@ -65,6 +68,7 @@ export type XIngestConfig = {
   operatingUserId: string;
   postsPerAccount: number;
   maxFollowingAccounts: number;
+  includeReplies: boolean;
 };
 
 export type XIngestResult = {

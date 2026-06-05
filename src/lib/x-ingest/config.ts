@@ -1,7 +1,8 @@
 import type { XIngestConfig } from "./types";
 
-const DEFAULT_POSTS_PER_ACCOUNT = 20;
+const DEFAULT_POSTS_PER_ACCOUNT = 10;
 const DEFAULT_MAX_FOLLOWING_ACCOUNTS = 100;
+const DEFAULT_INCLUDE_REPLIES = false;
 
 export class XIngestConfigError extends Error {
   constructor(readonly missingKeys: string[]) {
@@ -41,6 +42,10 @@ export function getXIngestConfig(): XIngestConfig {
       1,
       1000,
     ),
+    includeReplies: parseBoolean(
+      process.env.X_INCLUDE_REPLIES,
+      DEFAULT_INCLUDE_REPLIES,
+    ),
   };
 }
 
@@ -61,4 +66,12 @@ function parseBoundedInteger(
   }
 
   return Math.min(Math.max(parsed, min), max);
+}
+
+function parseBoolean(rawValue: string | undefined, defaultValue: boolean) {
+  if (!rawValue) {
+    return defaultValue;
+  }
+
+  return ["1", "true", "yes", "y", "on"].includes(rawValue.toLowerCase());
 }

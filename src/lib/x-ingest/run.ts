@@ -1,10 +1,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { analyzePastEventNotice } from "@/lib/event-date-filter";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { getXIngestConfig, XIngestConfigError } from "./config";
 import {
   getCandidateReasons,
   getMediaForPost,
+  getPostText,
   getPostUrl,
+  shouldReviewCandidate,
   shouldCreateCandidate,
 } from "./normalize";
 import type { XIngestResult, XMedia, XPost, XUser } from "./types";
@@ -39,9 +42,14 @@ export async function runXIngest(): Promise<XIngestResult> {
     throw new XIngestConfigError(missingKeys);
   }
 
+  const previousIngestStartedAt =
+    await getPreviousSuccessfulIngestStartedAt(supabase);
   const runId = await createIngestRun(supabase, {
     postsPerAccount: config.postsPerAccount,
     maxFollowingAccounts: config.maxFollowingAccounts,
+    includeReplies: config.includeReplies,
+    collectionMode: "incremental_since_latest_seen_post",
+    previousIngestStartedAt,
   });
 
   const counters: IngestCounters = {
@@ -66,13 +74,18 @@ export async function runXIngest(): Promise<XIngestResult> {
 
     for (const account of collectibleAccounts) {
       const sinceId = await getLatestSeenPostId(supabase, account.id);
+      const startTime = sinceId ? undefined : previousIngestStartedAt;
       const timeline = await fetchUserPosts({
         bearerToken: config.bearerToken,
+        includeReplies: config.includeReplies,
         userId: account.id,
         maxResults: config.postsPerAccount,
         sinceId,
+        startTime,
       });
-      const posts = timeline.data ?? [];
+      const posts = (timeline.data ?? []).filter((post) =>
+        isPostOnOrAfterStartTime(post, startTime),
+      );
       const media = timeline.includes?.media ?? [];
       const mediaByKey = new Map(media.map((item) => [item.media_key, item]));
 
@@ -125,6 +138,25 @@ async function createIngestRun(
   }
 
   return data.id as string;
+}
+
+async function getPreviousSuccessfulIngestStartedAt(
+  supabase: SupabaseClient,
+) {
+  const { data, error } = await supabase
+    .from("x_ingest_runs")
+    .select("started_at")
+    .eq("strategy", INGEST_STRATEGY)
+    .eq("status", "succeeded")
+    .order("started_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return formatXApiStartTime(data?.started_at);
 }
 
 async function finishIngestRun(
@@ -233,7 +265,7 @@ async function upsertPosts(
       posts.map((post) => ({
         x_post_id: post.id,
         author_x_user_id: post.author_id ?? account.id,
-        text: post.text ?? "",
+        text: getPostText(post),
         created_at: post.created_at ?? null,
         conversation_id: post.conversation_id ?? null,
         source_post_url: getPostUrl(account, post),
@@ -291,16 +323,27 @@ async function createCandidates(
       return [];
     }
 
+    const postText = getPostText(post);
+    const eventDateFilter = analyzePastEventNotice(postText);
+    const candidateReasons = getCandidateReasons(post, media);
+    const shouldReview = shouldReviewCandidate(post);
+    const status =
+      shouldReview && !eventDateFilter.ignoredAsPast
+        ? "needs_review"
+        : "ignored";
+
     return [
       {
         x_post_id: post.id,
+        status,
         source_account_name: account.name,
         source_post_url: getPostUrl(account, post),
-        text_snapshot: post.text ?? "",
+        text_snapshot: postText,
         media_keys: media.map((item) => item.media_key),
         extraction_payload: {
-          source: "x_ingest_heuristic_v1",
+          source: "x_ingest_heuristic_v2",
           needs_ocr: media.length > 0,
+          event_date_filter: eventDateFilter,
           quoted_post_ids:
             post.referenced_tweets
               ?.filter((reference) => reference.type === "quoted")
@@ -310,7 +353,13 @@ async function createCandidates(
               ?.filter((reference) => reference.type === "replied_to")
               .map((reference) => reference.id) ?? [],
         },
-        candidate_reason: getCandidateReasons(post, media),
+        candidate_reason:
+          eventDateFilter.ignoredAsPast || !shouldReview
+            ? [
+                ...candidateReasons,
+                ...(eventDateFilter.ignoredAsPast ? ["past_event_date"] : []),
+              ]
+            : candidateReasons,
       },
     ];
   });
@@ -340,4 +389,30 @@ function formatError(error: unknown) {
   }
 
   return String(error);
+}
+
+function isPostOnOrAfterStartTime(post: XPost, startTime?: string) {
+  if (!startTime) {
+    return true;
+  }
+
+  if (!post.created_at) {
+    return false;
+  }
+
+  return Date.parse(post.created_at) >= Date.parse(startTime);
+}
+
+function formatXApiStartTime(value: unknown) {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const timestamp = Date.parse(value);
+
+  if (!Number.isFinite(timestamp)) {
+    return undefined;
+  }
+
+  return new Date(timestamp).toISOString();
 }

@@ -209,13 +209,22 @@ export function HomePageClient({ events }: HomePageClientProps) {
 
   function applyFilters(nextFilters: EventFilters) {
     const params = new URLSearchParams();
-    if (nextFilters.issues.length > 0) {
+    if (
+      nextFilters.issues.length > 0 &&
+      nextFilters.issues.length < ISSUE_OPTIONS.length
+    ) {
       params.set("issues", nextFilters.issues.join(","));
     }
-    if (nextFilters.regions.length > 0) {
+    if (
+      nextFilters.regions.length > 0 &&
+      nextFilters.regions.length < REGION_OPTIONS.length
+    ) {
       params.set("regions", nextFilters.regions.join(","));
     }
-    if (nextFilters.organizers.length > 0) {
+    if (
+      nextFilters.organizers.length > 0 &&
+      nextFilters.organizers.length < organizers.length
+    ) {
       params.set("organizers", nextFilters.organizers.join(","));
     }
 
@@ -239,6 +248,36 @@ export function HomePageClient({ events }: HomePageClientProps) {
         [key]: nextValues,
       };
     });
+  }
+
+  function toggleAllIssues() {
+    setDraft((current) => ({
+      ...current,
+      issues:
+        current.issues.length === ISSUE_OPTIONS.length
+          ? []
+          : ISSUE_OPTIONS.map((issue) => issue.key),
+    }));
+  }
+
+  function toggleAllRegions() {
+    setDraft((current) => ({
+      ...current,
+      regions:
+        current.regions.length === REGION_OPTIONS.length
+          ? []
+          : [...REGION_OPTIONS],
+    }));
+  }
+
+  function toggleAllOrganizers() {
+    setDraft((current) => ({
+      ...current,
+      organizers:
+        organizers.length > 0 && current.organizers.length === organizers.length
+          ? []
+          : [...organizers],
+    }));
   }
 
   return (
@@ -335,6 +374,9 @@ export function HomePageClient({ events }: HomePageClientProps) {
           onApply={() => applyFilters(draft)}
           onClose={() => setIsFilterOpen(false)}
           onStepChange={setActiveStep}
+          onToggleAllIssues={toggleAllIssues}
+          onToggleAllOrganizers={toggleAllOrganizers}
+          onToggleAllRegions={toggleAllRegions}
           onToggleIssue={(issue) => updateDraftList("issues", issue)}
           onToggleOrganizer={(organizer) =>
             updateDraftList("organizers", organizer)
@@ -399,6 +441,9 @@ function FilterSheet({
   onApply,
   onClose,
   onStepChange,
+  onToggleAllIssues,
+  onToggleAllOrganizers,
+  onToggleAllRegions,
   onToggleIssue,
   onToggleOrganizer,
   onToggleRegion,
@@ -410,6 +455,9 @@ function FilterSheet({
   onApply: () => void;
   onClose: () => void;
   onStepChange: (step: FilterStep) => void;
+  onToggleAllIssues: () => void;
+  onToggleAllOrganizers: () => void;
+  onToggleAllRegions: () => void;
   onToggleIssue: (issue: IssueKey) => void;
   onToggleOrganizer: (organizer: string) => void;
   onToggleRegion: (region: string) => void;
@@ -439,6 +487,12 @@ function FilterSheet({
               title="관심 의제를 골라주세요"
               columns={2}
             >
+              <ChoiceButton
+                checked={draft.issues.length === ISSUE_OPTIONS.length}
+                fullWidth
+                label="전체"
+                onToggle={onToggleAllIssues}
+              />
               {ISSUE_OPTIONS.map((issue) => (
                 <ChoiceButton
                   key={issue.key}
@@ -455,6 +509,12 @@ function FilterSheet({
               title="지역을 골라주세요"
               columns={2}
             >
+              <ChoiceButton
+                checked={draft.regions.length === regions.length}
+                fullWidth
+                label="전체"
+                onToggle={onToggleAllRegions}
+              />
               {regions.map((region) => (
                 <ChoiceButton
                   key={region}
@@ -470,6 +530,14 @@ function FilterSheet({
             <FilterPanel
               title="주최 단체를 골라주세요"
             >
+              <ChoiceButton
+                checked={
+                  organizers.length > 0 &&
+                  draft.organizers.length === organizers.length
+                }
+                label="전체"
+                onToggle={onToggleAllOrganizers}
+              />
               {organizers.map((organizer) => (
                 <ChoiceButton
                   key={organizer}
@@ -524,16 +592,20 @@ function FilterPanel({
 
 function ChoiceButton({
   checked,
+  fullWidth = false,
   label,
   onToggle,
 }: {
   checked: boolean;
+  fullWidth?: boolean;
   label: string;
   onToggle: () => void;
 }) {
   return (
     <button
-      className={`choice-button ${checked ? "is-selected" : ""}`}
+      className={`choice-button ${checked ? "is-selected" : ""} ${
+        fullWidth ? "is-full-width" : ""
+      }`}
       type="button"
       aria-pressed={checked}
       onClick={onToggle}
@@ -564,7 +636,7 @@ function EventCard({ event }: { event: EventOccurrence }) {
         </div>
         <div>
           <dt>장소</dt>
-          <dd>{event.address}</dd>
+          <dd>{event.venue}</dd>
         </div>
       </dl>
       <div className="issue-badge-list">
