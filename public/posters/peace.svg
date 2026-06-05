@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1260" viewBox="0 0 900 1260">
+  <rect width="900" height="1260" fill="#ecfeff"/>
+  <rect x="72" y="86" width="756" height="1088" rx="24" fill="#ffffff"/>
+  <text x="128" y="215" fill="#0e7490" font-size="42" font-family="Arial, sans-serif" font-weight="700">평화와 국제연대</text>
+  <text x="128" y="360" fill="#111827" font-size="82" font-family="Arial, sans-serif" font-weight="800">문화제</text>
+  <text x="128" y="510" fill="#5b6472" font-size="42" font-family="Arial, sans-serif">6/10 수 19:00</text>
+  <text x="128" y="575" fill="#5b6472" font-size="42" font-family="Arial, sans-serif">대전 서구 둔산동</text>
+  <circle cx="430" cy="820" r="160" fill="#0891b2" opacity="0.16"/>
+  <path d="M338 840 C398 760 482 760 542 840 C482 910 398 910 338 840Z" fill="#0891b2"/>
+  <text x="128" y="1040" fill="#111827" font-size="42" font-family="Arial, sans-serif" font-weight="700">평화와통일을여는사람들</text>
+</svg>

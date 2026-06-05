@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-labelledby="title desc">
+  <title id="title">Simple filter sliders icon</title>
+  <desc id="desc">Three horizontal rounded sliders with circular handles, built from simple lines and circles.</desc>
+  <defs>
+    <clipPath id="cut-out-holes" clipPathUnits="userSpaceOnUse">
+      <path fill-rule="evenodd" clip-rule="evenodd" d="
+        M0 0H512V512H0Z
+        M289 74a43 43 0 1 0 86 0a43 43 0 1 0 -86 0
+        M137 256a43 43 0 1 0 86 0a43 43 0 1 0 -86 0
+        M289 438a43 43 0 1 0 86 0a43 43 0 1 0 -86 0
+      "/>
+    </clipPath>
+  </defs>
+  <g clip-path="url(#cut-out-holes)" fill="black" stroke="black" stroke-linecap="round" stroke-width="32">
+    <line x1="16" y1="74" x2="496" y2="74"/>
+    <line x1="16" y1="256" x2="496" y2="256"/>
+    <line x1="16" y1="438" x2="496" y2="438"/>
+    <circle cx="332" cy="74" r="74" stroke="none"/>
+    <circle cx="180" cy="256" r="74" stroke="none"/>
+    <circle cx="332" cy="438" r="74" stroke="none"/>
+  </g>
+</svg>

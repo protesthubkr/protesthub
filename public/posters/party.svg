@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1260" viewBox="0 0 900 1260">
+  <rect width="900" height="1260" fill="#f1f5f9"/>
+  <rect x="76" y="84" width="748" height="1092" rx="24" fill="#ffffff"/>
+  <text x="130" y="215" fill="#334155" font-size="42" font-family="Arial, sans-serif" font-weight="700">정당 공식 공지</text>
+  <text x="130" y="350" fill="#111827" font-size="76" font-family="Arial, sans-serif" font-weight="800">지역 정책</text>
+  <text x="130" y="450" fill="#111827" font-size="76" font-family="Arial, sans-serif" font-weight="800">공개 집회</text>
+  <text x="130" y="595" fill="#5b6472" font-size="42" font-family="Arial, sans-serif">6/13 토 18:30</text>
+  <text x="130" y="660" fill="#5b6472" font-size="42" font-family="Arial, sans-serif">부산 부산진구 부전동</text>
+  <rect x="130" y="805" width="300" height="86" rx="43" fill="#f1f5f9"/>
+  <text x="178" y="862" fill="#334155" font-size="38" font-family="Arial, sans-serif" font-weight="700">정당</text>
+  <text x="130" y="1040" fill="#111827" font-size="46" font-family="Arial, sans-serif" font-weight="700">새길정당 부산시당</text>
+</svg>
