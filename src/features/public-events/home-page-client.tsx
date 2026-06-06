@@ -15,6 +15,7 @@ import { ConditionChips } from "./condition-chips";
 import { EmptyState } from "./empty-state";
 import { EventTimeline } from "./event-timeline";
 import { LoadingState } from "./loading-state";
+import { FilterSheet } from "./filter-sheet";
 import {
   buildEventHref,
   buildConditionChips,
@@ -28,10 +29,6 @@ import { ViewModeSwitch } from "./view-mode-switch";
 
 const CalendarMonthView = dynamic(() =>
   import("./calendar-month-view").then((module) => module.CalendarMonthView),
-);
-
-const FilterSheet = dynamic(() =>
-  import("./filter-sheet").then((module) => module.FilterSheet),
 );
 
 type HomePageClientProps = {
