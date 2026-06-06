@@ -91,10 +91,20 @@ create table if not exists x_accounts (
   is_protected boolean not null default false,
   is_verified boolean,
   default_issues text[] not null default '{}',
+  last_ingested_at timestamptz,
+  last_ingested_post_id text,
+  last_ingested_post_created_at timestamptz,
+  last_ingest_run_id uuid references x_ingest_runs(id),
   first_seen_at timestamptz not null default now(),
   last_seen_at timestamptz not null default now(),
   raw_payload jsonb not null default '{}'::jsonb
 );
+
+alter table x_accounts
+  add column if not exists last_ingested_at timestamptz,
+  add column if not exists last_ingested_post_id text,
+  add column if not exists last_ingested_post_created_at timestamptz,
+  add column if not exists last_ingest_run_id uuid references x_ingest_runs(id);
 
 create unique index if not exists x_accounts_username_lower_idx
   on x_accounts (lower(username));

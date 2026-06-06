@@ -134,14 +134,18 @@ public_event_occurrences
 ## X 수집
 
 1. `/api/ingest/x`가 Bearer `INGEST_SECRET`을 검증한다.
-2. `runXIngest()`는 운영 계정의 팔로잉 계정 목록을 읽는다.
-3. 기본 수집은 계정별 최신 저장 post 이후만 가져오고, 백필 수집은 `startDate`/`startTime` 옵션으로 `since_id`를 우회한다.
-4. `note_tweet.text`가 있으면 본문으로 우선 사용한다.
-5. 텍스트 또는 미디어가 있는 post만 후보 row가 될 수 있다.
-6. 본문에 `일시`, `날짜`, `일정` 중 하나라도 있거나 보조 신호가 3개 이상인 post를 `needs_review`, 나머지는 `ignored`로 저장한다.
-7. 일반 증분 수집에서 오늘 이전 일정으로 판정되면 `ignored`와 `past_event_date` 근거를 남긴다.
-8. `startDate`/`startTime` 백필 수집은 과거 일정 판정이 있어도 키워드 post를 검수 대기로 유지하고 `past_event_date` 근거만 남긴다.
-9. 백필이나 장기 미수집 계정은 `maxPages` 또는 `X_BACKFILL_TIMELINE_PAGES_PER_ACCOUNT`로 계정별 timeline pagination 상한을 둔다.
+2. 기본 수집은 X 팔로잉 목록 API를 호출하지 않고 `x_accounts`에 저장된 `is_following=true`, `is_protected=false` 계정만 읽는다.
+3. 팔로잉 목록을 새로 반영해야 할 때는 `/admin/candidates`의 X 수집 실행 패널에서 "팔로잉 갱신 후 수집"을 누른다. API로 직접 실행해야 할 때만 `/api/ingest/x?refreshFollowing=true`를 사용한다.
+4. 기본 수집은 `x_accounts`의 계정별 수집 커서를 기준으로 가져온다. `last_ingested_post_id`가 최근 30일 안이면 `since_id`를 쓰고, 커서가 없거나 너무 오래됐으면 최대 `now - 30일`까지만 `start_time`으로 조회한다.
+5. timeline 1차 요청은 `tweet.fields`만 사용하고 `expansions`, `media.fields`, `user.fields`를 붙이지 않는다.
+6. 1차 본문 판정에서 검수 후보가 될 post만 `/2/tweets?ids=...` 상세 요청으로 hydrate한다. 이때만 media URL, alt text, referenced tweet, author expansion을 가져온다.
+7. `note_tweet.text`가 있으면 본문으로 우선 사용한다.
+8. 텍스트 또는 hydrate된 미디어가 있는 post만 후보 row가 될 수 있다.
+9. 본문에 `일시`, `날짜`, `일정` 중 하나라도 있거나 보조 신호가 3개 이상인 post를 `needs_review`, 나머지는 `ignored`로 저장한다.
+10. 일반 증분 수집에서 오늘 이전 일정으로 판정되면 `ignored`와 `past_event_date` 근거를 남긴다.
+11. `startDate`/`startTime` 백필 수집은 `since_id`를 우회하지만, 요청 시작 시각이 30일보다 오래됐으면 30일 전으로 잘라서 조회한다.
+12. 계정별 timeline 조회가 끝나면 `x_accounts.last_ingested_at`, `last_ingested_post_id`, `last_ingested_post_created_at`, `last_ingest_run_id`를 갱신한다. 신규 계정에 post가 없어도 `last_ingested_at`은 남겨 다음 수집에서 같은 30일 범위를 반복 조회하지 않는다.
+13. 백필이나 장기 미수집 계정은 `maxPages` 또는 `X_BACKFILL_TIMELINE_PAGES_PER_ACCOUNT`로 계정별 timeline pagination 상한을 둔다.
 
 ## 변경 안전 규칙
 

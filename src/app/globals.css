@@ -1237,6 +1237,12 @@ button:disabled {
   font-weight: var(--font-weight-bold);
 }
 
+.admin-control-panels {
+  display: grid;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
 .admin-manual-add-panel {
   display: grid;
   gap: var(--space-3);
@@ -1246,6 +1252,10 @@ button:disabled {
   background: var(--color-surface);
   padding: var(--space-4);
   box-shadow: var(--shadow-card);
+}
+
+.admin-control-panels .admin-manual-add-panel {
+  margin-bottom: 0;
 }
 
 .admin-manual-add-panel h2 {
@@ -1265,6 +1275,16 @@ button:disabled {
 }
 
 .admin-manual-add-form {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.admin-ingest-control-form {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.admin-ingest-control-actions {
   display: grid;
   gap: var(--space-2);
 }
@@ -1301,7 +1321,24 @@ button:disabled {
   font-weight: var(--font-weight-bold);
 }
 
-.admin-manual-add-row button:disabled {
+.admin-ingest-control-actions button {
+  min-height: var(--touch-target);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-text);
+  color: var(--color-primary-text);
+  padding: 0 14px;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-bold);
+}
+
+.admin-ingest-control-actions button[value="stored_accounts"] {
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.admin-manual-add-row button:disabled,
+.admin-ingest-control-actions button:disabled {
   opacity: 0.62;
   cursor: wait;
 }
@@ -1845,6 +1882,10 @@ button:disabled {
 
   .admin-manual-add-row {
     grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .admin-ingest-control-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .admin-candidate-card {

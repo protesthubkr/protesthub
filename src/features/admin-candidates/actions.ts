@@ -22,6 +22,7 @@ import { hasStoredStructuredEvent } from "@/lib/structured-event-storage";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import type { IssueKey } from "@/lib/types";
 import { ingestManualXPost } from "@/lib/x-ingest/manual-post";
+import { runXIngest } from "@/lib/x-ingest/run";
 import { getAdminCandidatesHref } from "./navigation";
 
 type CandidateForOcr = {
@@ -58,6 +59,11 @@ export type ManualXPostFormState = {
   status: "idle" | "success" | "error";
   message: string;
   targetHref?: string;
+};
+
+export type XIngestControlState = {
+  status: "idle" | "success" | "error";
+  message: string;
 };
 
 const ISSUE_KEYS = ISSUE_OPTIONS.map((issue) => issue.key);
@@ -97,6 +103,52 @@ export async function addManualXPostCandidate(
           : "X 포스트를 후보로 추가하지 못했습니다.",
     };
   }
+}
+
+export async function runXIngestFromAdmin(
+  _previousState: XIngestControlState,
+  formData: FormData,
+): Promise<XIngestControlState> {
+  const secret = getRequiredString(formData, "secret");
+  const mode = getXIngestMode(formData);
+
+  assertAdmin(secret);
+
+  try {
+    const result = await runXIngest({
+      refreshFollowing: mode === "refresh_following",
+    });
+
+    revalidatePath("/admin/candidates");
+
+    return {
+      status: "success",
+      message: [
+        mode === "refresh_following"
+          ? "팔로잉 목록을 갱신한 뒤 수집했습니다."
+          : "저장된 계정 목록으로 수집했습니다.",
+        `계정 ${result.accountsSeen}개, 포스트 ${result.postsSeen}개, 신규 후보 ${result.candidatesCreated}건.`,
+      ].join(" "),
+    };
+  } catch (error) {
+    return {
+      status: "error",
+      message:
+        error instanceof Error
+          ? error.message
+          : "X 수집을 실행하지 못했습니다.",
+    };
+  }
+}
+
+function getXIngestMode(formData: FormData) {
+  const mode = getRequiredString(formData, "mode");
+
+  if (mode === "stored_accounts" || mode === "refresh_following") {
+    return mode;
+  }
+
+  throw new Error("Invalid X ingest mode.");
 }
 
 export async function updateCandidateStatus(formData: FormData) {

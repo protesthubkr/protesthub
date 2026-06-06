@@ -78,6 +78,9 @@ function parseRunOptions(searchParams: URLSearchParams): XIngestRunOptions {
     maxTimelinePagesPerAccount: parseMaxTimelinePages(
       searchParams.get("maxPages"),
     ),
+    refreshFollowing: parseOptionalBoolean(
+      searchParams.get("refreshFollowing") ?? searchParams.get("refreshAccounts"),
+    ),
     reviewPastEventNotices: parseOptionalBoolean(
       searchParams.get("reviewPast"),
     ),

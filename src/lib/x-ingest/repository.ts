@@ -12,6 +12,39 @@ export type IngestCounters = {
   candidatesCreated: number;
 };
 
+export type AccountIngestCursor = {
+  lastIngestedAt?: string;
+  lastIngestedPostCreatedAt?: string;
+  sinceId?: string;
+  source: "account_cursor" | "latest_saved_post" | "none";
+  startTime?: string;
+};
+
+export type PostCursor = {
+  createdAt: string;
+  postId: string;
+};
+
+type AccountCursorRow = {
+  last_ingested_at: string | null;
+  last_ingested_post_created_at: string | null;
+  last_ingested_post_id: string | null;
+};
+
+type StoredAccountRow = {
+  account_name: string;
+  is_protected: boolean;
+  is_verified: boolean | null;
+  raw_payload: unknown;
+  username: string;
+  x_user_id: string;
+};
+
+type LatestPostCursorRow = {
+  created_at: string | null;
+  x_post_id: string;
+};
+
 export function createEmptyIngestCounters(): IngestCounters {
   return {
     accountsSeen: 0,
@@ -41,25 +74,6 @@ export async function createIngestRun(
   }
 
   return data.id as string;
-}
-
-export async function getPreviousSuccessfulIngestStartedAt(
-  supabase: SupabaseClient,
-) {
-  const { data, error } = await supabase
-    .from("x_ingest_runs")
-    .select("started_at")
-    .eq("strategy", INGEST_STRATEGY)
-    .eq("status", "succeeded")
-    .order("started_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return formatXApiStartTime(data?.started_at);
 }
 
 export async function finishIngestRun(
@@ -114,13 +128,132 @@ export async function upsertAccounts(
   }
 }
 
-export async function getLatestSeenPostId(
+export async function getCollectibleStoredAccounts(
+  supabase: SupabaseClient,
+  maxAccounts: number,
+) {
+  const { data, error } = await supabase
+    .from("x_accounts")
+    .select(
+      "x_user_id,username,account_name,is_protected,is_verified,raw_payload",
+    )
+    .eq("is_following", true)
+    .eq("is_protected", false)
+    .order("last_ingested_at", { ascending: true, nullsFirst: true })
+    .order("account_name", { ascending: true })
+    .limit(maxAccounts);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return ((data as StoredAccountRow[] | null) ?? []).map((row) => ({
+    id: row.x_user_id,
+    username: row.username,
+    name: row.account_name,
+    protected: row.is_protected,
+    verified: row.is_verified ?? undefined,
+    raw: row.raw_payload,
+  })) satisfies XUser[];
+}
+
+export async function getAccountIngestCursor(
+  supabase: SupabaseClient,
+  accountId: string,
+) {
+  const { data: accountData, error: accountError } = await supabase
+    .from("x_accounts")
+    .select(
+      "last_ingested_at,last_ingested_post_id,last_ingested_post_created_at",
+    )
+    .eq("x_user_id", accountId)
+    .maybeSingle();
+
+  if (accountError) {
+    throw new Error(accountError.message);
+  }
+
+  const accountCursor = accountData as AccountCursorRow | null;
+  const accountPostCursor = createPostCursor({
+    created_at: accountCursor?.last_ingested_post_created_at ?? null,
+    x_post_id: accountCursor?.last_ingested_post_id ?? "",
+  });
+
+  if (accountPostCursor) {
+    return {
+      lastIngestedAt: formatXApiStartTime(accountCursor?.last_ingested_at),
+      lastIngestedPostCreatedAt: accountPostCursor.createdAt,
+      sinceId: accountPostCursor.postId,
+      source: "account_cursor",
+    } satisfies AccountIngestCursor;
+  }
+
+  const accountStartTime = formatXApiStartTime(
+    accountCursor?.last_ingested_at,
+  );
+
+  if (accountStartTime) {
+    return {
+      lastIngestedAt: accountStartTime,
+      source: "account_cursor",
+      startTime: accountStartTime,
+    } satisfies AccountIngestCursor;
+  }
+
+  const latestSavedPost = await getLatestSavedPostCursor(supabase, accountId);
+
+  if (latestSavedPost) {
+    return {
+      lastIngestedPostCreatedAt: latestSavedPost.createdAt,
+      sinceId: latestSavedPost.postId,
+      source: "latest_saved_post",
+    } satisfies AccountIngestCursor;
+  }
+
+  return { source: "none" } satisfies AccountIngestCursor;
+}
+
+export async function updateAccountIngestCursor({
+  accountId,
+  checkedAt,
+  latestPost,
+  runId,
+  supabase,
+}: {
+  accountId: string;
+  checkedAt: string;
+  latestPost?: PostCursor;
+  runId: string;
+  supabase: SupabaseClient;
+}) {
+  const values: Record<string, unknown> = {
+    last_ingested_at: checkedAt,
+    last_ingest_run_id: runId,
+    last_seen_at: checkedAt,
+  };
+
+  if (latestPost) {
+    values.last_ingested_post_id = latestPost.postId;
+    values.last_ingested_post_created_at = latestPost.createdAt;
+  }
+
+  const { error } = await supabase
+    .from("x_accounts")
+    .update(values)
+    .eq("x_user_id", accountId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+async function getLatestSavedPostCursor(
   supabase: SupabaseClient,
   accountId: string,
 ) {
   const { data, error } = await supabase
     .from("x_posts")
-    .select("x_post_id")
+    .select("x_post_id,created_at")
     .eq("author_x_user_id", accountId)
     .order("created_at", { ascending: false })
     .limit(1)
@@ -130,7 +263,7 @@ export async function getLatestSeenPostId(
     throw new Error(error.message);
   }
 
-  return data?.x_post_id as string | undefined;
+  return createPostCursor((data as LatestPostCursorRow | null) ?? null);
 }
 
 export async function upsertMedia(
@@ -203,13 +336,16 @@ export async function upsertPosts(
 export async function upsertPostMedia(
   supabase: SupabaseClient,
   posts: XPost[],
+  knownMediaKeys?: Set<string>,
 ) {
   const rows = posts.flatMap((post) =>
-    (post.attachments?.media_keys ?? []).map((mediaKey, index) => ({
-      x_post_id: post.id,
-      media_key: mediaKey,
-      media_order: index,
-    })),
+    (post.attachments?.media_keys ?? [])
+      .filter((mediaKey) => !knownMediaKeys || knownMediaKeys.has(mediaKey))
+      .map((mediaKey, index) => ({
+        x_post_id: post.id,
+        media_key: mediaKey,
+        media_order: index,
+      })),
   );
 
   if (rows.length === 0) {
@@ -268,4 +404,21 @@ function formatXApiStartTime(value: unknown) {
   }
 
   return new Date(timestamp).toISOString();
+}
+
+function createPostCursor(row: LatestPostCursorRow | null) {
+  if (!row?.x_post_id) {
+    return undefined;
+  }
+
+  const createdAt = formatXApiStartTime(row.created_at);
+
+  if (!createdAt) {
+    return undefined;
+  }
+
+  return {
+    createdAt,
+    postId: row.x_post_id,
+  } satisfies PostCursor;
 }

@@ -15,6 +15,7 @@ import { CandidateCard } from "./candidate-card";
 import { AdminCandidatesLoadMore } from "./load-more-trigger";
 import { ManualXPostForm } from "./manual-x-post-form";
 import { getAdminCandidatesHref } from "./navigation";
+import { XIngestControlPanel } from "./x-ingest-control-panel";
 
 type AdminCandidatesPageProps = {
   searchParams: Promise<{
@@ -55,7 +56,10 @@ export async function AdminCandidatesPage({
         </p>
       </header>
 
-      <ManualXPostForm secret={secret} />
+      <div className="admin-control-panels">
+        <XIngestControlPanel secret={secret} />
+        <ManualXPostForm secret={secret} />
+      </div>
 
       <CandidateStatusTabs
         counts={counts}

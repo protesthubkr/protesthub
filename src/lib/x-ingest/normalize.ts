@@ -77,7 +77,7 @@ export function getPostUrl(account: XUser, post: XPost) {
 }
 
 export function getMediaForPost(post: XPost, mediaByKey: Map<string, XMedia>) {
-  return (post.attachments?.media_keys ?? [])
+  return getMediaKeysForPostAndReferences(post)
     .map((mediaKey) => mediaByKey.get(mediaKey))
     .filter((media): media is XMedia => Boolean(media));
 }
@@ -170,6 +170,21 @@ function getSearchableText(post: XPost, media: XMedia[]) {
   return [getPostText(post), ...media.map((item) => item.alt_text)]
     .filter((value): value is string => Boolean(value))
     .join("\n");
+}
+
+function getMediaKeysForPostAndReferences(post: XPost) {
+  const mediaKeys = [...(post.attachments?.media_keys ?? [])];
+  const referencedPostIds = new Set(
+    post.referenced_tweets?.map((reference) => reference.id) ?? [],
+  );
+
+  for (const referencedPost of post.hydration_includes?.tweets ?? []) {
+    if (referencedPostIds.has(referencedPost.id)) {
+      mediaKeys.push(...(referencedPost.attachments?.media_keys ?? []));
+    }
+  }
+
+  return Array.from(new Set(mediaKeys));
 }
 
 function hasReviewKeyword(text: string) {

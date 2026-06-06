@@ -98,15 +98,21 @@ git diff --check
 - `/admin/candidates?secret=...`에서 후보 카드가 렌더링되는지 확인한다.
 - OCR/구조화 버튼은 실제 API 비용이 발생하므로 필요한 경우에만 누른다.
 - 공개 폼 기본값은 기존 공개 이벤트가 있는 후보와 없는 후보를 각각 확인한다.
-- `/api/ingest/x`는 Bearer secret과 함께 테스트한다. 백필은 `startDate=YYYY-MM-DD` 또는 `startTime=...` query로 실행한다.
+- `/api/ingest/x`는 Bearer secret과 함께 테스트한다. 백필은 `startDate=YYYY-MM-DD` 또는 `startTime=...` query로 실행하되, 실제 조회 시작점은 최대 30일 전으로 제한된다.
 - 구조화 추출은 GPT-5 계열 reasoning token이 출력 예산을 소모할 수 있으므로 `OPENAI_EXTRACTION_REASONING_EFFORT=minimal`, `OPENAI_EXTRACTION_MAX_OUTPUT_TOKENS=6000`을 기본값으로 둔다.
 
 ## 주의해야 할 불변 조건
 
 - 빈 필터 배열은 전체 선택으로 해석한다.
 - `structured_event`는 schema v2 형태만 저장한다.
-- X 후보는 텍스트 또는 미디어가 있는 post만 만든다.
+- 일반 `/api/ingest/x` 수집은 팔로잉 목록 API를 호출하지 않고 `x_accounts`의 캐시된 계정만 사용한다.
+- 팔로잉 목록을 새로 반영할 때는 `/admin/candidates`의 X 수집 실행 패널을 우선 사용하고, API 직접 실행이 필요할 때만 `/api/ingest/x?refreshFollowing=true`를 쓴다.
+- timeline 1차 요청에는 `expansions`, `media.fields`, `user.fields`를 붙이지 않는다.
+- 검수 후보로 판정된 post만 별도 상세 요청으로 media/referenced tweet을 hydrate한다.
+- X 후보는 텍스트 또는 hydrate된 미디어가 있는 post만 만든다.
 - 검수 대기는 본문에 `일시`, `날짜`, `일정` 중 하나라도 있거나 보조 신호가 3개 이상인 post에 해당한다.
+- 일반 X 수집은 `x_accounts`의 계정별 수집 커서를 사용한다.
+- 커서가 없는 신규 계정이나 오래된 커서는 최대 30일 전까지만 조회한다.
 - 일반 증분 수집에서 오늘 이전 집회 안내는 `ignored`로 보낸다.
-- `startDate`/`startTime` 백필 수집에서는 과거 일정 판정이 있어도 검수 키워드 post를 검수 대기로 유지한다.
+- `startDate`/`startTime` 백필 수집에서는 과거 일정 판정이 있어도 검수 키워드 post를 검수 대기로 유지하되, 30일보다 오래된 데이터는 조회하지 않는다.
 - `note_tweet.text`가 있으면 X 본문으로 우선 사용한다.

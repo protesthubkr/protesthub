@@ -1,4 +1,5 @@
 import type {
+  XIncludes,
   XFollowingResponse,
   XSinglePostResponse,
   XTimelineResponse,
@@ -32,7 +33,7 @@ const TWEET_FIELDS = [
   "text",
 ].join(",");
 
-const TWEET_EXPANSIONS = [
+const TWEET_DETAIL_EXPANSIONS = [
   "attachments.media_keys",
   "author_id",
   "referenced_tweets.id",
@@ -114,7 +115,6 @@ export async function fetchUserPosts({
 }) {
   const mergedResponse: XTimelineResponse = {
     data: [],
-    includes: { media: [], tweets: [], users: [] },
   };
   let paginationToken: string | undefined;
   let pagesFetched = 0;
@@ -131,9 +131,6 @@ export async function fetchUserPosts({
     });
 
     mergedResponse.data?.push(...(page.data ?? []));
-    mergedResponse.includes?.media?.push(...(page.includes?.media ?? []));
-    mergedResponse.includes?.tweets?.push(...(page.includes?.tweets ?? []));
-    mergedResponse.includes?.users?.push(...(page.includes?.users ?? []));
     mergedResponse.errors = [
       ...(mergedResponse.errors ?? []),
       ...(page.errors ?? []),
@@ -142,6 +139,46 @@ export async function fetchUserPosts({
     paginationToken = page.meta?.next_token;
     pagesFetched += 1;
   } while (paginationToken && pagesFetched < maxPages);
+
+  return mergedResponse;
+}
+
+export async function fetchPostsByIds({
+  bearerToken,
+  postIds,
+}: {
+  bearerToken: string;
+  postIds: string[];
+}) {
+  const mergedResponse: XTimelineResponse = {
+    data: [],
+    includes: { media: [], tweets: [], users: [] },
+  };
+
+  for (const chunk of chunkArray(Array.from(new Set(postIds)), 100)) {
+    if (chunk.length === 0) {
+      continue;
+    }
+
+    const url = new URL(`${X_API_BASE_URL}/tweets`);
+    url.searchParams.set("ids", chunk.join(","));
+    url.searchParams.set("tweet.fields", TWEET_FIELDS);
+    url.searchParams.set("expansions", TWEET_DETAIL_EXPANSIONS);
+    url.searchParams.set("media.fields", MEDIA_FIELDS);
+    url.searchParams.set("user.fields", USER_FIELDS);
+
+    const page = await fetchX<XTimelineResponse>(url, bearerToken);
+    mergedResponse.data?.push(
+      ...attachHydrationIncludes(page.data ?? [], page.includes),
+    );
+    mergedResponse.includes?.media?.push(...(page.includes?.media ?? []));
+    mergedResponse.includes?.tweets?.push(...(page.includes?.tweets ?? []));
+    mergedResponse.includes?.users?.push(...(page.includes?.users ?? []));
+    mergedResponse.errors = [
+      ...(mergedResponse.errors ?? []),
+      ...(page.errors ?? []),
+    ];
+  }
 
   return mergedResponse;
 }
@@ -155,7 +192,7 @@ export async function fetchPostById({
 }) {
   const url = new URL(`${X_API_BASE_URL}/tweets/${postId}`);
   url.searchParams.set("tweet.fields", TWEET_FIELDS);
-  url.searchParams.set("expansions", TWEET_EXPANSIONS);
+  url.searchParams.set("expansions", TWEET_DETAIL_EXPANSIONS);
   url.searchParams.set("media.fields", MEDIA_FIELDS);
   url.searchParams.set("user.fields", USER_FIELDS);
 
@@ -186,9 +223,6 @@ async function fetchUserPostsPage({
     includeReplies ? "retweets" : "retweets,replies",
   );
   url.searchParams.set("tweet.fields", TWEET_FIELDS);
-  url.searchParams.set("expansions", TWEET_EXPANSIONS);
-  url.searchParams.set("media.fields", MEDIA_FIELDS);
-  url.searchParams.set("user.fields", USER_FIELDS);
 
   if (sinceId) {
     url.searchParams.set("since_id", sinceId);
@@ -201,6 +235,30 @@ async function fetchUserPostsPage({
   }
 
   return fetchX<XTimelineResponse>(url, bearerToken);
+}
+
+function attachHydrationIncludes(
+  posts: NonNullable<XTimelineResponse["data"]>,
+  includes: XIncludes | undefined,
+) {
+  if (!includes) {
+    return posts;
+  }
+
+  return posts.map((post) => ({
+    ...post,
+    hydration_includes: includes,
+  }));
+}
+
+function chunkArray<T>(items: T[], size: number) {
+  const chunks: T[][] = [];
+
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+
+  return chunks;
 }
 
 async function fetchX<T>(url: URL, bearerToken: string): Promise<T> {

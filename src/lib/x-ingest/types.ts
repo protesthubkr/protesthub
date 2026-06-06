@@ -36,15 +36,18 @@ export type XPost = {
     id: string;
   }[];
   entities?: unknown;
+  hydration_includes?: XIncludes;
+};
+
+export type XIncludes = {
+  users?: XUser[];
+  media?: XMedia[];
+  tweets?: XPost[];
 };
 
 export type XTimelineResponse = {
   data?: XPost[];
-  includes?: {
-    users?: XUser[];
-    media?: XMedia[];
-    tweets?: XPost[];
-  };
+  includes?: XIncludes;
   meta?: {
     result_count?: number;
     newest_id?: string;
@@ -56,11 +59,7 @@ export type XTimelineResponse = {
 
 export type XSinglePostResponse = {
   data?: XPost;
-  includes?: {
-    users?: XUser[];
-    media?: XMedia[];
-    tweets?: XPost[];
-  };
+  includes?: XIncludes;
   errors?: unknown[];
 };
 
@@ -85,6 +84,7 @@ export type XIngestConfig = {
 
 export type XIngestRunOptions = {
   maxTimelinePagesPerAccount?: number;
+  refreshFollowing?: boolean;
   reviewPastEventNotices?: boolean;
   startTime?: string;
 };
