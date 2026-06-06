@@ -1,10 +1,11 @@
+import { getKoreanDateKey, getKoreanYear } from "./date-key";
+
 export type EventDateFilterResult = {
   detectedDates: string[];
   ignoredAsPast: boolean;
   today: string;
 };
 
-const KOREA_TIME_ZONE = "Asia/Seoul";
 const FULL_DATE_PATTERN =
   /(20\d{2})\s*(?:년|[./-])\s*(\d{1,2})\s*(?:월|[./-])\s*(\d{1,2})\s*(?:일)?/g;
 const KOREAN_MONTH_DAY_PATTERN =
@@ -72,30 +73,6 @@ function isValidDate(year: number, month: number, day: number) {
     date.getUTCMonth() === month - 1 &&
     date.getUTCDate() === day
   );
-}
-
-function getKoreanDateKey(date: Date) {
-  const parts = getKoreanDateParts(date);
-  return `${parts.year}-${parts.month}-${parts.day}`;
-}
-
-function getKoreanYear(date: Date) {
-  return Number(getKoreanDateParts(date).year);
-}
-
-function getKoreanDateParts(date: Date) {
-  const parts = new Intl.DateTimeFormat("en", {
-    timeZone: KOREA_TIME_ZONE,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(date);
-
-  return {
-    year: parts.find((part) => part.type === "year")?.value ?? "1970",
-    month: parts.find((part) => part.type === "month")?.value ?? "01",
-    day: parts.find((part) => part.type === "day")?.value ?? "01",
-  };
 }
 
 function pad(value: number) {

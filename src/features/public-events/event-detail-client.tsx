@@ -125,9 +125,7 @@ function EventFactList({
       </div>
       <div className="detail-fact-row">
         <dt>장소</dt>
-        <dd>
-          <strong>{event.venue}</strong>
-        </dd>
+        <dd>{event.venue}</dd>
       </div>
       {event.address ? (
         <div className="detail-fact-row">

@@ -13,7 +13,7 @@ import type {
   EventOccurrenceWindow,
   EventViewMode,
 } from "@/lib/types";
-import { addDays } from "@/lib/format";
+import { getPreviousPublicEventWindowStartDate } from "@/lib/public-event-date-policy";
 import { LOAD_MORE_ROOT_MARGIN, LOAD_PREVIOUS_ROOT_MARGIN } from "./config";
 import {
   groupOccurrencesByDateAndTime,
@@ -21,6 +21,7 @@ import {
 } from "./event-list-model";
 import { appendEventFiltersToSearchParams } from "./filters";
 import { fetchEventOccurrenceWindow } from "./client-event-cache";
+import { usePreviousWeekPull } from "./use-previous-week-pull";
 
 type UseEventListWindowProps = {
   activeViewMode: EventViewMode;
@@ -115,7 +116,10 @@ export function useEventListWindow({
       return;
     }
 
-    const previousFromDate = maxDate(addDays(windowStartDate, -7), todayDate);
+    const previousFromDate = getPreviousPublicEventWindowStartDate({
+      todayDate,
+      windowStartDate,
+    });
 
     if (previousFromDate >= windowStartDate) {
       return;
@@ -155,6 +159,13 @@ export function useEventListWindow({
     todayDate,
     windowStartDate,
   ]);
+
+  const pullLoadState = usePreviousWeekPull({
+    enabled:
+      activeViewMode === "list" && !isFilterOpen && hasPreviousEvents,
+    isLoading: isLoadingMore || isLoadingPrevious,
+    onLoadPrevious: loadPreviousEvents,
+  });
 
   useLayoutEffect(() => {
     const adjustment = pendingScrollAdjustmentRef.current;
@@ -273,9 +284,6 @@ export function useEventListWindow({
     loadMoreRef,
     loadPreviousRef,
     loadedEvents,
+    pullLoadState,
   };
-}
-
-function maxDate(date: string, minDate: string) {
-  return date > minDate ? date : minDate;
 }

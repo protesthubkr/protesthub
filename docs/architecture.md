@@ -26,6 +26,7 @@ src/features/public-events/
   home-page-data.ts              공개 첫 화면 서버 데이터 조립. URL query, 목록 window, 캘린더 초깃값을 묶는다.
   home-page-client.tsx           공개 목록 클라이언트 shell. 필터, 목록, 캘린더 hook을 조립한다.
   use-event-list-window.ts       목록 추가 로드, sentinel observer, occurrence 누적 상태.
+  use-previous-week-pull.ts      미래 날짜 리스트에서 오늘까지 되돌아가는 모바일 pull 보강.
   use-calendar-month-data.ts     캘린더 월 변경 fetch와 calendar URL 반영.
   use-filter-overlay-lock.ts     필터 패널 오픈 시 문서 scroll lock class 관리.
   use-home-filter-state.ts       필터 패널 draft/reducer.
@@ -54,6 +55,9 @@ src/features/admin-candidates/
 src/lib/
   events.ts                      공개 목록 window, organizer 옵션, 상세 단건 조회.
   event-query-model.ts           공개 조회 Supabase row 타입, occurrence/window 변환, 캘린더 요약 순수 함수.
+  public-event-date-policy.ts    공개 조회의 오늘 기준, 1주 window, 과거 날짜 clamp 정책.
+  date-key.ts                    한국 시간대 YYYY-MM-DD key 계산과 date/month key 비교.
+  event-date-filter.ts           X 후보 본문에서 일정 날짜를 추출하고 과거 일정 여부를 판정.
   types.ts                       공개 이벤트, 목록 occurrence, 필터 타입.
   issues.ts / regions.ts         의제/지역 옵션의 단일 출처.
   format.ts                      날짜/시간 순수 util.
@@ -77,12 +81,14 @@ src/lib/llm/
 
 1. `src/app/page.tsx`는 `getPublicEventsHomePageData()`를 호출해 route를 얇게 유지한다.
 2. `home-page-data.ts`가 `searchParams`를 `parseEventSearchState()`로 변환한다.
-3. 리스트 뷰는 기준 날짜부터 1주일 window만, 캘린더 뷰는 해당 월 요약만 조회한다.
-4. `getPublicEventOccurrenceWindow()`, `getPublicEventCalendarMonth()`, `getPublishedOrganizerOptions()`는 가능한 범위에서 `Promise.all`로 병렬 조회한다.
-5. `HomePageClient`는 서버에서 받은 초기값을 각 hook에 넘기고, 직접 fetch/observer 세부 구현을 갖지 않는다.
-6. 목록 하단 sentinel이 보이면 `use-event-list-window.ts`가 `/api/events?from=YYYY-MM-DD&...filters`를 호출해 다음 1주일을 붙인다.
-7. 캘린더 월 이동은 `use-calendar-month-data.ts`가 `/api/events/calendar?month=YYYY-MM&...filters`를 호출한다.
-8. 공개 목록 API들은 `Cache-Control: public, s-maxage=60, stale-while-revalidate=300`을 붙인다.
+3. `public-event-date-policy.ts`가 오늘 이전 날짜/월 query를 오늘 기준으로 보정한다.
+4. 리스트 뷰는 기준 날짜부터 1주일 window만, 캘린더 뷰는 해당 월 요약만 조회한다.
+5. `getPublicEventOccurrenceWindow()`, `getPublicEventCalendarMonth()`, `getPublishedOrganizerOptions()`는 가능한 범위에서 `Promise.all`로 병렬 조회한다.
+6. `HomePageClient`는 서버에서 받은 초기값을 각 hook에 넘기고, 직접 fetch/observer 세부 구현을 갖지 않는다.
+7. 목록 하단 sentinel이 보이면 `use-event-list-window.ts`가 `/api/events?from=YYYY-MM-DD&...filters`를 호출해 다음 1주일을 붙인다.
+8. 미래 날짜 리스트에서 상단 sentinel 또는 pull 보강이 동작하면 이전 1주일을 붙이되 오늘 이전으로는 내려가지 않는다.
+9. 캘린더 월 이동은 `use-calendar-month-data.ts`가 `/api/events/calendar?month=YYYY-MM&...filters`를 호출한다.
+10. 공개 목록 API들은 `Cache-Control: public, s-maxage=60, stale-while-revalidate=300`을 붙인다.
 
 ## Supabase 공개 조회 구조
 
@@ -118,6 +124,7 @@ public_event_occurrences
 ```
 
 - 캘린더는 `public_event_occurrences` view에서 날짜 범위와 필터를 적용한다.
+- 공개 캘린더 조회는 오늘 이전 occurrence를 payload에 포함하지 않는다.
 - 상세는 기존 `public_event_cards`에서 id 단건을 조회한다.
 - `get_public_event_occurrence_window()` RPC와 `public_event_occurrences` view는 필수다. RPC/view/index가 없으면 공개 조회가 실패하도록 두어 DB 배포 누락을 빨리 드러낸다.
 
@@ -151,6 +158,7 @@ public_event_occurrences
 
 - 의제나 지역 옵션을 바꿀 때는 `src/lib/issues.ts`, `src/lib/regions.ts`를 먼저 수정한다. LLM schema는 여기에서 enum을 파생한다.
 - 공개 목록 성능을 건드릴 때는 `src/lib/events.ts`, `src/app/page.tsx`, `src/app/api/events/route.ts`, `supabase/schema.sql`을 함께 확인한다.
+- 공개 조회 날짜 정책을 바꿀 때는 `src/lib/public-event-date-policy.ts`를 먼저 수정하고 route/hook에 직접 날짜 clamp를 추가하지 않는다.
 - 후보 기준을 바꿀 때는 `src/lib/x-ingest/normalize.ts`와 `src/lib/x-ingest/candidate-rows.ts`를 함께 본다.
 - 공개 폼 자동 채움은 `publish-defaults.ts`만 먼저 확인한다.
 - 구조화 결과 저장 형식을 바꿀 때는 `src/lib/structured-event-storage.ts`와 `docs/llm-maintenance.md`를 함께 갱신한다.

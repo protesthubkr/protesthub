@@ -1,3 +1,5 @@
+import { getKoreanDateKey } from "./date-key";
+
 export function formatShortDate(date: string) {
   const parsed = new Date(`${date}T00:00:00+09:00`);
   return `${parsed.getMonth() + 1}/${parsed.getDate()}`;
@@ -50,18 +52,7 @@ export function getNextMonthStartDate(month: string) {
 }
 
 export function getKoreanTodayDate() {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    day: "2-digit",
-    month: "2-digit",
-    timeZone: "Asia/Seoul",
-    year: "numeric",
-  }).formatToParts(new Date());
-
-  const year = parts.find((part) => part.type === "year")?.value;
-  const month = parts.find((part) => part.type === "month")?.value;
-  const day = parts.find((part) => part.type === "day")?.value;
-
-  return `${year}-${month}-${day}`;
+  return getKoreanDateKey();
 }
 
 export function formatKoreanDateTime(dateTime: string) {

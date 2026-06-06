@@ -4,16 +4,23 @@ import {
   parseEventFilters,
 } from "@/features/public-events/filters";
 import { getPublicEventOccurrenceWindow } from "@/lib/events";
-import { getKoreanTodayDate } from "@/lib/format";
+import {
+  getPublicEventDatePolicy,
+  resolvePublicEventListFromDate,
+} from "@/lib/public-event-date-policy";
 
 const PUBLIC_LIST_CACHE_CONTROL =
   "public, s-maxage=60, stale-while-revalidate=300";
 
 export async function GET(request: NextRequest) {
   const filters = parseEventFilters(request.nextUrl.searchParams);
-  const fromDate =
-    parseDateParam(request.nextUrl.searchParams.get("from")) ??
-    getKoreanTodayDate();
+  const { todayDate } = getPublicEventDatePolicy();
+  const requestedFromDate =
+    parseDateParam(request.nextUrl.searchParams.get("from"));
+  const fromDate = resolvePublicEventListFromDate({
+    requestedDate: requestedFromDate,
+    todayDate,
+  });
   const eventWindow = await getPublicEventOccurrenceWindow({
     filters,
     fromDate,

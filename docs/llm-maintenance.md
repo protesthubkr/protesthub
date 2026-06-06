@@ -15,8 +15,9 @@
 | 작업 | 먼저 볼 파일 |
 | --- | --- |
 | 공개 목록 초기 로드 | `src/app/page.tsx`, `src/features/public-events/home-page-data.ts`, `src/lib/events.ts` |
-| 공개 목록 추가 로드 | `src/features/public-events/use-event-list-window.ts`, `src/app/api/events/route.ts`, `src/lib/events.ts`, `src/lib/event-query-model.ts` |
-| 캘린더 월 조회 | `src/features/public-events/use-calendar-month-data.ts`, `src/app/api/events/calendar/route.ts`, `src/lib/events.ts`, `src/lib/event-query-model.ts` |
+| 공개 조회 날짜 정책 | `src/lib/public-event-date-policy.ts`, `src/lib/date-key.ts`, `src/features/public-events/home-page-data.ts` |
+| 공개 목록 추가 로드 | `src/features/public-events/use-event-list-window.ts`, `src/features/public-events/use-previous-week-pull.ts`, `src/app/api/events/route.ts`, `src/lib/events.ts`, `src/lib/event-query-model.ts` |
+| 캘린더 월 조회 | `src/features/public-events/use-calendar-month-data.ts`, `src/app/api/events/calendar/route.ts`, `src/lib/events.ts`, `src/lib/event-query-model.ts`, `src/lib/public-event-date-policy.ts` |
 | 리스트/캘린더 전환 | `src/features/public-events/home-page-client.tsx`, `view-mode-switch.tsx`, `filters.ts` |
 | 필터 동작 | `src/features/public-events/filters.ts`, `use-home-filter-state.ts` |
 | 날짜/시간 목록 표시 | `src/features/public-events/event-list-model.ts`, `event-timeline.tsx` |
@@ -38,7 +39,9 @@
 - 공개 목록은 `EventListOccurrence`만 사용한다. `PublicEvent`를 목록 카드나 목록 API에 넘기지 않는다.
 - 첫 화면은 오늘부터 1주일만 조회한다.
 - 바닥 도달 시 `/api/events`로 다음 1주일만 조회한다.
+- 미래 날짜에서 시작한 리스트는 상단 sentinel/pull로 이전 1주일을 붙일 수 있지만, 오늘 이전 데이터는 공개 조회하지 않는다.
 - 캘린더 뷰는 `/api/events/calendar`로 월별 요약만 조회한다. 상세 설명, 장소 상세, 출처 URL, 포스터는 싣지 않는다.
+- 캘린더 뷰 payload도 오늘 이전 occurrence를 제외한다. 과거 월 query는 오늘이 속한 월로 보정한다.
 - 날짜 범위, 의제, 지역, 주최 필터는 서버 조회에서 적용한다.
 - 클라이언트에서 전체 이벤트 배열을 받은 뒤 필터링하거나 날짜 window를 계산하는 구조로 되돌리지 않는다.
 - organizer 옵션은 별도 가벼운 조회로 가져온다.
@@ -57,6 +60,8 @@
 
 - 새 책임이 생기면 route 파일에 넣지 말고 가까운 feature/lib 파일로 이동한다.
 - UI 텍스트와 도메인 규칙을 같은 함수에 섞지 않는다.
+- 공개 조회 날짜 정책은 `public-event-date-policy.ts`에 둔다. route, API, hook에 `today` clamp 로직을 직접 복제하지 않는다.
+- 한국 시간대 date key 계산은 `date-key.ts`를 사용한다. 수집 과거 일정 판정과 공개 조회 날짜 보정이 서로 다른 시간대 계산을 갖지 않게 한다.
 - DB row 생성과 DB 저장을 분리한다. row 생성은 순수 함수, 저장은 repository/서버 액션에 둔다.
 - 공개 조회 row 변환, empty window 생성, 캘린더 요약은 `src/lib/event-query-model.ts`에 둔다.
 - OpenAI 호출, prompt, schema, 저장 포맷을 한 파일에 합치지 않는다.

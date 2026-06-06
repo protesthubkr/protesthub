@@ -1,8 +1,8 @@
+import { clampDateKeyToMin } from "./date-key";
 import { getMonthStartDate, getNextMonthStartDate } from "./format";
 import { getSupabaseClient } from "./supabase";
 import {
   compareCalendarOccurrences,
-  DAYS_PER_EVENT_WINDOW,
   getUniqueOrganizers,
   mapEventCardRow,
   mapOccurrenceWindowRpcRow,
@@ -12,6 +12,7 @@ import {
   type SupabaseEventCardRow,
   type SupabaseEventOccurrenceWindowRpcRow,
 } from "./event-query-model";
+import { PUBLIC_EVENT_WINDOW_DAYS } from "./public-event-date-policy";
 import type { EventCalendarMonth, EventFilters } from "./types";
 
 function getRequiredSupabaseClient() {
@@ -39,7 +40,7 @@ export async function getPublicEventOccurrenceWindow({
       p_issue_filters: filters.issues,
       p_organizer_filters: filters.organizers,
       p_region_filters: filters.regions,
-      p_window_days: DAYS_PER_EVENT_WINDOW,
+      p_window_days: PUBLIC_EVENT_WINDOW_DAYS,
     },
   );
 
@@ -56,21 +57,36 @@ export async function getPublicEventOccurrenceWindow({
 
 export async function getPublicEventCalendarMonth({
   filters,
+  minDate,
   month,
 }: {
   filters: EventFilters;
+  minDate?: string;
   month: string;
 }): Promise<EventCalendarMonth> {
-  const supabase = getRequiredSupabaseClient();
   const monthStartDate = getMonthStartDate(month);
   const nextMonthStartDate = getNextMonthStartDate(month);
+  const queryStartDate = minDate
+    ? clampDateKeyToMin(monthStartDate, minDate)
+    : monthStartDate;
+
+  if (queryStartDate >= nextMonthStartDate) {
+    return {
+      days: [],
+      month,
+      monthStartDate,
+      nextMonthStartDate,
+    };
+  }
+
+  const supabase = getRequiredSupabaseClient();
 
   let query = supabase
     .from("public_event_occurrences")
     .select(
       "id,title,primary_issue,occurrence_date,occurrence_start_time",
     )
-    .gte("occurrence_date", monthStartDate)
+    .gte("occurrence_date", queryStartDate)
     .lt("occurrence_date", nextMonthStartDate)
     .order("occurrence_date", { ascending: true })
     .order("occurrence_start_time", { ascending: true });

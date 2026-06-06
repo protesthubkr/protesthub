@@ -8,18 +8,35 @@ import {
   getPublicEventOccurrenceWindow,
 } from "@/lib/events";
 import { createEmptyOccurrenceWindow } from "@/lib/event-query-model";
-import { getKoreanTodayDate, getMonthKey } from "@/lib/format";
+import {
+  getPublicEventDatePolicy,
+  resolvePublicEventCalendarMonth,
+  resolvePublicEventListFromDate,
+} from "@/lib/public-event-date-policy";
 
 export type HomeSearchParams = Record<string, string | string[] | undefined>;
 
 export async function getPublicEventsHomePageData(params: HomeSearchParams) {
   const searchState = parseEventSearchState(toURLSearchParams(params));
-  const todayDate = getKoreanTodayDate();
-  const listStartDate =
+  const { todayDate } = getPublicEventDatePolicy();
+  const requestedListStartDate =
     searchState.viewMode === "list" ? searchState.date : null;
-  const calendarMonth =
-    searchState.month ?? getMonthKey(searchState.date ?? todayDate);
+  const listStartDate = requestedListStartDate
+    ? resolvePublicEventListFromDate({
+        requestedDate: requestedListStartDate,
+        todayDate,
+      })
+    : null;
+  const calendarMonth = resolvePublicEventCalendarMonth({
+    requestedDate: listStartDate,
+    requestedMonth: searchState.month,
+    todayDate,
+  });
   const listFromDate = listStartDate ?? todayDate;
+  const normalizedSearchState = {
+    ...searchState,
+    date: listStartDate,
+  };
 
   const listWindowPromise =
     searchState.viewMode === "list"
@@ -32,6 +49,7 @@ export async function getPublicEventsHomePageData(params: HomeSearchParams) {
     searchState.viewMode === "calendar"
       ? getPublicEventCalendarMonth({
           filters: searchState.filters,
+          minDate: todayDate,
           month: calendarMonth,
         })
       : Promise.resolve(null);
@@ -49,7 +67,7 @@ export async function getPublicEventsHomePageData(params: HomeSearchParams) {
     initialWindow,
     listStartDate,
     organizers,
-    searchSignature: getEventQuerySignature(searchState),
+    searchSignature: getEventQuerySignature(normalizedSearchState),
     todayDate,
     viewMode: searchState.viewMode,
   };

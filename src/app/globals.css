@@ -79,6 +79,7 @@
 html {
   min-height: 100%;
   background: var(--color-bg);
+  overscroll-behavior-y: contain;
 }
 
 body {
@@ -91,6 +92,7 @@ body {
   font-weight: var(--font-weight-regular);
   line-height: 1.5;
   letter-spacing: 0;
+  overscroll-behavior-y: contain;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
 }
@@ -909,7 +911,7 @@ button:disabled {
 
 .detail-topbar {
   display: grid;
-  gap: var(--space-3);
+  gap: 6px;
 }
 
 .detail-title-row {
@@ -952,17 +954,18 @@ button:disabled {
 
 .detail-title-tags {
   justify-content: flex-start;
+  gap: 6px;
   padding-left: calc(44px + var(--space-2));
 }
 
 .detail-article,
 .canceled-page {
-  margin-top: var(--space-3);
+  margin-top: 0;
 }
 
 .detail-fact-list {
   display: grid;
-  margin: var(--space-5) 0 var(--space-6);
+  margin: var(--space-2) 0 var(--space-5);
   border-top: 1px solid var(--color-border);
   border-bottom: 1px solid var(--color-border);
 }
@@ -971,7 +974,7 @@ button:disabled {
   display: grid;
   grid-template-columns: 64px minmax(0, 1fr);
   gap: var(--space-3);
-  padding: 13px 0;
+  padding: 11px 0;
 }
 
 .detail-fact-row + .detail-fact-row {
@@ -981,28 +984,24 @@ button:disabled {
 .detail-fact-list dt {
   color: var(--color-text-subtle);
   font-size: var(--font-size-caption);
-  font-weight: var(--font-weight-semibold);
-  line-height: 22px;
+  font-weight: var(--font-weight-medium);
+  line-height: 21px;
 }
 
 .detail-fact-list dd {
   display: grid;
   gap: 3px;
   margin: 0;
-  color: var(--color-text);
+  color: var(--color-text-muted);
   font-size: var(--font-size-body);
-  font-weight: var(--font-weight-semibold);
-  line-height: 22px;
+  font-weight: var(--font-weight-medium);
+  line-height: 21px;
 }
 
 .detail-fact-row.is-primary dd {
-  font-size: 16px;
-  font-weight: var(--font-weight-bold);
-  line-height: 23px;
-}
-
-.detail-fact-list dd strong {
-  font: inherit;
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-medium);
+  line-height: 21px;
 }
 
 .detail-fact-list dd span:not(.detail-date-line) {

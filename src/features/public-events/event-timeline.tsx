@@ -2,6 +2,8 @@ import type { RefObject } from "react";
 import { formatKoreanDate, formatTime } from "@/lib/format";
 import type { DateEventGroup } from "./event-list-model";
 import { EventCard } from "./event-card";
+import { LoadingState } from "./loading-state";
+import type { PullLoadState } from "./use-previous-week-pull";
 
 type EventTimelineProps = {
   dateGroups: DateEventGroup[];
@@ -12,6 +14,7 @@ type EventTimelineProps = {
   loadError: string | null;
   loadMoreRef: RefObject<HTMLDivElement | null>;
   loadPreviousRef: RefObject<HTMLDivElement | null>;
+  pullLoadState: PullLoadState | null;
 };
 
 export function EventTimeline({
@@ -23,17 +26,21 @@ export function EventTimeline({
   loadError,
   loadMoreRef,
   loadPreviousRef,
+  pullLoadState,
 }: EventTimelineProps) {
   const isLoadingEmptyWindow =
     dateGroups.length === 0 && (isLoadingMore || isLoadingPrevious);
+  const previousSentinelText = getPreviousSentinelText({
+    isLoadingPrevious,
+    pullLoadState,
+  });
 
   return (
     <>
-      {(hasPreviousEvents || isLoadingPrevious) && !isLoadingEmptyWindow ? (
+      {(hasPreviousEvents || isLoadingPrevious || pullLoadState) &&
+      !isLoadingEmptyWindow ? (
         <div className="load-previous-sentinel" ref={loadPreviousRef}>
-          {isLoadingPrevious
-            ? "이전 집회를 불러오는 중"
-            : "위로 스크롤하면 이전 일주일을 불러와요"}
+          {previousSentinelText}
         </div>
       ) : null}
       {dateGroups.length > 0 ? (
@@ -43,9 +50,7 @@ export function EventTimeline({
           ))}
         </div>
       ) : isLoadingEmptyWindow ? (
-        <div className="empty-week" aria-live="polite" aria-busy="true">
-          집회를 불러오는 중
-        </div>
+        <LoadingState />
       ) : loadError ? null : (
         <div className="empty-week">불러온 기간에는 집회가 없어요</div>
       )}
@@ -65,6 +70,28 @@ export function EventTimeline({
       ) : null}
     </>
   );
+}
+
+function getPreviousSentinelText({
+  isLoadingPrevious,
+  pullLoadState,
+}: {
+  isLoadingPrevious: boolean;
+  pullLoadState: PullLoadState | null;
+}) {
+  if (isLoadingPrevious) {
+    return "이전 집회를 불러오는 중";
+  }
+
+  if (pullLoadState?.isReady) {
+    return "놓으면 이전 일주일을 불러와요";
+  }
+
+  if (pullLoadState) {
+    return "이전 일주일을 불러오려면 더 당겨요";
+  }
+
+  return "위로 스크롤하면 이전 일주일을 불러와요";
 }
 
 function DateSection({ group }: { group: DateEventGroup }) {

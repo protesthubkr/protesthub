@@ -85,6 +85,7 @@ export function HomePageClient({
     loadMoreRef,
     loadPreviousRef,
     loadedEvents,
+    pullLoadState,
   } = useEventListWindow({
     activeViewMode,
     filters,
@@ -197,6 +198,7 @@ export function HomePageClient({
             loadError={loadError}
             loadMoreRef={loadMoreRef}
             loadPreviousRef={loadPreviousRef}
+            pullLoadState={pullLoadState}
           />
         )}
 

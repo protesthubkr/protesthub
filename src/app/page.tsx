@@ -4,6 +4,7 @@ import {
   getPublicEventsHomePageData,
   type HomeSearchParams,
 } from "@/features/public-events/home-page-data";
+import { LoadingState } from "@/features/public-events/loading-state";
 
 export const revalidate = 60;
 
@@ -18,7 +19,13 @@ export default async function Home({
     await getPublicEventsHomePageData(await searchParams);
 
   return (
-    <Suspense fallback={<main className="app-shell">불러오는 중</main>}>
+    <Suspense
+      fallback={
+        <main className="app-shell">
+          <LoadingState />
+        </main>
+      }
+    >
       <HomePageClient key={searchSignature} {...clientProps} />
     </Suspense>
   );

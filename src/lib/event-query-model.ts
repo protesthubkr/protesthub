@@ -1,4 +1,5 @@
 import { addDays, compareOccurrences } from "./format";
+import { PUBLIC_EVENT_WINDOW_DAYS } from "./public-event-date-policy";
 import type {
   EventCalendarDaySummary,
   EventListOccurrence,
@@ -6,8 +7,6 @@ import type {
   IssueKey,
   PublicEvent,
 } from "./types";
-
-export const DAYS_PER_EVENT_WINDOW = 7;
 
 const CALENDAR_DAY_SAMPLE_LIMIT = 4;
 
@@ -132,7 +131,7 @@ export function createEmptyOccurrenceWindow(
 }
 
 function getWindowEndDate(fromDate: string) {
-  return addDays(fromDate, DAYS_PER_EVENT_WINDOW);
+  return addDays(fromDate, PUBLIC_EVENT_WINDOW_DAYS);
 }
 
 export function getUniqueOrganizers(organizers: string[]) {
