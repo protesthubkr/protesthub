@@ -13,10 +13,13 @@
 
 | 작업 | 먼저 볼 파일 |
 | --- | --- |
-| 공개 목록 초기 로드 | `src/app/page.tsx`, `src/lib/events.ts` |
-| 공개 목록 추가 로드 | `src/app/api/events/route.ts`, `src/features/public-events/home-page-client.tsx` |
+| 공개 목록 초기 로드 | `src/app/page.tsx`, `src/features/public-events/home-page-data.ts`, `src/lib/events.ts` |
+| 공개 목록 추가 로드 | `src/features/public-events/use-event-list-window.ts`, `src/app/api/events/route.ts`, `src/lib/events.ts` |
+| 캘린더 월 조회 | `src/features/public-events/use-calendar-month-data.ts`, `src/app/api/events/calendar/route.ts`, `src/lib/events.ts` |
+| 리스트/캘린더 전환 | `src/features/public-events/home-page-client.tsx`, `view-mode-switch.tsx`, `filters.ts` |
 | 필터 동작 | `src/features/public-events/filters.ts`, `use-home-filter-state.ts` |
 | 날짜/시간 목록 표시 | `src/features/public-events/event-list-model.ts`, `event-timeline.tsx` |
+| 월 캘린더 표시 | `src/features/public-events/calendar-month-model.ts`, `calendar-month-view.tsx` |
 | 목록 카드 | `src/features/public-events/event-card.tsx` |
 | 상세 페이지 | `src/app/events/[id]/page.tsx`, `event-detail-client.tsx` |
 | 검수 카드 | `src/features/admin-candidates/candidate-card.tsx` |
@@ -33,6 +36,7 @@
 - 공개 목록은 `EventListOccurrence`만 사용한다. `PublicEvent`를 목록 카드나 목록 API에 넘기지 않는다.
 - 첫 화면은 오늘부터 1주일만 조회한다.
 - 바닥 도달 시 `/api/events`로 다음 1주일만 조회한다.
+- 캘린더 뷰는 `/api/events/calendar`로 월별 요약만 조회한다. 상세 설명, 장소 상세, 출처 URL, 포스터는 싣지 않는다.
 - 날짜 범위, 의제, 지역, 주최 필터는 서버 조회에서 적용한다.
 - 클라이언트에서 전체 이벤트 배열을 받은 뒤 필터링하거나 날짜 window를 계산하는 구조로 되돌리지 않는다.
 - organizer 옵션은 별도 가벼운 조회로 가져온다.

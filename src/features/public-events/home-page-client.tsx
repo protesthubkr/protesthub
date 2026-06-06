@@ -1,31 +1,30 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { compareOccurrences } from "@/lib/format";
+import { useCallback, useMemo, useState } from "react";
 import { REGION_OPTIONS } from "@/lib/regions";
 import type {
   EventCalendarMonth,
   EventFilters,
-  EventListOccurrence,
   EventOccurrenceWindow,
   EventViewMode,
   FilterStep,
 } from "@/lib/types";
 import { CalendarMonthView } from "./calendar-month-view";
-import { LOAD_MORE_ROOT_MARGIN } from "./config";
 import { ConditionChips } from "./condition-chips";
 import { EmptyState } from "./empty-state";
-import { groupOccurrencesByDateAndTime } from "./event-list-model";
 import { EventTimeline } from "./event-timeline";
 import { FilterSheet } from "./filter-sheet";
 import {
-  appendEventFiltersToSearchParams,
   buildEventHref,
   buildConditionChips,
   buildEventFilterHref,
 } from "./filters";
+import { useCalendarMonthData } from "./use-calendar-month-data";
+import { useEventListWindow } from "./use-event-list-window";
+import { useFilterOverlayLock } from "./use-filter-overlay-lock";
 import { useHomeFilterState } from "./use-home-filter-state";
+import { ViewModeSwitch } from "./view-mode-switch";
 
 type HomePageClientProps = {
   calendarMonth: string;
@@ -51,146 +50,39 @@ export function HomePageClient({
   const router = useRouter();
   const pathname = usePathname();
   const [state, dispatch] = useHomeFilterState(filters);
-  const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const [activeViewMode, setActiveViewMode] = useState(viewMode);
-  const [activeCalendarMonth, setActiveCalendarMonth] =
-    useState(calendarMonth);
-  const [calendarData, setCalendarData] = useState(initialCalendar);
-  const [isCalendarLoading, setIsCalendarLoading] = useState(false);
-  const [loadedEvents, setLoadedEvents] = useState(initialWindow.events);
-  const [nextFromDate, setNextFromDate] = useState(
-    initialWindow.nextFromDate,
-  );
-  const [hasMoreEvents, setHasMoreEvents] = useState(
-    initialWindow.hasMoreEvents,
-  );
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-
-  const dateGroups = useMemo(
-    () => groupOccurrencesByDateAndTime(loadedEvents),
-    [loadedEvents],
-  );
+  const showCalendar = useCallback(() => setActiveViewMode("calendar"), []);
+  const {
+    activeCalendarMonth,
+    calendarData,
+    isCalendarLoading,
+    loadCalendarMonth,
+  } = useCalendarMonthData({
+    filters,
+    initialCalendar,
+    initialMonth: calendarMonth,
+    organizers,
+    pathname,
+    onShowCalendar: showCalendar,
+  });
+  const {
+    dateGroups,
+    hasMoreEvents,
+    isLoadingMore,
+    loadMoreRef,
+    loadedEvents,
+  } = useEventListWindow({
+    activeViewMode,
+    filters,
+    initialWindow,
+    isFilterOpen: state.isFilterOpen,
+  });
   const conditionChips = useMemo(
     () => buildConditionChips(filters),
     [filters],
   );
 
-  useEffect(() => {
-    document.documentElement.classList.toggle(
-      "filter-open",
-      state.isFilterOpen,
-    );
-    document.body.classList.toggle("filter-open", state.isFilterOpen);
-
-    return () => {
-      document.documentElement.classList.remove("filter-open");
-      document.body.classList.remove("filter-open");
-    };
-  }, [state.isFilterOpen]);
-
-  const loadMoreEvents = useCallback(async () => {
-    if (activeViewMode !== "list" || isLoadingMore || !hasMoreEvents) {
-      return;
-    }
-
-    setIsLoadingMore(true);
-
-    try {
-      const params = new URLSearchParams({ from: nextFromDate });
-      appendEventFiltersToSearchParams(params, filters);
-
-      const response = await fetch(`/api/events?${params.toString()}`);
-
-      if (!response.ok) {
-        throw new Error("Failed to load event occurrences.");
-      }
-
-      const nextWindow = (await response.json()) as EventOccurrenceWindow;
-
-      setLoadedEvents((currentEvents) =>
-        mergeOccurrences(currentEvents, nextWindow.events),
-      );
-      setNextFromDate(nextWindow.nextFromDate);
-      setHasMoreEvents(nextWindow.hasMoreEvents);
-    } catch {
-      setHasMoreEvents(false);
-    } finally {
-      setIsLoadingMore(false);
-    }
-  }, [activeViewMode, filters, hasMoreEvents, isLoadingMore, nextFromDate]);
-
-  const loadCalendarMonth = useCallback(
-    async (nextMonth: string) => {
-      setActiveViewMode("calendar");
-      setActiveCalendarMonth(nextMonth);
-      setIsCalendarLoading(true);
-
-      try {
-        const params = new URLSearchParams({ month: nextMonth });
-        appendEventFiltersToSearchParams(params, filters);
-
-        const response = await fetch(
-          `/api/events/calendar?${params.toString()}`,
-        );
-
-        if (!response.ok) {
-          throw new Error("Failed to load calendar summaries.");
-        }
-
-        const nextCalendar = (await response.json()) as EventCalendarMonth;
-        setCalendarData(nextCalendar);
-        window.history.pushState(
-          null,
-          "",
-          buildEventHref({
-            filters,
-            month: nextMonth,
-            organizers,
-            pathname,
-            viewMode: "calendar",
-          }),
-        );
-      } catch {
-        setCalendarData(null);
-      } finally {
-        setIsCalendarLoading(false);
-      }
-    },
-    [filters, organizers, pathname],
-  );
-
-  useEffect(() => {
-    const sentinel = loadMoreRef.current;
-
-    if (
-      !sentinel ||
-      activeViewMode !== "list" ||
-      !hasMoreEvents ||
-      isLoadingMore ||
-      state.isFilterOpen
-    ) {
-      return;
-    }
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          void loadMoreEvents();
-        }
-      },
-      { rootMargin: LOAD_MORE_ROOT_MARGIN },
-    );
-
-    observer.observe(sentinel);
-
-    return () => observer.disconnect();
-  }, [
-    activeViewMode,
-    hasMoreEvents,
-    isLoadingMore,
-    loadMoreEvents,
-    state.isFilterOpen,
-  ]);
+  useFilterOverlayLock(state.isFilterOpen);
 
   function openFilter(step: FilterStep = "issue") {
     dispatch({ type: "open-filter", filters, step });
@@ -252,7 +144,7 @@ export function HomePageClient({
       >
         <div className="results-top">
           <ConditionChips chips={conditionChips} onOpenFilter={openFilter} />
-          <ViewModeToggle
+          <ViewModeSwitch
             viewMode={activeViewMode}
             onCalendarClick={switchToCalendar}
             onListClick={switchToList}
@@ -264,7 +156,6 @@ export function HomePageClient({
             calendar={calendarData}
             isLoading={isCalendarLoading}
             month={activeCalendarMonth}
-            selectedDate={listStartDate}
             todayDate={todayDate}
             onMonthChange={loadCalendarMonth}
             onSelectDate={selectCalendarDate}
@@ -316,57 +207,4 @@ export function HomePageClient({
       ) : null}
     </main>
   );
-}
-
-function ViewModeToggle({
-  viewMode,
-  onCalendarClick,
-  onListClick,
-}: {
-  viewMode: EventViewMode;
-  onCalendarClick: () => void;
-  onListClick: () => void;
-}) {
-  const nextViewMode = viewMode === "list" ? "calendar" : "list";
-  const label =
-    nextViewMode === "calendar"
-      ? "캘린더 보기로 전환"
-      : "리스트 보기로 전환";
-  const onClick = nextViewMode === "calendar" ? onCalendarClick : onListClick;
-
-  return (
-    <div className="view-mode-toggle">
-      <button
-        aria-label={label}
-        className={`view-mode-button is-${nextViewMode}`}
-        type="button"
-        onClick={onClick}
-      >
-        <span aria-hidden="true" className="view-mode-icon" />
-      </button>
-    </div>
-  );
-}
-
-function mergeOccurrences(
-  currentEvents: EventListOccurrence[],
-  nextEvents: EventListOccurrence[],
-) {
-  const eventsByKey = new Map(
-    currentEvents.map((event) => [getOccurrenceKey(event), event]),
-  );
-
-  nextEvents.forEach((event) => {
-    eventsByKey.set(getOccurrenceKey(event), event);
-  });
-
-  return Array.from(eventsByKey.values()).sort(compareOccurrences);
-}
-
-function getOccurrenceKey(event: EventListOccurrence) {
-  return [
-    event.id,
-    event.occurrenceDate,
-    event.occurrenceStartTime ?? "undecided",
-  ].join("::");
 }

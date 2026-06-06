@@ -1,24 +1,21 @@
 import type { CSSProperties } from "react";
-import {
-  addDays,
-  addMonths,
-  formatKoreanMonth,
-  getMonthKey,
-} from "@/lib/format";
+import { addMonths, formatKoreanMonth, getMonthKey } from "@/lib/format";
 import { ISSUE_BY_KEY } from "@/lib/issues";
 import type {
   EventCalendarDaySample,
   EventCalendarDaySummary,
   EventCalendarMonth,
 } from "@/lib/types";
-
-const WEEKDAY_LABELS = ["월", "화", "수", "목", "금", "토", "일"];
+import {
+  buildCalendarDateCellLabel,
+  getCalendarGridDates,
+  WEEKDAY_LABELS,
+} from "./calendar-month-model";
 
 type CalendarMonthViewProps = {
   calendar: EventCalendarMonth | null;
   isLoading: boolean;
   month: string;
-  selectedDate: string | null;
   todayDate: string;
   onMonthChange: (month: string) => void;
   onSelectDate: (date: string) => void;
@@ -28,7 +25,6 @@ export function CalendarMonthView({
   calendar,
   isLoading,
   month,
-  selectedDate,
   todayDate,
   onMonthChange,
   onSelectDate,
@@ -37,6 +33,8 @@ export function CalendarMonthView({
     (calendar?.days ?? []).map((summary) => [summary.date, summary]),
   );
   const gridDates = getCalendarGridDates(month);
+  const todayMonth = getMonthKey(todayDate);
+  const canGoPreviousMonth = month > todayMonth;
 
   return (
     <section
@@ -48,6 +46,7 @@ export function CalendarMonthView({
         <button
           aria-label="이전 달"
           className="calendar-month-nav"
+          disabled={!canGoPreviousMonth}
           type="button"
           onClick={() => onMonthChange(addMonths(month, -1))}
         >
@@ -74,22 +73,27 @@ export function CalendarMonthView({
         {gridDates.map((date) => {
           const summary = summariesByDate.get(date);
           const isInCurrentMonth = getMonthKey(date) === month;
-          const isSelected = selectedDate === date;
+          const isPastDate = date < todayDate;
           const isToday = todayDate === date;
 
           return (
             <button
               aria-current={isToday ? "date" : undefined}
-              aria-label={buildDateCellLabel(date, summary)}
+              aria-label={buildCalendarDateCellLabel({
+                date,
+                isPastDate,
+                summary,
+              })}
               className={[
                 "calendar-day-cell",
                 isInCurrentMonth ? "" : "is-outside-month",
+                isPastDate ? "is-past-date" : "",
                 isToday ? "is-today" : "",
-                isSelected ? "is-selected" : "",
               ]
                 .filter(Boolean)
                 .join(" ")}
               data-date={date}
+              disabled={isPastDate}
               key={date}
               type="button"
               onClick={() => onSelectDate(date)}
@@ -126,10 +130,13 @@ function DaySummary({ summary }: { summary: EventCalendarDaySummary }) {
 
 function SampleLine({ sample }: { sample: EventCalendarDaySample }) {
   const issue = ISSUE_BY_KEY[sample.primaryIssue];
+  const shouldCenterTitle = sample.title.length <= 10;
 
   return (
     <span
-      className="calendar-event-sample"
+      className={`calendar-event-sample ${
+        shouldCenterTitle ? "is-short-title" : ""
+      }`}
       style={
         {
           "--sample-color": issue.primary,
@@ -139,26 +146,4 @@ function SampleLine({ sample }: { sample: EventCalendarDaySample }) {
       <span className="calendar-event-title">{sample.title}</span>
     </span>
   );
-}
-
-function getCalendarGridDates(month: string) {
-  const monthStartDate = `${month}-01`;
-  const startOffset =
-    (new Date(`${monthStartDate}T00:00:00+09:00`).getDay() + 6) % 7;
-  const firstGridDate = addDays(monthStartDate, -startOffset);
-
-  return Array.from({ length: 42 }, (_, index) =>
-    addDays(firstGridDate, index),
-  );
-}
-
-function buildDateCellLabel(
-  date: string,
-  summary: EventCalendarDaySummary | undefined,
-) {
-  if (!summary) {
-    return `${date} 집회 없음`;
-  }
-
-  return `${date} 집회 ${summary.count}건`;
 }

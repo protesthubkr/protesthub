@@ -15,6 +15,7 @@ import type {
 } from "./types";
 
 const DAYS_PER_EVENT_WINDOW = 7;
+const CALENDAR_DAY_SAMPLE_LIMIT = 4;
 
 type SupabaseEventCardRow = {
   id: string;
@@ -277,7 +278,7 @@ function summarizeCalendarDays(rows: SupabaseCalendarOccurrenceRow[]) {
 
     currentSummary.count += 1;
 
-    if (currentSummary.samples.length < 2) {
+    if (currentSummary.samples.length < CALENDAR_DAY_SAMPLE_LIMIT) {
       currentSummary.samples.push({
         id: row.id,
         primaryIssue: row.primary_issue,

@@ -44,3 +44,26 @@ export function groupOccurrencesByDateAndTime(
     timeGroups,
   }));
 }
+
+export function mergeOccurrences(
+  currentEvents: EventListOccurrence[],
+  nextEvents: EventListOccurrence[],
+) {
+  const eventsByKey = new Map(
+    currentEvents.map((event) => [getOccurrenceKey(event), event]),
+  );
+
+  nextEvents.forEach((event) => {
+    eventsByKey.set(getOccurrenceKey(event), event);
+  });
+
+  return Array.from(eventsByKey.values()).sort(compareOccurrences);
+}
+
+function getOccurrenceKey(event: EventListOccurrence) {
+  return [
+    event.id,
+    event.occurrenceDate,
+    event.occurrenceStartTime ?? "undecided",
+  ].join("::");
+}

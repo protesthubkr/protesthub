@@ -238,7 +238,7 @@ button {
 .calendar-month-view {
   display: grid;
   gap: var(--space-3);
-  padding: var(--space-4) var(--page-gutter) var(--space-8);
+  padding: var(--space-4) 0 var(--space-8);
 }
 
 .calendar-month-view.is-loading {
@@ -251,6 +251,7 @@ button {
   grid-template-columns: 64px minmax(0, 1fr) 64px;
   align-items: center;
   gap: var(--space-2);
+  padding: 0 var(--page-gutter);
 }
 
 .calendar-month-header h2 {
@@ -272,6 +273,12 @@ button {
   font-weight: var(--font-weight-semibold);
 }
 
+.calendar-month-nav:disabled {
+  border-color: var(--color-border);
+  background: var(--color-surface-muted);
+  color: var(--color-text-subtle);
+}
+
 .calendar-weekday-row {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
@@ -285,8 +292,8 @@ button {
 .calendar-grid {
   display: grid;
   overflow: hidden;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
   background: var(--color-border);
   grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 1px;
@@ -295,15 +302,20 @@ button {
 .calendar-day-cell {
   display: grid;
   min-width: 0;
-  min-height: 90px;
+  min-height: 104px;
   align-content: start;
-  gap: 4px;
+  gap: 5px;
   overflow: hidden;
   border: 0;
   background: var(--color-surface);
   color: var(--color-text);
-  padding: 6px 5px;
+  padding: 6px 3px;
   text-align: left;
+}
+
+.calendar-day-cell:disabled {
+  cursor: default;
+  opacity: 1;
 }
 
 .calendar-day-cell.is-outside-month {
@@ -311,13 +323,25 @@ button {
   color: var(--color-text-subtle);
 }
 
-.calendar-day-cell.is-today {
-  box-shadow: inset 0 0 0 1px var(--color-primary);
+.calendar-day-cell.is-past-date {
+  background: #f1f5f9;
+  color: #94a3b8;
 }
 
-.calendar-day-cell.is-selected {
-  background: var(--color-primary);
-  color: var(--color-primary-text);
+.calendar-day-cell:active {
+  background: var(--color-surface);
+}
+
+.calendar-day-cell.is-outside-month:active {
+  background: #f8fafc;
+}
+
+.calendar-day-cell.is-past-date:active {
+  background: #f1f5f9;
+}
+
+.calendar-day-cell.is-today {
+  box-shadow: inset 0 0 0 1px var(--color-border-strong);
 }
 
 .calendar-day-number {
@@ -329,25 +353,32 @@ button {
 .calendar-day-events {
   display: grid;
   min-width: 0;
-  gap: 2px;
+  gap: 3px;
 }
 
 .calendar-event-sample {
   display: block;
+  width: 100%;
+  min-height: 15px;
   min-width: 0;
   overflow: hidden;
-  border-left: 2px solid var(--sample-color);
-  padding-left: 3px;
-  color: var(--color-text);
-  font-size: 10.5px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--sample-color) 16%, white);
+  color: var(--sample-color);
+  padding: 1px 3px;
+  font-size: 9.5px;
   font-weight: var(--font-weight-semibold);
-  line-height: 14px;
+  line-height: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.calendar-event-sample.is-short-title {
+  text-align: center;
+}
+
 .calendar-event-title {
-  display: inline;
+  display: block;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -357,17 +388,21 @@ button {
 .calendar-event-overflow {
   overflow: hidden;
   color: var(--color-text-muted);
-  font-size: 10.5px;
+  font-size: 9.5px;
   font-weight: var(--font-weight-bold);
-  line-height: 14px;
+  line-height: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-align: center;
 }
 
-.calendar-day-cell.is-selected .calendar-event-sample,
-.calendar-day-cell.is-selected .calendar-event-overflow {
-  border-left-color: rgb(255 255 255 / 82%);
-  color: var(--color-primary-text);
+.calendar-day-cell.is-past-date .calendar-event-sample {
+  background: #e5e7eb;
+  color: #94a3b8;
+}
+
+.calendar-day-cell.is-past-date .calendar-event-overflow {
+  color: #94a3b8;
 }
 
 .date-section {
