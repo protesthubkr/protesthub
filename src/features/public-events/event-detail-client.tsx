@@ -92,7 +92,6 @@ function DetailTopbar({ event }: { event: PublicEvent }) {
           <span aria-hidden="true">‹</span>
         </Link>
         <h1>{event.title}</h1>
-        <span className="detail-title-spacer" aria-hidden="true" />
       </div>
       <div className="issue-badge-list detail-title-tags">
         {event.issueTags.map((issue) => (

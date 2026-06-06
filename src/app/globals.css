@@ -914,7 +914,7 @@ button:disabled {
 
 .detail-title-row {
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  grid-template-columns: 44px minmax(0, 1fr);
   min-height: 44px;
   align-items: center;
   gap: var(--space-2);
@@ -923,11 +923,13 @@ button:disabled {
 .detail-title-row h1 {
   margin: 0;
   color: var(--color-text);
-  font-size: var(--font-size-body);
+  font-size: var(--font-size-detail-title);
   font-weight: var(--font-weight-heavy);
-  line-height: 24px;
-  overflow-wrap: anywhere;
-  text-align: center;
+  line-height: 31px;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .back-link {
@@ -948,13 +950,9 @@ button:disabled {
   line-height: 1;
 }
 
-.detail-title-spacer {
-  width: 44px;
-  height: 44px;
-}
-
 .detail-title-tags {
-  justify-content: center;
+  justify-content: flex-start;
+  padding-left: calc(44px + var(--space-2));
 }
 
 .detail-article,
