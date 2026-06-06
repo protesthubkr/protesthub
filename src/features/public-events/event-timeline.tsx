@@ -1,4 +1,4 @@
-import type { RefObject } from "react";
+import type { CSSProperties, RefObject } from "react";
 import { formatKoreanDate, formatTime } from "@/lib/format";
 import type { DateEventGroup } from "./event-list-model";
 import { EventCard } from "./event-card";
@@ -26,17 +26,14 @@ export function EventTimeline({
 }: EventTimelineProps) {
   const isLoadingEmptyWindow =
     dateGroups.length === 0 && (isLoadingMore || isLoadingPrevious);
-  const previousLoadText = getPreviousLoadText({
-    isLoadingPrevious,
-    pullLoadState,
-  });
 
   return (
     <>
-      {previousLoadText && !isLoadingEmptyWindow ? (
-        <div className="pull-load-indicator" role="status">
-          {previousLoadText}
-        </div>
+      {(isLoadingPrevious || pullLoadState) && !isLoadingEmptyWindow ? (
+        <PullLoadIndicator
+          isLoadingPrevious={isLoadingPrevious}
+          pullLoadState={pullLoadState}
+        />
       ) : null}
       {dateGroups.length > 0 ? (
         <div className="date-section-list">
@@ -67,26 +64,56 @@ export function EventTimeline({
   );
 }
 
-function getPreviousLoadText({
+function PullLoadIndicator({
   isLoadingPrevious,
   pullLoadState,
 }: {
   isLoadingPrevious: boolean;
   pullLoadState: PullLoadState | null;
-}): string | null {
-  if (isLoadingPrevious) {
-    return "이전 일주일을 불러오는 중";
+}) {
+  const mode = isLoadingPrevious
+    ? "loading"
+    : pullLoadState?.isReady
+      ? "ready"
+      : "pulling";
+  const progress = isLoadingPrevious ? 1 : (pullLoadState?.progress ?? 0);
+  const label = getPullLoadLabel(mode);
+  const ariaLabel =
+    mode === "ready"
+      ? "손을 놓으면 이전 일주일을 불러옵니다"
+      : mode === "loading"
+        ? "이전 일주일을 불러오는 중입니다"
+        : "아래로 더 당기면 이전 일주일을 불러옵니다";
+
+  return (
+    <div
+      aria-label={ariaLabel}
+      className={`pull-load-indicator is-${mode}`}
+      role="status"
+      style={
+        {
+          "--pull-progress": progress,
+        } as CSSProperties
+      }
+    >
+      <span aria-hidden="true" className="pull-load-mark">
+        <span className="pull-load-arrow" />
+      </span>
+      <span className="pull-load-text">{label}</span>
+    </div>
+  );
+}
+
+function getPullLoadLabel(mode: "loading" | "pulling" | "ready") {
+  if (mode === "loading") {
+    return "불러오는 중";
   }
 
-  if (pullLoadState?.isReady) {
-    return "놓으면 이전 일주일을 불러와요";
+  if (mode === "ready") {
+    return "놓으면 불러오기";
   }
 
-  if (pullLoadState) {
-    return "조금 더 당기면 이전 일주일을 불러와요";
-  }
-
-  return null;
+  return "이전 일정";
 }
 
 function DateSection({ group }: { group: DateEventGroup }) {

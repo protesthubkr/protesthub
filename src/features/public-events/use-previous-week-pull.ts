@@ -4,12 +4,18 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 export type PullLoadState = {
   isReady: boolean;
+  progress: number;
 };
 
 type UsePreviousWeekPullProps = {
   enabled: boolean;
   isLoading: boolean;
   onLoadPrevious: () => void | Promise<void>;
+};
+
+type PullStartPoint = {
+  x: number;
+  y: number;
 };
 
 const PULL_LOAD_THRESHOLD_PX = 72;
@@ -21,7 +27,7 @@ export function usePreviousWeekPull({
   onLoadPrevious,
 }: UsePreviousWeekPullProps) {
   const pullLoadStateRef = useRef<PullLoadState | null>(null);
-  const pullStartYRef = useRef<number | null>(null);
+  const pullStartRef = useRef<PullStartPoint | null>(null);
   const [pullLoadState, setPullLoadState] = useState<PullLoadState | null>(
     null,
   );
@@ -38,7 +44,7 @@ export function usePreviousWeekPull({
   }, []);
 
   const resetPullState = useCallback(() => {
-    pullStartYRef.current = null;
+    pullStartRef.current = null;
     updatePullLoadState(null);
   }, [updatePullLoadState]);
 
@@ -59,35 +65,45 @@ export function usePreviousWeekPull({
         return;
       }
 
-      const y = event.touches[0]?.clientY;
+      const touch = event.touches[0];
+      const x = touch?.clientX;
+      const y = touch?.clientY;
 
-      if (typeof y !== "number") {
+      if (typeof x !== "number" || typeof y !== "number") {
         resetPullState();
         return;
       }
 
-      pullStartYRef.current = isAtPageTop() ? y : null;
+      pullStartRef.current = isAtPageTop() ? { x, y } : null;
       updatePullLoadState(null);
     }
 
     function handleTouchMove(event: TouchEvent) {
-      const pullStartY = pullStartYRef.current;
+      const pullStart = pullStartRef.current;
 
-      if (pullStartY === null || event.touches.length !== 1) {
+      if (pullStart === null || event.touches.length !== 1) {
         return;
       }
 
-      const y = event.touches[0]?.clientY;
+      const touch = event.touches[0];
+      const x = touch?.clientX;
+      const y = touch?.clientY;
 
-      if (typeof y !== "number") {
+      if (typeof x !== "number" || typeof y !== "number") {
         resetPullState();
         return;
       }
 
-      const rawDistance = y - pullStartY;
+      const horizontalDistance = Math.abs(x - pullStart.x);
+      const rawDistance = y - pullStart.y;
 
       if (rawDistance <= 0) {
         updatePullLoadState(null);
+        return;
+      }
+
+      if (horizontalDistance > rawDistance) {
+        resetPullState();
         return;
       }
 
@@ -97,6 +113,7 @@ export function usePreviousWeekPull({
 
       updatePullLoadState({
         isReady: rawDistance >= PULL_LOAD_THRESHOLD_PX,
+        progress: getPullProgress(rawDistance),
       });
     }
 
@@ -144,5 +161,12 @@ function isSamePullLoadState(
     return currentState === nextState;
   }
 
-  return currentState.isReady === nextState.isReady;
+  return (
+    currentState.isReady === nextState.isReady &&
+    currentState.progress === nextState.progress
+  );
+}
+
+function getPullProgress(distance: number) {
+  return Math.min(1, Math.round((distance / PULL_LOAD_THRESHOLD_PX) * 100) / 100);
 }
