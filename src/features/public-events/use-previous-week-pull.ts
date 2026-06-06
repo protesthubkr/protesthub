@@ -91,6 +91,10 @@ export function usePreviousWeekPull({
         return;
       }
 
+      if (event.cancelable) {
+        event.preventDefault();
+      }
+
       updatePullLoadState({
         isReady: rawDistance >= PULL_LOAD_THRESHOLD_PX,
       });
@@ -107,7 +111,7 @@ export function usePreviousWeekPull({
     }
 
     window.addEventListener("touchstart", handleTouchStart, { passive: true });
-    window.addEventListener("touchmove", handleTouchMove, { passive: true });
+    window.addEventListener("touchmove", handleTouchMove, { passive: false });
     window.addEventListener("touchend", handleTouchEnd, { passive: true });
     window.addEventListener("touchcancel", resetPullState, { passive: true });
 

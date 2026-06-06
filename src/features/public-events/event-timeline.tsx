@@ -8,39 +8,34 @@ import type { PullLoadState } from "./use-previous-week-pull";
 type EventTimelineProps = {
   dateGroups: DateEventGroup[];
   hasMoreEvents: boolean;
-  hasPreviousEvents: boolean;
   isLoadingMore: boolean;
   isLoadingPrevious: boolean;
   loadError: string | null;
   loadMoreRef: RefObject<HTMLDivElement | null>;
-  loadPreviousRef: RefObject<HTMLDivElement | null>;
   pullLoadState: PullLoadState | null;
 };
 
 export function EventTimeline({
   dateGroups,
   hasMoreEvents,
-  hasPreviousEvents,
   isLoadingMore,
   isLoadingPrevious,
   loadError,
   loadMoreRef,
-  loadPreviousRef,
   pullLoadState,
 }: EventTimelineProps) {
   const isLoadingEmptyWindow =
     dateGroups.length === 0 && (isLoadingMore || isLoadingPrevious);
-  const previousSentinelText = getPreviousSentinelText({
+  const previousLoadText = getPreviousLoadText({
     isLoadingPrevious,
     pullLoadState,
   });
 
   return (
     <>
-      {(hasPreviousEvents || isLoadingPrevious || pullLoadState) &&
-      !isLoadingEmptyWindow ? (
-        <div className="load-previous-sentinel" ref={loadPreviousRef}>
-          {previousSentinelText}
+      {previousLoadText && !isLoadingEmptyWindow ? (
+        <div className="pull-load-indicator" role="status">
+          {previousLoadText}
         </div>
       ) : null}
       {dateGroups.length > 0 ? (
@@ -72,15 +67,15 @@ export function EventTimeline({
   );
 }
 
-function getPreviousSentinelText({
+function getPreviousLoadText({
   isLoadingPrevious,
   pullLoadState,
 }: {
   isLoadingPrevious: boolean;
   pullLoadState: PullLoadState | null;
-}) {
+}): string | null {
   if (isLoadingPrevious) {
-    return "이전 집회를 불러오는 중";
+    return "이전 일주일을 불러오는 중";
   }
 
   if (pullLoadState?.isReady) {
@@ -88,10 +83,10 @@ function getPreviousSentinelText({
   }
 
   if (pullLoadState) {
-    return "이전 일주일을 불러오려면 더 당겨요";
+    return "조금 더 당기면 이전 일주일을 불러와요";
   }
 
-  return "위로 스크롤하면 이전 일주일을 불러와요";
+  return null;
 }
 
 function DateSection({ group }: { group: DateEventGroup }) {

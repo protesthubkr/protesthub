@@ -86,7 +86,7 @@ src/lib/llm/
 5. `getPublicEventOccurrenceWindow()`, `getPublicEventCalendarMonth()`, `getPublishedOrganizerOptions()`는 가능한 범위에서 `Promise.all`로 병렬 조회한다.
 6. `HomePageClient`는 서버에서 받은 초기값을 각 hook에 넘기고, 직접 fetch/observer 세부 구현을 갖지 않는다.
 7. 목록 하단 sentinel이 보이면 `use-event-list-window.ts`가 `/api/events?from=YYYY-MM-DD&...filters`를 호출해 다음 1주일을 붙인다.
-8. 미래 날짜 리스트에서 상단 sentinel 또는 pull 보강이 동작하면 이전 1주일을 붙이되 오늘 이전으로는 내려가지 않는다.
+8. 미래 날짜 리스트에서 화면 상단을 아래로 당기면 이전 1주일을 붙이되 오늘 이전으로는 내려가지 않는다.
 9. 캘린더 월 이동은 `use-calendar-month-data.ts`가 `/api/events/calendar?month=YYYY-MM&...filters`를 호출한다.
 10. 공개 목록 API들은 `Cache-Control: public, s-maxage=60, stale-while-revalidate=300`을 붙인다.
 

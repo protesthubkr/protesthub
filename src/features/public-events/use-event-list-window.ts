@@ -14,7 +14,7 @@ import type {
   EventViewMode,
 } from "@/lib/types";
 import { getPreviousPublicEventWindowStartDate } from "@/lib/public-event-date-policy";
-import { LOAD_MORE_ROOT_MARGIN, LOAD_PREVIOUS_ROOT_MARGIN } from "./config";
+import { LOAD_MORE_ROOT_MARGIN } from "./config";
 import {
   groupOccurrencesByDateAndTime,
   mergeOccurrences,
@@ -39,8 +39,6 @@ export function useEventListWindow({
   todayDate,
 }: UseEventListWindowProps) {
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
-  const loadPreviousRef = useRef<HTMLDivElement | null>(null);
-  const previousLoadArmedRef = useRef(false);
   const pendingScrollAdjustmentRef = useRef<{
     height: number;
     scrollY: number;
@@ -125,7 +123,6 @@ export function useEventListWindow({
       return;
     }
 
-    previousLoadArmedRef.current = false;
     pendingScrollAdjustmentRef.current = {
       height: document.documentElement.scrollHeight,
       scrollY: window.scrollY,
@@ -185,61 +182,6 @@ export function useEventListWindow({
   }, [loadedEvents, windowStartDate]);
 
   useEffect(() => {
-    if (
-      activeViewMode !== "list" ||
-      !hasPreviousEvents ||
-      isFilterOpen
-    ) {
-      previousLoadArmedRef.current = false;
-      return;
-    }
-
-    function armPreviousLoading() {
-      if (window.scrollY > 180) {
-        previousLoadArmedRef.current = true;
-      }
-    }
-
-    armPreviousLoading();
-    window.addEventListener("scroll", armPreviousLoading, { passive: true });
-
-    return () => window.removeEventListener("scroll", armPreviousLoading);
-  }, [activeViewMode, hasPreviousEvents, isFilterOpen]);
-
-  useEffect(() => {
-    const sentinel = loadPreviousRef.current;
-
-    if (
-      !sentinel ||
-      activeViewMode !== "list" ||
-      !hasPreviousEvents ||
-      isLoadingPrevious ||
-      isFilterOpen
-    ) {
-      return;
-    }
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting && previousLoadArmedRef.current) {
-          void loadPreviousEvents();
-        }
-      },
-      { rootMargin: LOAD_PREVIOUS_ROOT_MARGIN },
-    );
-
-    observer.observe(sentinel);
-
-    return () => observer.disconnect();
-  }, [
-    activeViewMode,
-    hasPreviousEvents,
-    isFilterOpen,
-    isLoadingPrevious,
-    loadPreviousEvents,
-  ]);
-
-  useEffect(() => {
     const sentinel = loadMoreRef.current;
 
     if (
@@ -282,7 +224,6 @@ export function useEventListWindow({
     isLoadingPrevious,
     loadError,
     loadMoreRef,
-    loadPreviousRef,
     loadedEvents,
     pullLoadState,
   };

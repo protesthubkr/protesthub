@@ -78,12 +78,10 @@ export function HomePageClient({
   const {
     dateGroups,
     hasMoreEvents,
-    hasPreviousEvents,
     isLoadingMore,
     isLoadingPrevious,
     loadError,
     loadMoreRef,
-    loadPreviousRef,
     loadedEvents,
     pullLoadState,
   } = useEventListWindow({
@@ -192,12 +190,10 @@ export function HomePageClient({
           <EventTimeline
             dateGroups={dateGroups}
             hasMoreEvents={hasMoreEvents}
-            hasPreviousEvents={hasPreviousEvents}
             isLoadingMore={isLoadingMore}
             isLoadingPrevious={isLoadingPrevious}
             loadError={loadError}
             loadMoreRef={loadMoreRef}
-            loadPreviousRef={loadPreviousRef}
             pullLoadState={pullLoadState}
           />
         )}

@@ -13,4 +13,3 @@ export const FILTER_STEP_LABELS: Record<FilterStep, string> = {
 };
 
 export const LOAD_MORE_ROOT_MARGIN = "240px 0px";
-export const LOAD_PREVIOUS_ROOT_MARGIN = "0px";
