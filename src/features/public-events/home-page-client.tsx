@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, useTransition } from "react";
 import { REGION_OPTIONS } from "@/lib/regions";
 import type {
   EventCalendarMonth,
@@ -14,6 +14,7 @@ import type {
 import { ConditionChips } from "./condition-chips";
 import { EmptyState } from "./empty-state";
 import { EventTimeline } from "./event-timeline";
+import { LoadingState } from "./loading-state";
 import {
   buildEventHref,
   buildConditionChips,
@@ -58,6 +59,7 @@ export function HomePageClient({
   const pathname = usePathname();
   const [state, dispatch] = useHomeFilterState(filters);
   const [activeViewMode, setActiveViewMode] = useState(viewMode);
+  const [isRoutePending, startRouteTransition] = useTransition();
   const showCalendar = useCallback(() => setActiveViewMode("calendar"), []);
   const {
     activeCalendarMonth,
@@ -92,6 +94,7 @@ export function HomePageClient({
     () => buildConditionChips(filters),
     [filters],
   );
+  const isListRouteLoading = activeViewMode === "list" && isRoutePending;
 
   useFilterOverlayLock(state.isFilterOpen);
 
@@ -100,16 +103,18 @@ export function HomePageClient({
   }
 
   function applyFilters() {
-    router.push(
-      buildEventHref({
-        date: activeViewMode === "list" ? listStartDate : null,
-        filters: state.draft,
-        month: activeViewMode === "calendar" ? activeCalendarMonth : null,
-        organizers,
-        pathname,
-        viewMode: activeViewMode,
-      }),
-    );
+    const href = buildEventHref({
+      date: activeViewMode === "list" ? listStartDate : null,
+      filters: state.draft,
+      month: activeViewMode === "calendar" ? activeCalendarMonth : null,
+      organizers,
+      pathname,
+      viewMode: activeViewMode,
+    });
+
+    startRouteTransition(() => {
+      router.push(href);
+    });
     window.scrollTo({ top: 0 });
     dispatch({ type: "close-filter" });
   }
@@ -120,27 +125,31 @@ export function HomePageClient({
 
   function switchToList() {
     setActiveViewMode("list");
-    router.push(
-      buildEventFilterHref({
-        filters,
-        organizers,
-        pathname,
-      }),
-    );
+    const href = buildEventFilterHref({
+      filters,
+      organizers,
+      pathname,
+    });
+
+    startRouteTransition(() => {
+      router.push(href);
+    });
     window.scrollTo({ top: 0 });
   }
 
   function selectCalendarDate(date: string) {
     setActiveViewMode("list");
-    router.push(
-      buildEventHref({
-        date,
-        filters,
-        organizers,
-        pathname,
-        viewMode: "list",
-      }),
-    );
+    const href = buildEventHref({
+      date,
+      filters,
+      organizers,
+      pathname,
+      viewMode: "list",
+    });
+
+    startRouteTransition(() => {
+      router.push(href);
+    });
     window.scrollTo({ top: 0 });
   }
 
@@ -171,6 +180,8 @@ export function HomePageClient({
             onMonthChange={loadCalendarMonth}
             onSelectDate={selectCalendarDate}
           />
+        ) : isListRouteLoading ? (
+          <LoadingState />
         ) : loadedEvents.length === 0 && !hasMoreEvents ? (
           <EmptyState onOpenFilter={() => openFilter("issue")} />
         ) : (

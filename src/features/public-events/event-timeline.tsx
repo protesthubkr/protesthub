@@ -22,9 +22,12 @@ export function EventTimeline({
   loadMoreRef,
   loadPreviousRef,
 }: EventTimelineProps) {
+  const isLoadingEmptyWindow =
+    dateGroups.length === 0 && (isLoadingMore || isLoadingPrevious);
+
   return (
     <>
-      {hasPreviousEvents || isLoadingPrevious ? (
+      {(hasPreviousEvents || isLoadingPrevious) && !isLoadingEmptyWindow ? (
         <div className="load-previous-sentinel" ref={loadPreviousRef}>
           {isLoadingPrevious
             ? "이전 집회를 불러오는 중"
@@ -37,16 +40,22 @@ export function EventTimeline({
             <DateSection group={group} key={group.date} />
           ))}
         </div>
+      ) : isLoadingEmptyWindow ? (
+        <div className="empty-week" aria-live="polite" aria-busy="true">
+          집회를 불러오는 중
+        </div>
       ) : (
         <div className="empty-week">불러온 기간에는 집회가 없어요</div>
       )}
-      <div className="load-more-sentinel" ref={loadMoreRef}>
-        {isLoadingMore
-          ? "다음 집회를 불러오는 중"
-          : hasMoreEvents
-            ? "아래로 스크롤하면 다음 일주일을 불러와요"
-            : "더 불러올 집회가 없어요"}
-      </div>
+      {!isLoadingEmptyWindow ? (
+        <div className="load-more-sentinel" ref={loadMoreRef}>
+          {isLoadingMore
+            ? "다음 집회를 불러오는 중"
+            : hasMoreEvents
+              ? "아래로 스크롤하면 다음 일주일을 불러와요"
+              : "더 불러올 집회가 없어요"}
+        </div>
+      ) : null}
     </>
   );
 }
