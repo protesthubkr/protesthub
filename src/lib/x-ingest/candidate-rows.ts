@@ -4,10 +4,15 @@ import {
   getMediaForPost,
   getPostText,
   getPostUrl,
+  getReferencedPostIds,
   shouldCreateCandidate,
   shouldReviewCandidate,
 } from "./normalize";
-import type { XMedia, XPost, XUser } from "./types";
+import {
+  getCandidateDetailHydrationReasons,
+  mergeCandidateMediaKeys,
+} from "./hydration-state";
+import type { XHydrateMode, XMedia, XPost, XUser } from "./types";
 
 export type XEventCandidateInsertRow = {
   x_post_id: string;
@@ -22,19 +27,30 @@ export type XEventCandidateInsertRow = {
 
 export function buildCandidateRows({
   account,
+  hydrateMode = "deferred",
   mediaByKey,
   posts,
   reviewPastEventNotices = false,
 }: {
   account: XUser;
+  hydrateMode?: XHydrateMode;
   mediaByKey: Map<string, XMedia>;
   posts: XPost[];
   reviewPastEventNotices?: boolean;
 }) {
   return posts.flatMap((post): XEventCandidateInsertRow[] => {
     const media = getMediaForPost(post, mediaByKey);
+    const mediaKeys = mergeCandidateMediaKeys(
+      media.map((item) => item.media_key),
+      post.attachments?.media_keys,
+    );
+    const quotedPostIds = getReferencedPostIds(post, "quoted");
+    const repliedToPostIds = getReferencedPostIds(post, "replied_to");
+    const needsDetailHydration =
+      hydrateMode === "deferred" &&
+      (mediaKeys.length > 0 || quotedPostIds.length > 0);
 
-    if (!shouldCreateCandidate(post, media)) {
+    if (!shouldCreateCandidate(post, media) && mediaKeys.length === 0) {
       return [];
     }
 
@@ -54,27 +70,43 @@ export function buildCandidateRows({
         source_account_name: account.name,
         source_post_url: getPostUrl(account, post),
         text_snapshot: postText,
-        media_keys: media.map((item) => item.media_key),
+        media_keys: mediaKeys,
         extraction_payload: {
           source: "x_ingest_heuristic_v2",
           needs_ocr: media.length > 0,
           event_date_filter: eventDateFilter,
-          quoted_post_ids:
-            post.referenced_tweets
-              ?.filter((reference) => reference.type === "quoted")
-              .map((reference) => reference.id) ?? [],
-          replied_to_post_ids:
-            post.referenced_tweets
-              ?.filter((reference) => reference.type === "replied_to")
-              .map((reference) => reference.id) ?? [],
+          quoted_post_ids: quotedPostIds,
+          replied_to_post_ids: repliedToPostIds,
+          x_hydration: {
+            status:
+              hydrateMode === "deferred" ? "deferred" : "hydrated",
+            needs_detail: needsDetailHydration,
+            mode: hydrateMode,
+            pending_media_keys:
+              hydrateMode === "deferred" ? mediaKeys : [],
+            pending_quoted_post_ids:
+              hydrateMode === "deferred" ? quotedPostIds : [],
+          },
         },
         candidate_reason:
           eventDateFilter.ignoredAsPast || !shouldReview
             ? [
                 ...candidateReasons,
+                ...getCandidateDetailHydrationReasons({
+                  hydrateMode,
+                  mediaKeys,
+                  quotedPostIds,
+                }),
                 ...(eventDateFilter.ignoredAsPast ? ["past_event_date"] : []),
               ]
-            : candidateReasons,
+            : [
+                ...candidateReasons,
+                ...getCandidateDetailHydrationReasons({
+                  hydrateMode,
+                  mediaKeys,
+                  quotedPostIds,
+                }),
+              ],
       },
     ];
   });

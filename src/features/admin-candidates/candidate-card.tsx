@@ -6,6 +6,7 @@ import type {
 } from "@/lib/admin-candidates";
 import { CANDIDATE_STATUS_LABELS } from "@/lib/admin-candidates";
 import { formatKoreanDateTime } from "@/lib/format";
+import { DetailHydrationAction } from "./detail-hydration-action";
 import { formatCandidateReason } from "./reason-labels";
 import {
   formatConfidence,
@@ -67,6 +68,13 @@ export function CandidateCard({
       />
       <CandidateSourceGrid candidate={candidate} />
       <CandidateReasonList reasons={candidate.candidateReason} />
+      <DetailHydrationAction
+        candidate={candidate}
+        currentPage={currentPage}
+        currentStatus={currentStatus}
+        scope={scope}
+        secret={secret}
+      />
 
       {structuredEvent ? (
         <StructuredEventSummary
@@ -206,7 +214,11 @@ function CandidateSourceGrid({ candidate }: { candidate: ReviewCandidate }) {
             ))}
           </div>
         ) : (
-          <p className="admin-muted">첨부 이미지 없음</p>
+          <p className="admin-muted">
+            {candidate.mediaKeys.length > 0
+              ? `상세 수집 전 첨부 ${candidate.mediaKeys.length}개`
+              : "첨부 이미지 없음"}
+          </p>
         )}
       </section>
     </div>
@@ -529,7 +541,9 @@ function getOcrActionHint(
   }
 
   if (candidate.media.length === 0) {
-    return "이미지 없음";
+    return candidate.mediaKeys.length > 0
+      ? "X 상세 수집 후 OCR 가능"
+      : "이미지 없음";
   }
 
   return candidate.ocrText

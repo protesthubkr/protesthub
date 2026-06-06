@@ -33,26 +33,24 @@ export function XIngestControlPanel({ secret }: { secret: string }) {
       aria-labelledby="x-ingest-control"
     >
       <div>
-        <h2 id="x-ingest-control">X 수집 실행</h2>
+        <h2 id="x-ingest-control">X 수집 제어</h2>
         <p>
-          평소에는 저장된 계정 목록으로 수집하고, 팔로잉을 바꾼 날에만 목록
-          갱신을 실행합니다.
+          기본 수집은 원문과 첨부 키만 저장합니다. 이미지 URL, 인용
+          포스트, 작성자 상세 정보는 검토 후 상세 수집을 눌렀을 때만
+          가져옵니다.
         </p>
       </div>
       <form action={formAction} className="admin-ingest-control-form">
         <input name="secret" type="hidden" value={secret} />
         <div className="admin-ingest-control-actions">
-          <IngestSubmitButton
-            name="mode"
-            value="stored_accounts"
-          >
-            일반 수집
+          <IngestSubmitButton name="mode" value="stored_accounts">
+            저비용 수집
           </IngestSubmitButton>
-          <IngestSubmitButton
-            name="mode"
-            value="refresh_following"
-          >
+          <IngestSubmitButton name="mode" value="refresh_following">
             팔로잉 갱신 후 수집
+          </IngestSubmitButton>
+          <IngestSubmitButton name="mode" value="hydrate_pending">
+            검수 대기 상세 수집
           </IngestSubmitButton>
         </div>
         <p
@@ -83,7 +81,7 @@ function IngestSubmitButton({
 
   return (
     <button disabled={pending} name={name} type="submit" value={value}>
-      {pending ? "수집 중" : children}
+      {pending ? "실행 중" : children}
     </button>
   );
 }

@@ -75,6 +75,7 @@ class XIngestRequestError extends Error {}
 
 function parseRunOptions(searchParams: URLSearchParams): XIngestRunOptions {
   return {
+    hydrateMode: parseHydrateMode(searchParams.get("hydrateMode")),
     maxTimelinePagesPerAccount: parseMaxTimelinePages(
       searchParams.get("maxPages"),
     ),
@@ -86,6 +87,18 @@ function parseRunOptions(searchParams: URLSearchParams): XIngestRunOptions {
     ),
     startTime: parseStartTime(searchParams),
   };
+}
+
+function parseHydrateMode(value: string | null) {
+  if (!value) {
+    return undefined;
+  }
+
+  if (value === "deferred" || value === "candidate_posts_only") {
+    return value;
+  }
+
+  throw new XIngestRequestError("Invalid hydrateMode.");
 }
 
 function parseStartTime(searchParams: URLSearchParams) {

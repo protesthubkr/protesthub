@@ -21,6 +21,10 @@ import { REGION_OPTIONS } from "@/lib/regions";
 import { hasStoredStructuredEvent } from "@/lib/structured-event-storage";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import type { IssueKey } from "@/lib/types";
+import {
+  hydrateCandidateDetail,
+  hydratePendingCandidateDetails,
+} from "@/lib/x-ingest/candidate-detail-hydration";
 import { ingestManualXPost } from "@/lib/x-ingest/manual-post";
 import { runXIngest } from "@/lib/x-ingest/run";
 import { getAdminCandidatesHref } from "./navigation";
@@ -115,8 +119,23 @@ export async function runXIngestFromAdmin(
   assertAdmin(secret);
 
   try {
+    if (mode === "hydrate_pending") {
+      const result = await hydratePendingCandidateDetails();
+
+      revalidatePath("/admin/candidates");
+
+      return {
+        status: "success",
+        message:
+          result.requested === 0
+            ? "상세 수집이 필요한 검수 대기 후보가 없습니다."
+            : `검수 대기 후보 ${result.requested}건 중 ${result.hydrated}건의 X 상세 정보를 수집했습니다.`,
+      };
+    }
+
     const result = await runXIngest({
       refreshFollowing: mode === "refresh_following",
+      hydrateMode: "deferred",
     });
 
     revalidatePath("/admin/candidates");
@@ -144,11 +163,36 @@ export async function runXIngestFromAdmin(
 function getXIngestMode(formData: FormData) {
   const mode = getRequiredString(formData, "mode");
 
-  if (mode === "stored_accounts" || mode === "refresh_following") {
+  if (
+    mode === "stored_accounts" ||
+    mode === "refresh_following" ||
+    mode === "hydrate_pending"
+  ) {
     return mode;
   }
 
   throw new Error("Invalid X ingest mode.");
+}
+
+export async function hydrateCandidateDetailFromAdmin(formData: FormData) {
+  const secret = getRequiredString(formData, "secret");
+  const candidateId = getRequiredString(formData, "candidate_id");
+  const returnStatus = parseCandidateStatusFilter(
+    getOptionalString(formData, "return_status"),
+  );
+  const returnScope = parseCandidateReviewScope(
+    getOptionalString(formData, "return_scope"),
+  );
+  const returnPage = parseCandidatePageParam(
+    getOptionalString(formData, "return_page"),
+  );
+
+  assertAdmin(secret);
+
+  await hydrateCandidateDetail(candidateId);
+
+  revalidatePath("/admin/candidates");
+  redirect(getAdminRedirectPath(secret, returnStatus, returnScope, returnPage));
 }
 
 export async function updateCandidateStatus(formData: FormData) {

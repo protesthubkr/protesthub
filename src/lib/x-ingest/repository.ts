@@ -45,6 +45,11 @@ type LatestPostCursorRow = {
   x_post_id: string;
 };
 
+type PostAttachmentMediaKeysRow = {
+  attachment_media_keys: string[] | null;
+  x_post_id: string;
+};
+
 export function createEmptyIngestCounters(): IngestCounters {
   return {
     accountsSeen: 0,
@@ -264,6 +269,33 @@ async function getLatestSavedPostCursor(
   }
 
   return createPostCursor((data as LatestPostCursorRow | null) ?? null);
+}
+
+export async function getAttachmentMediaKeysByPostId(
+  supabase: SupabaseClient,
+  postIds: string[],
+) {
+  const uniquePostIds = Array.from(new Set(postIds.filter(Boolean)));
+
+  if (uniquePostIds.length === 0) {
+    return new Map<string, string[]>();
+  }
+
+  const { data, error } = await supabase
+    .from("x_posts")
+    .select("x_post_id,attachment_media_keys")
+    .in("x_post_id", uniquePostIds);
+
+  if (error || !data) {
+    return new Map<string, string[]>();
+  }
+
+  return new Map(
+    (data as unknown as PostAttachmentMediaKeysRow[]).map((row) => [
+      row.x_post_id,
+      row.attachment_media_keys ?? [],
+    ]),
+  );
 }
 
 export async function upsertMedia(

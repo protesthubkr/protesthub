@@ -58,6 +58,7 @@ export async function runXIngest(
       : config.timelinePagesPerAccount);
   const shouldRefreshFollowing = options.refreshFollowing ?? false;
   const reviewPastEventNotices = options.reviewPastEventNotices ?? isBackfill;
+  const hydrateMode = options.hydrateMode ?? "deferred";
   const collectionMode = getCollectionMode({ isBackfill, shouldRefreshFollowing });
   const runId = await createIngestRun(supabase, {
     postsPerAccount: config.postsPerAccount,
@@ -68,7 +69,7 @@ export async function runXIngest(
       ? "x_following_api_refresh"
       : "stored_x_accounts",
     collectionMode,
-    hydrateMode: "candidate_posts_only",
+    hydrateMode,
     maxAccountLookbackDays: MAX_ACCOUNT_LOOKBACK_DAYS,
     oldestAllowedStartTime,
     requestedStartTime,
@@ -113,36 +114,40 @@ export async function runXIngest(
         timeline.data ?? [],
         requestCursor.startTime,
       );
-      const hydratedTimeline = await hydrateCandidatePosts({
-        bearerToken: config.bearerToken,
-        posts,
-        reviewPastEventNotices,
-      });
+      const hydratedTimeline =
+        hydrateMode === "candidate_posts_only"
+          ? await hydrateCandidatePosts({
+              bearerToken: config.bearerToken,
+              posts,
+              reviewPastEventNotices,
+            })
+          : createEmptyHydratedTimeline();
       const hydratedPostsById = createPostMap(hydratedTimeline.data ?? []);
-      const hydratedPosts = posts.map(
+      const postsForStorage = posts.map(
         (post) => hydratedPostsById.get(post.id) ?? post,
       );
       const media = dedupeMedia(hydratedTimeline.includes?.media ?? []);
       const mediaByKey = createMediaMap(media);
 
-      counters.postsSeen += hydratedPosts.length;
+      counters.postsSeen += postsForStorage.length;
       await upsertMedia(supabase, media);
       counters.postsWritten += await upsertPosts(
         supabase,
         runId,
         account,
-        hydratedPosts,
+        postsForStorage,
       );
       await upsertPostMedia(
         supabase,
-        hydratedPosts,
+        postsForStorage,
         new Set(media.map((item) => item.media_key)),
       );
       counters.candidatesCreated += await insertCandidateRows(
         supabase,
         buildCandidateRows({
           account,
-          posts: hydratedPosts,
+          hydrateMode,
+          posts: postsForStorage,
           mediaByKey,
           reviewPastEventNotices,
         }),
@@ -150,7 +155,7 @@ export async function runXIngest(
       await updateAccountIngestCursor({
         accountId: account.id,
         checkedAt: new Date().toISOString(),
-        latestPost: chooseLatestPostCursor(cursor, hydratedPosts),
+        latestPost: chooseLatestPostCursor(cursor, postsForStorage),
         runId,
         supabase,
       });
@@ -167,6 +172,10 @@ export async function runXIngest(
     await finishIngestRun(supabase, runId, "failed", counters, error);
     throw error;
   }
+}
+
+function createEmptyHydratedTimeline() {
+  return { data: [], includes: { media: [], tweets: [], users: [] } };
 }
 
 async function refreshFollowingAccounts({

@@ -2,6 +2,8 @@ import "server-only";
 
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import type { IssueKey, PublicEvent } from "@/lib/types";
+import { mergeCandidateMediaKeys } from "@/lib/x-ingest/hydration-state";
+import { getAttachmentMediaKeysByPostId } from "@/lib/x-ingest/repository";
 
 export type CandidateStatus =
   | "needs_review"
@@ -64,6 +66,7 @@ type CandidateSignalFields = {
 };
 
 type CandidateScopeCountRow = {
+  x_post_id: string;
   candidate_reason: string[] | null;
   media_keys: string[] | null;
 };
@@ -207,12 +210,19 @@ export async function getReviewCandidates(
   }
 
   const rows = data as unknown as CandidateRow[];
+  const postMediaKeysByPostId = await getAttachmentMediaKeysByPostId(
+    supabase,
+    rows.map((row) => row.x_post_id),
+  );
+  const mergedMediaKeys = rows.flatMap((row) =>
+    getMergedCandidateMediaKeys(row, postMediaKeysByPostId),
+  );
   const [mediaByKey, publicEventsById] = await Promise.all([
-    getCandidateMedia(rows.flatMap((row) => row.media_keys)),
+    getCandidateMedia(mergedMediaKeys),
     getCandidatePublicEvents(rows.map((row) => row.id)),
   ]);
   const candidates = rows.map((row) =>
-    mapCandidateRow(row, mediaByKey, publicEventsById),
+    mapCandidateRow(row, mediaByKey, publicEventsById, postMediaKeysByPostId),
   );
   const visibleCandidates = filterCandidatesByScope(candidates, status, scope);
   const hasMoreCandidates = hasMoreReviewCandidates({
@@ -269,15 +279,24 @@ async function getScopedNeedsReviewCount(
 ) {
   const { data, error } = await supabase
     .from("x_event_candidates")
-    .select("candidate_reason,media_keys")
+    .select("x_post_id,candidate_reason,media_keys")
     .eq("status", "needs_review");
 
   if (error || !data) {
     return 0;
   }
 
-  return (data as unknown as CandidateScopeCountRow[]).filter((row) =>
-    isCandidateVisibleInScope(mapCandidateSignalFields(row), scope),
+  const rows = data as unknown as CandidateScopeCountRow[];
+  const postMediaKeysByPostId = await getAttachmentMediaKeysByPostId(
+    supabase,
+    rows.map((row) => row.x_post_id),
+  );
+
+  return rows.filter((row) =>
+    isCandidateVisibleInScope(
+      mapCandidateSignalFields(row, postMediaKeysByPostId),
+      scope,
+    ),
   ).length;
 }
 
@@ -368,7 +387,10 @@ function mapCandidateRow(
   row: CandidateRow,
   mediaByKey: Map<string, CandidateMedia>,
   publicEventsById: Map<string, PublicEvent>,
+  postMediaKeysByPostId: Map<string, string[]>,
 ): ReviewCandidate {
+  const mediaKeys = getMergedCandidateMediaKeys(row, postMediaKeysByPostId);
+
   return {
     id: row.id,
     xPostId: row.x_post_id,
@@ -376,13 +398,13 @@ function mapCandidateRow(
     sourceAccountName: row.source_account_name,
     sourcePostUrl: row.source_post_url,
     textSnapshot: row.text_snapshot,
-    mediaKeys: row.media_keys,
+    mediaKeys,
     ocrText: row.ocr_text ?? "",
     extractionPayload: row.extraction_payload ?? {},
     candidateReason: row.candidate_reason ?? [],
     createdAt: row.created_at,
     updatedAt: row.updated_at,
-    media: row.media_keys
+    media: mediaKeys
       .map((mediaKey) => mediaByKey.get(mediaKey))
       .filter((media): media is CandidateMedia => Boolean(media)),
     publicEvent: publicEventsById.get(row.id) ?? null,
@@ -402,11 +424,25 @@ function createEmptyCounts(): Record<CandidateStatusFilter, number> {
 
 function mapCandidateSignalFields(
   row: CandidateScopeCountRow,
+  postMediaKeysByPostId: Map<string, string[]> = new Map(),
 ): CandidateSignalFields {
   return {
     candidateReason: row.candidate_reason ?? [],
-    mediaKeys: row.media_keys ?? [],
+    mediaKeys: getMergedCandidateMediaKeys(row, postMediaKeysByPostId),
   };
+}
+
+function getMergedCandidateMediaKeys(
+  row: {
+    media_keys: string[] | null;
+    x_post_id: string;
+  },
+  postMediaKeysByPostId: Map<string, string[]>,
+) {
+  return mergeCandidateMediaKeys(
+    row.media_keys,
+    postMediaKeysByPostId.get(row.x_post_id),
+  );
 }
 
 function isLowSignalCandidate(candidate: CandidateSignalFields) {

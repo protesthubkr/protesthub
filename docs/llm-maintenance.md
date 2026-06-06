@@ -25,11 +25,11 @@
 | 목록 카드 | `src/features/public-events/event-card.tsx` |
 | 상세 페이지 | `src/app/events/[id]/page.tsx`, `event-detail-client.tsx` |
 | UI 원칙/시각 위계 | `docs/ui-principles.md`, `src/app/globals.css` |
-| 검수 카드 | `src/features/admin-candidates/candidate-card.tsx` |
+| 검수 카드 | `src/features/admin-candidates/candidate-card.tsx`, `detail-hydration-action.tsx` |
 | 공개 폼 기본값 | `src/features/admin-candidates/publish-defaults.ts` |
 | 검수 서버 액션 | `src/features/admin-candidates/actions.ts` |
-| X 수집 흐름 | `src/lib/x-ingest/run.ts` |
-| X 후보 분류 | `src/lib/x-ingest/normalize.ts`, `candidate-rows.ts` |
+| X 수집 흐름 | `src/lib/x-ingest/run.ts`, `src/lib/x-ingest/candidate-detail-hydration.ts`, `repository.ts` |
+| X 후보 분류 | `src/lib/x-ingest/normalize.ts`, `candidate-rows.ts`, `hydration-state.ts` |
 | LLM 프롬프트 | `src/lib/llm/structured-event-prompt.ts` |
 | LLM JSON schema | `src/lib/llm/structured-event-schema.ts` |
 | LLM 결과 저장 | `src/lib/structured-event-storage.ts` |
@@ -63,6 +63,7 @@
 - 공개 조회 날짜 정책은 `public-event-date-policy.ts`에 둔다. route, API, hook에 `today` clamp 로직을 직접 복제하지 않는다.
 - 한국 시간대 date key 계산은 `date-key.ts`를 사용한다. 수집 과거 일정 판정과 공개 조회 날짜 보정이 서로 다른 시간대 계산을 갖지 않게 한다.
 - DB row 생성과 DB 저장을 분리한다. row 생성은 순수 함수, 저장은 repository/서버 액션에 둔다.
+- X 상세 수집 가능 여부, 첨부 키 병합, hydrate 사유 판정은 `hydration-state.ts`에 둔다.
 - 공개 조회 row 변환, empty window 생성, 캘린더 요약은 `src/lib/event-query-model.ts`에 둔다.
 - OpenAI 호출, prompt, schema, 저장 포맷을 한 파일에 합치지 않는다.
 - `src/app` route는 가능한 한 import와 prop 전달만 남긴다.
@@ -113,8 +114,11 @@ git diff --check
 - 일반 `/api/ingest/x` 수집은 팔로잉 목록 API를 호출하지 않고 `x_accounts`의 캐시된 계정만 사용한다.
 - 팔로잉 목록을 새로 반영할 때는 `/admin/candidates`의 X 수집 실행 패널을 우선 사용하고, API 직접 실행이 필요할 때만 `/api/ingest/x?refreshFollowing=true`를 쓴다.
 - timeline 1차 요청에는 `expansions`, `media.fields`, `user.fields`를 붙이지 않는다.
-- 검수 후보로 판정된 post만 별도 상세 요청으로 media/referenced tweet을 hydrate한다.
-- X 후보는 텍스트 또는 hydrate된 미디어가 있는 post만 만든다.
+- 기본 X 수집은 `hydrateMode=deferred`로 동작한다. 검수 후보로 판정되어도 상세 요청을 자동 실행하지 않는다.
+- X 후보는 텍스트 또는 첨부 media key가 있는 post만 만든다.
+- 첨부나 인용이 있어 상세 수집이 필요한 후보만 `x_detail_deferred` 근거를 가진다.
+- media URL, alt text, referenced tweet, author expansion은 해당 후보 카드의 `X 상세 수집` 또는 수집 패널의 `검수 대기 상세 수집`을 눌렀을 때만 hydrate한다.
+- 상세 수집 로직은 `src/lib/x-ingest/candidate-detail-hydration.ts`에만 둔다. 다시 `run.ts`에 자동 hydrate를 넣지 않는다.
 - 검수 대기는 본문에 `일시`, `날짜`, `일정` 중 하나라도 있거나 보조 신호가 3개 이상인 post에 해당한다.
 - 일반 X 수집은 `x_accounts`의 계정별 수집 커서를 사용한다.
 - 커서가 없는 신규 계정이나 오래된 커서는 최대 30일 전까지만 조회한다.

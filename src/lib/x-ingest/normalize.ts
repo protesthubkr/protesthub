@@ -86,6 +86,17 @@ export function getPostText(post: XPost) {
   return post.note_tweet?.text ?? post.text ?? "";
 }
 
+export function getReferencedPostIds(
+  post: XPost,
+  type: NonNullable<XPost["referenced_tweets"]>[number]["type"],
+) {
+  return (
+    post.referenced_tweets
+      ?.filter((reference) => reference.type === type)
+      .map((reference) => reference.id) ?? []
+  );
+}
+
 export function getCandidateReasons(post: XPost, media: XMedia[]) {
   const signals = getCandidateSignals(post, media);
   const reasons: string[] = ["heuristic:v2"];

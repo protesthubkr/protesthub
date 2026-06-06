@@ -82,7 +82,10 @@ export type XIngestConfig = {
   includeReplies: boolean;
 };
 
+export type XHydrateMode = "deferred" | "candidate_posts_only";
+
 export type XIngestRunOptions = {
+  hydrateMode?: XHydrateMode;
   maxTimelinePagesPerAccount?: number;
   refreshFollowing?: boolean;
   reviewPastEventNotices?: boolean;

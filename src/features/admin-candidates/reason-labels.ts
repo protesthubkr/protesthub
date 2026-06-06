@@ -62,6 +62,10 @@ export function formatCandidateReason(reason: string) {
     llm_not_event: "LLM 비대상",
     llm_has_date: "LLM 날짜 확인",
     llm_has_place: "LLM 장소 확인",
+    x_detail_deferred: "X 상세 수집 전",
+    x_detail_hydrated: "X 상세 수집 완료",
+    has_unhydrated_media: "미수집 첨부 있음",
+    has_unhydrated_quote: "미수집 인용 있음",
   };
 
   if (exactLabels[reason]) {
