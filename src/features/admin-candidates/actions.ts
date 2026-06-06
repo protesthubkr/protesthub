@@ -8,6 +8,7 @@ import {
   type CandidateReviewScope,
   type CandidateStatus,
   type CandidateStatusFilter,
+  parseCandidatePageParam,
   parseCandidateReviewScope,
   parseCandidateStatusFilter,
 } from "@/lib/admin-candidates";
@@ -20,6 +21,7 @@ import { REGION_OPTIONS } from "@/lib/regions";
 import { hasStoredStructuredEvent } from "@/lib/structured-event-storage";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import type { IssueKey } from "@/lib/types";
+import { ingestManualXPost } from "@/lib/x-ingest/manual-post";
 import { getAdminCandidatesHref } from "./navigation";
 
 type CandidateForOcr = {
@@ -52,9 +54,50 @@ type PublishEventDate = {
   startTime: string | null;
 };
 
+export type ManualXPostFormState = {
+  status: "idle" | "success" | "error";
+  message: string;
+  targetHref?: string;
+};
+
 const ISSUE_KEYS = ISSUE_OPTIONS.map((issue) => issue.key);
 const ISSUE_KEY_SET = new Set<IssueKey>(ISSUE_KEYS);
 const REGION_SET = new Set(REGION_OPTIONS);
+
+export async function addManualXPostCandidate(
+  _previousState: ManualXPostFormState,
+  formData: FormData,
+): Promise<ManualXPostFormState> {
+  const secret = getRequiredString(formData, "secret");
+  const xPostUrl = getTrimmedRequiredString(formData, "x_post_url");
+
+  assertAdmin(secret);
+
+  try {
+    const result = await ingestManualXPost(xPostUrl);
+    revalidatePath("/admin/candidates");
+
+    return {
+      status: "success",
+      message: result.created
+        ? `${result.sourceAccountName} 후보를 검수 대기에 추가했습니다.`
+        : `${result.sourceAccountName} 후보를 검수 대기로 되돌렸습니다.`,
+      targetHref: getAdminCandidatesHref({
+        secret,
+        status: "needs_review",
+        scope: "focused",
+      }),
+    };
+  } catch (error) {
+    return {
+      status: "error",
+      message:
+        error instanceof Error
+          ? error.message
+          : "X 포스트를 후보로 추가하지 못했습니다.",
+    };
+  }
+}
 
 export async function updateCandidateStatus(formData: FormData) {
   const secret = getRequiredString(formData, "secret");
@@ -66,6 +109,9 @@ export async function updateCandidateStatus(formData: FormData) {
   const returnScope = parseCandidateReviewScope(
     getOptionalString(formData, "return_scope"),
   );
+  const returnPage = parseCandidatePageParam(
+    getOptionalString(formData, "return_page"),
+  );
 
   assertAdmin(secret);
 
@@ -75,10 +121,42 @@ export async function updateCandidateStatus(formData: FormData) {
     throw new Error("Supabase admin client is not configured.");
   }
 
+  const { data: candidateData, error: candidateError } = await supabase
+    .from("x_event_candidates")
+    .select("id,extraction_payload,candidate_reason")
+    .eq("id", candidateId)
+    .single();
+
+  if (candidateError || !candidateData) {
+    throw new Error(candidateError?.message ?? "Candidate not found.");
+  }
+
+  const candidate = candidateData as Pick<
+    CandidateForPublish,
+    "id" | "extraction_payload" | "candidate_reason"
+  >;
+  const unpublishedByStatusChange =
+    status !== "published"
+      ? await deletePublicEventIfPresent(supabase, candidateId)
+      : false;
+  const shouldClearPublication =
+    unpublishedByStatusChange || hasPublishedEventPayload(candidate);
+
   const { error } = await supabase
     .from("x_event_candidates")
     .update({
       status,
+      ...(shouldClearPublication
+        ? {
+            extraction_payload: removePublishedEventPayload(
+              candidate.extraction_payload ?? {},
+            ),
+            candidate_reason: replacePublicationReasons(
+              candidate.candidate_reason,
+              ["unpublished_event"],
+            ),
+          }
+        : {}),
       updated_at: new Date().toISOString(),
     })
     .eq("id", candidateId);
@@ -87,8 +165,8 @@ export async function updateCandidateStatus(formData: FormData) {
     throw new Error(error.message);
   }
 
-  revalidatePath("/admin/candidates");
-  redirect(getAdminRedirectPath(secret, returnStatus, returnScope));
+  revalidateAdminAndPublicPaths(candidateId);
+  redirect(getAdminRedirectPath(secret, returnStatus, returnScope, returnPage));
 }
 
 export async function publishCandidateEvent(formData: FormData) {
@@ -99,6 +177,9 @@ export async function publishCandidateEvent(formData: FormData) {
   );
   const returnScope = parseCandidateReviewScope(
     getOptionalString(formData, "return_scope"),
+  );
+  const returnPage = parseCandidatePageParam(
+    getOptionalString(formData, "return_page"),
   );
 
   assertAdmin(secret);
@@ -209,7 +290,7 @@ export async function publishCandidateEvent(formData: FormData) {
     .update({
       status: "published",
       extraction_payload: nextPayload,
-      candidate_reason: mergeReasons(candidate.candidate_reason, [
+      candidate_reason: replacePublicationReasons(candidate.candidate_reason, [
         "published_event",
       ]),
       updated_at: now,
@@ -220,11 +301,71 @@ export async function publishCandidateEvent(formData: FormData) {
     throw new Error(candidateUpdateError.message);
   }
 
-  revalidatePath("/");
-  revalidatePath(`/events/${eventId}`);
-  revalidatePath("/events/[id]", "page");
-  revalidatePath("/admin/candidates");
-  redirect(getAdminRedirectPath(secret, returnStatus, returnScope));
+  revalidateAdminAndPublicPaths(eventId);
+  redirect(getAdminRedirectPath(secret, returnStatus, returnScope, returnPage));
+}
+
+export async function unpublishCandidateEvent(formData: FormData) {
+  const secret = getRequiredString(formData, "secret");
+  const candidateId = getRequiredString(formData, "candidate_id");
+  const returnStatus = parseCandidateStatusFilter(
+    getOptionalString(formData, "return_status"),
+  );
+  const returnScope = parseCandidateReviewScope(
+    getOptionalString(formData, "return_scope"),
+  );
+  const returnPage = parseCandidatePageParam(
+    getOptionalString(formData, "return_page"),
+  );
+
+  assertAdmin(secret);
+
+  const supabase = getSupabaseAdminClient();
+
+  if (!supabase) {
+    throw new Error("Supabase admin client is not configured.");
+  }
+
+  const { data: candidateData, error: candidateError } = await supabase
+    .from("x_event_candidates")
+    .select("id,extraction_payload,candidate_reason")
+    .eq("id", candidateId)
+    .single();
+
+  if (candidateError || !candidateData) {
+    throw new Error(candidateError?.message ?? "Candidate not found.");
+  }
+
+  const candidate = candidateData as Pick<
+    CandidateForPublish,
+    "id" | "extraction_payload" | "candidate_reason"
+  >;
+  const eventId = candidate.id;
+  const now = new Date().toISOString();
+  await deletePublicEventIfPresent(supabase, eventId);
+
+  const nextPayload = removePublishedEventPayload(
+    candidate.extraction_payload ?? {},
+  );
+
+  const { error: candidateUpdateError } = await supabase
+    .from("x_event_candidates")
+    .update({
+      status: "needs_review",
+      extraction_payload: nextPayload,
+      candidate_reason: replacePublicationReasons(candidate.candidate_reason, [
+        "unpublished_event",
+      ]),
+      updated_at: now,
+    })
+    .eq("id", candidateId);
+
+  if (candidateUpdateError) {
+    throw new Error(candidateUpdateError.message);
+  }
+
+  revalidateAdminAndPublicPaths(eventId);
+  redirect(getAdminRedirectPath(secret, returnStatus, returnScope, returnPage));
 }
 
 export async function updateCandidateOcrText(formData: FormData) {
@@ -236,6 +377,9 @@ export async function updateCandidateOcrText(formData: FormData) {
   );
   const returnScope = parseCandidateReviewScope(
     getOptionalString(formData, "return_scope"),
+  );
+  const returnPage = parseCandidatePageParam(
+    getOptionalString(formData, "return_page"),
   );
 
   assertAdmin(secret);
@@ -259,7 +403,7 @@ export async function updateCandidateOcrText(formData: FormData) {
   }
 
   revalidatePath("/admin/candidates");
-  redirect(getAdminRedirectPath(secret, returnStatus, returnScope));
+  redirect(getAdminRedirectPath(secret, returnStatus, returnScope, returnPage));
 }
 
 export async function runCandidateOcr(formData: FormData) {
@@ -270,6 +414,9 @@ export async function runCandidateOcr(formData: FormData) {
   );
   const returnScope = parseCandidateReviewScope(
     getOptionalString(formData, "return_scope"),
+  );
+  const returnPage = parseCandidatePageParam(
+    getOptionalString(formData, "return_page"),
   );
 
   assertAdmin(secret);
@@ -344,7 +491,7 @@ export async function runCandidateOcr(formData: FormData) {
   }
 
   revalidatePath("/admin/candidates");
-  redirect(getAdminRedirectPath(secret, returnStatus, returnScope));
+  redirect(getAdminRedirectPath(secret, returnStatus, returnScope, returnPage));
 }
 
 export async function runCandidateStructuredExtraction(formData: FormData) {
@@ -356,6 +503,9 @@ export async function runCandidateStructuredExtraction(formData: FormData) {
   const returnScope = parseCandidateReviewScope(
     getOptionalString(formData, "return_scope"),
   );
+  const returnPage = parseCandidatePageParam(
+    getOptionalString(formData, "return_page"),
+  );
 
   assertAdmin(secret);
 
@@ -364,7 +514,7 @@ export async function runCandidateStructuredExtraction(formData: FormData) {
   });
 
   revalidatePath("/admin/candidates");
-  redirect(getAdminRedirectPath(secret, returnStatus, returnScope));
+  redirect(getAdminRedirectPath(secret, returnStatus, returnScope, returnPage));
 }
 
 export async function runCandidateTextOnlyStructuredExtraction(
@@ -378,6 +528,9 @@ export async function runCandidateTextOnlyStructuredExtraction(
   const returnScope = parseCandidateReviewScope(
     getOptionalString(formData, "return_scope"),
   );
+  const returnPage = parseCandidatePageParam(
+    getOptionalString(formData, "return_page"),
+  );
 
   assertAdmin(secret);
 
@@ -386,7 +539,7 @@ export async function runCandidateTextOnlyStructuredExtraction(
   });
 
   revalidatePath("/admin/candidates");
-  redirect(getAdminRedirectPath(secret, returnStatus, returnScope));
+  redirect(getAdminRedirectPath(secret, returnStatus, returnScope, returnPage));
 }
 
 function assertAdmin(secret: string) {
@@ -541,12 +694,70 @@ function mergeReasons(currentReasons: string[], nextReasons: string[]) {
   return Array.from(new Set([...currentReasons, ...nextReasons]));
 }
 
+async function deletePublicEventIfPresent(
+  supabase: NonNullable<ReturnType<typeof getSupabaseAdminClient>>,
+  eventId: string,
+) {
+  const { data, error } = await supabase
+    .from("public_events")
+    .delete()
+    .eq("id", eventId)
+    .select("id");
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return Boolean(data?.length);
+}
+
+function hasPublishedEventPayload(
+  candidate: Pick<CandidateForPublish, "extraction_payload" | "candidate_reason">,
+) {
+  return Boolean(
+    candidate.extraction_payload?.published_event ||
+      candidate.candidate_reason.includes("published_event"),
+  );
+}
+
+function replacePublicationReasons(
+  currentReasons: string[],
+  nextReasons: string[],
+) {
+  return Array.from(
+    new Set([
+      ...currentReasons.filter(
+        (reason) =>
+          reason !== "published_event" && reason !== "unpublished_event",
+      ),
+      ...nextReasons,
+    ]),
+  );
+}
+
+function removePublishedEventPayload(payload: Record<string, unknown>) {
+  const nextPayload = { ...payload };
+  delete nextPayload.published_event;
+  return nextPayload;
+}
+
+function revalidateAdminAndPublicPaths(eventId: string) {
+  revalidatePath("/");
+  revalidatePath(`/events/${eventId}`);
+  revalidatePath("/events/[id]", "page");
+  revalidatePath("/api/events");
+  revalidatePath("/api/events/calendar");
+  revalidatePath("/admin/candidates");
+}
+
 function getAdminRedirectPath(
   secret: string,
   returnStatus: CandidateStatusFilter,
   returnScope: CandidateReviewScope,
+  returnPage: number,
 ) {
   return getAdminCandidatesHref({
+    page: returnPage,
     secret,
     status: returnStatus,
     scope: returnScope,

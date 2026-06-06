@@ -10,10 +10,11 @@ import {
   normalizeTimeInput,
 } from "./publish-defaults";
 import type { StructuredEventResult } from "./structured-event-view";
-import { publishCandidateEvent } from "./actions";
+import { publishCandidateEvent, unpublishCandidateEvent } from "./actions";
 
 type PublishEventFormProps = {
   candidate: ReviewCandidate;
+  currentPage: number;
   currentStatus: CandidateStatusFilter;
   scope: CandidateReviewScope;
   secret: string;
@@ -22,6 +23,7 @@ type PublishEventFormProps = {
 
 export function PublishEventForm({
   candidate,
+  currentPage,
   currentStatus,
   scope,
   secret,
@@ -30,13 +32,15 @@ export function PublishEventForm({
   const defaults = getPublishFormDefaults(candidate, structuredEvent);
 
   return (
-    <details className="admin-publish-panel">
+    <>
+      <details className="admin-publish-panel">
       <summary>
         {candidate.status === "published" ? "공개 수정" : "공개하기"}
       </summary>
       <form action={publishCandidateEvent} className="admin-publish-form">
         <HiddenAdminFields
           candidateId={candidate.id}
+          currentPage={currentPage}
           currentStatus={currentStatus}
           scope={scope}
           secret={secret}
@@ -152,17 +156,35 @@ export function PublishEventForm({
 
         <button type="submit">공개 적용</button>
       </form>
-    </details>
+
+      </details>
+
+      {candidate.status === "published" ? (
+        <form action={unpublishCandidateEvent} className="admin-unpublish-form">
+          <HiddenAdminFields
+            candidateId={candidate.id}
+            currentPage={currentPage}
+            currentStatus={currentStatus}
+            scope={scope}
+            secret={secret}
+          />
+          <button type="submit">공개 내리기</button>
+          <span>공개 목록과 상세 페이지에서 숨기고 검수 대기로 되돌립니다.</span>
+        </form>
+      ) : null}
+    </>
   );
 }
 
 export function HiddenAdminFields({
   candidateId,
+  currentPage,
   currentStatus,
   scope,
   secret,
 }: {
   candidateId: string;
+  currentPage: number;
   currentStatus: CandidateStatusFilter;
   scope: CandidateReviewScope;
   secret: string;
@@ -171,6 +193,7 @@ export function HiddenAdminFields({
     <>
       <input name="secret" type="hidden" value={secret} />
       <input name="candidate_id" type="hidden" value={candidateId} />
+      <input name="return_page" type="hidden" value={currentPage} />
       <input name="return_status" type="hidden" value={currentStatus} />
       <input name="return_scope" type="hidden" value={scope} />
     </>

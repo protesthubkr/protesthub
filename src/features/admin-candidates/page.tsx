@@ -7,10 +7,13 @@ import {
   type CandidateReviewScope,
   type CandidateStatusFilter,
   getReviewCandidates,
+  parseCandidatePageParam,
   parseCandidateReviewScope,
   parseCandidateStatusFilter,
 } from "@/lib/admin-candidates";
 import { CandidateCard } from "./candidate-card";
+import { AdminCandidatesLoadMore } from "./load-more-trigger";
+import { ManualXPostForm } from "./manual-x-post-form";
 import { getAdminCandidatesHref } from "./navigation";
 
 type AdminCandidatesPageProps = {
@@ -18,6 +21,7 @@ type AdminCandidatesPageProps = {
     secret?: string | string[];
     scope?: string | string[];
     status?: string | string[];
+    page?: string | string[];
   }>;
 };
 
@@ -28,15 +32,14 @@ export async function AdminCandidatesPage({
   const secret = getStringParam(params.secret);
   const status = parseCandidateStatusFilter(getStringParam(params.status));
   const scope = parseCandidateReviewScope(getStringParam(params.scope));
+  const page = parseCandidatePageParam(getStringParam(params.page));
 
   if (!secret || !isAdminSecretValid(secret)) {
     return <AdminUnauthorized />;
   }
 
-  const { candidates, counts, error } = await getReviewCandidates(
-    status,
-    scope,
-  );
+  const { candidates, counts, error, hasMoreCandidates } =
+    await getReviewCandidates(status, scope, page);
   const isOcrConfigured = Boolean(process.env.OPENAI_API_KEY);
 
   return (
@@ -51,6 +54,8 @@ export async function AdminCandidatesPage({
           승격은 다음 단계에서 별도 폼으로 처리합니다.
         </p>
       </header>
+
+      <ManualXPostForm secret={secret} />
 
       <CandidateStatusTabs
         counts={counts}
@@ -72,6 +77,7 @@ export async function AdminCandidatesPage({
           {candidates.map((candidate) => (
             <CandidateCard
               candidate={candidate}
+              currentPage={page}
               currentStatus={status}
               isOcrConfigured={isOcrConfigured}
               key={candidate.id}
@@ -79,6 +85,20 @@ export async function AdminCandidatesPage({
               secret={secret}
             />
           ))}
+          <AdminCandidatesLoadMore
+            hasMoreCandidates={hasMoreCandidates}
+            loadedCount={candidates.length}
+            nextHref={
+              hasMoreCandidates
+                ? getAdminCandidatesHref({
+                    page: page + 1,
+                    scope,
+                    secret,
+                    status,
+                  })
+                : null
+            }
+          />
         </section>
       )}
     </main>

@@ -13,12 +13,14 @@ import {
   upsertPostMedia,
   upsertPosts,
 } from "./repository";
-import type { XIngestResult, XMedia, XPost } from "./types";
+import type { XIngestResult, XIngestRunOptions, XMedia, XPost } from "./types";
 import { fetchFollowingAccounts, fetchUserPosts, XApiError } from "./x-api";
 
 export { XApiError, XIngestConfigError };
 
-export async function runXIngest(): Promise<XIngestResult> {
+export async function runXIngest(
+  options: XIngestRunOptions = {},
+): Promise<XIngestResult> {
   const config = getXIngestConfig();
   const supabase = getSupabaseAdminClient();
 
@@ -28,12 +30,24 @@ export async function runXIngest(): Promise<XIngestResult> {
 
   const previousIngestStartedAt =
     await getPreviousSuccessfulIngestStartedAt(supabase);
+  const isBackfill = Boolean(options.startTime);
+  const timelinePagesPerAccount =
+    options.maxTimelinePagesPerAccount ??
+    (isBackfill
+      ? config.backfillTimelinePagesPerAccount
+      : config.timelinePagesPerAccount);
+  const reviewPastEventNotices = options.reviewPastEventNotices ?? isBackfill;
   const runId = await createIngestRun(supabase, {
     postsPerAccount: config.postsPerAccount,
     maxFollowingAccounts: config.maxFollowingAccounts,
+    maxTimelinePagesPerAccount: timelinePagesPerAccount,
     includeReplies: config.includeReplies,
-    collectionMode: "incremental_since_latest_seen_post",
+    collectionMode: isBackfill
+      ? "backfill_from_start_time"
+      : "incremental_since_latest_seen_post",
+    requestedStartTime: options.startTime,
     previousIngestStartedAt,
+    reviewPastEventNotices,
   });
   const counters = createEmptyIngestCounters();
 
@@ -51,18 +65,22 @@ export async function runXIngest(): Promise<XIngestResult> {
     await upsertAccounts(supabase, collectibleAccounts);
 
     for (const account of collectibleAccounts) {
-      const sinceId = await getLatestSeenPostId(supabase, account.id);
-      const startTime = sinceId ? undefined : previousIngestStartedAt;
+      const sinceId = isBackfill
+        ? undefined
+        : await getLatestSeenPostId(supabase, account.id);
+      const startTime =
+        options.startTime ?? (sinceId ? undefined : previousIngestStartedAt);
       const timeline = await fetchUserPosts({
         bearerToken: config.bearerToken,
         includeReplies: config.includeReplies,
         userId: account.id,
         maxResults: config.postsPerAccount,
+        maxPages: timelinePagesPerAccount,
         sinceId,
         startTime,
       });
       const posts = filterPostsAfterStartTime(timeline.data ?? [], startTime);
-      const media = timeline.includes?.media ?? [];
+      const media = dedupeMedia(timeline.includes?.media ?? []);
       const mediaByKey = createMediaMap(media);
 
       counters.postsSeen += posts.length;
@@ -76,7 +94,12 @@ export async function runXIngest(): Promise<XIngestResult> {
       await upsertPostMedia(supabase, posts);
       counters.candidatesCreated += await insertCandidateRows(
         supabase,
-        buildCandidateRows({ account, posts, mediaByKey }),
+        buildCandidateRows({
+          account,
+          posts,
+          mediaByKey,
+          reviewPastEventNotices,
+        }),
       );
     }
 
@@ -125,4 +148,8 @@ function isPostOnOrAfterStartTime(post: XPost, startTime?: string) {
 
 function createMediaMap(media: XMedia[]) {
   return new Map(media.map((item) => [item.media_key, item]));
+}
+
+function dedupeMedia(media: XMedia[]) {
+  return Array.from(createMediaMap(media).values());
 }

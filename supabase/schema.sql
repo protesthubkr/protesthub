@@ -40,6 +40,9 @@ create index if not exists event_dates_date_time_idx
 create index if not exists event_dates_event_id_date_time_idx
   on event_dates (event_id, event_date, start_time);
 
+create index if not exists event_dates_date_time_event_id_idx
+  on event_dates (event_date, start_time, event_id);
+
 create index if not exists public_events_status_region_idx
   on public_events (status, region);
 
@@ -48,6 +51,18 @@ create index if not exists public_events_status_source_account_idx
 
 create index if not exists public_events_issue_tags_idx
   on public_events using gin (issue_tags);
+
+create index if not exists public_events_published_region_id_idx
+  on public_events (region, id)
+  where status = 'published';
+
+create index if not exists public_events_published_source_account_id_idx
+  on public_events (source_account_name, id)
+  where status = 'published';
+
+create index if not exists public_events_published_issue_tags_idx
+  on public_events using gin (issue_tags)
+  where status = 'published';
 
 create table if not exists x_ingest_runs (
   id uuid primary key default gen_random_uuid(),
@@ -185,7 +200,9 @@ from public_events e
 left join event_dates d on d.event_id = e.id
 group by e.id;
 
-create or replace view public_event_occurrences as
+drop view if exists public_event_occurrences;
+
+create view public_event_occurrences as
 select
   e.id,
   e.title,
@@ -194,8 +211,106 @@ select
   e.source_account_name,
   e.issue_tags,
   e.primary_issue,
-  d.event_date::text as occurrence_date,
-  to_char(d.start_time, 'HH24:MI') as occurrence_start_time
+  d.event_date as occurrence_date,
+  d.start_time as occurrence_start_time
 from public_events e
 join event_dates d on d.event_id = e.id
 where e.status = 'published';
+
+drop function if exists public.get_public_event_occurrence_window(
+  date,
+  integer,
+  text[],
+  text[],
+  text[]
+);
+
+create function public.get_public_event_occurrence_window(
+  p_from_date date,
+  p_window_days integer default 7,
+  p_issue_filters text[] default '{}'::text[],
+  p_region_filters text[] default '{}'::text[],
+  p_organizer_filters text[] default '{}'::text[]
+)
+returns table (
+  events jsonb,
+  has_more_events boolean,
+  next_from_date date,
+  window_end_date date,
+  window_start_date date
+)
+language sql
+stable
+security invoker
+set search_path = public
+as $$
+with params as (
+  select
+    p_from_date as window_start_date,
+    (p_from_date + p_window_days)::date as window_end_date,
+    coalesce(p_issue_filters, '{}'::text[]) as issue_filters,
+    coalesce(p_region_filters, '{}'::text[]) as region_filters,
+    coalesce(p_organizer_filters, '{}'::text[]) as organizer_filters
+),
+filtered_occurrences as (
+  select
+    e.id,
+    e.title,
+    e.venue,
+    e.region,
+    e.source_account_name,
+    e.issue_tags,
+    e.primary_issue,
+    d.event_date as occurrence_date,
+    d.start_time as occurrence_start_time
+  from event_dates d
+  join public_events e on e.id = d.event_id
+  cross join params p
+  where e.status = 'published'
+    and d.event_date >= p.window_start_date
+    and (
+      cardinality(p.issue_filters) = 0
+      or e.issue_tags && p.issue_filters
+    )
+    and (
+      cardinality(p.region_filters) = 0
+      or e.region = any(p.region_filters)
+    )
+    and (
+      cardinality(p.organizer_filters) = 0
+      or e.source_account_name = any(p.organizer_filters)
+    )
+)
+select
+  coalesce(
+    (
+      select jsonb_agg(
+        jsonb_build_object(
+          'id', fo.id,
+          'title', fo.title,
+          'venue', fo.venue,
+          'region', fo.region,
+          'source_account_name', fo.source_account_name,
+          'issue_tags', fo.issue_tags,
+          'primary_issue', fo.primary_issue,
+          'occurrence_date', fo.occurrence_date,
+          'occurrence_start_time', fo.occurrence_start_time
+        )
+        order by fo.occurrence_date, fo.occurrence_start_time nulls last, fo.id
+      )
+      from filtered_occurrences fo
+      where fo.occurrence_date >= p.window_start_date
+        and fo.occurrence_date < p.window_end_date
+    ),
+    '[]'::jsonb
+  ) as events,
+  exists (
+    select 1
+    from filtered_occurrences fo
+    where fo.occurrence_date >= p.window_end_date
+  ) as has_more_events,
+  p.window_end_date as next_from_date,
+  p.window_end_date as window_end_date,
+  p.window_start_date as window_start_date
+from params p;
+$$;

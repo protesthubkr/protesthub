@@ -28,7 +28,8 @@
 
   --font-family-sans: "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
     "맑은 고딕", var(--font-geist-sans), system-ui, sans-serif;
-  --font-family-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-family-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
   --font-size-caption: 12px;
   --font-size-small: 13px;
   --font-size-meta: 14px;
@@ -433,6 +434,7 @@ button {
 }
 
 .empty-week,
+.load-previous-sentinel,
 .load-more-sentinel {
   padding: var(--space-5) var(--page-gutter);
   color: var(--color-text-muted);
@@ -480,6 +482,8 @@ button {
 .event-card {
   display: grid;
   gap: var(--space-3);
+  content-visibility: auto;
+  contain-intrinsic-size: auto 132px;
   padding: 15px 15px 15px 16px;
   border: 1px solid var(--color-border);
   border-left: 3px solid var(--event-accent);
@@ -1037,6 +1041,86 @@ button {
   font-weight: var(--font-weight-bold);
 }
 
+.admin-manual-add-panel {
+  display: grid;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  padding: var(--space-4);
+  box-shadow: 0 1px 2px rgb(15 23 42 / 4%);
+}
+
+.admin-manual-add-panel h2 {
+  margin: 0;
+  color: var(--color-text);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-bold);
+  line-height: 24px;
+}
+
+.admin-manual-add-panel p,
+.admin-manual-add-form label {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-small);
+  line-height: 20px;
+}
+
+.admin-manual-add-form {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.admin-manual-add-row {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.admin-manual-add-row input {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  color: var(--color-text);
+  padding: 0 12px;
+  font: inherit;
+  font-size: var(--font-size-small);
+}
+
+.admin-manual-add-row input:focus {
+  outline: 2px solid rgb(21 128 61 / 22%);
+  outline-offset: 2px;
+  border-color: var(--color-primary);
+}
+
+.admin-manual-add-row button {
+  min-height: 42px;
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-md);
+  background: var(--color-primary);
+  color: var(--color-primary-text);
+  padding: 0 14px;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-bold);
+}
+
+.admin-manual-add-row button:disabled {
+  opacity: 0.62;
+  cursor: wait;
+}
+
+.admin-manual-add-message {
+  min-height: 20px;
+}
+
+.admin-manual-add-message.is-error {
+  color: var(--color-danger);
+  font-weight: var(--font-weight-bold);
+}
+
 .admin-error,
 .admin-empty {
   margin-top: var(--space-5);
@@ -1073,6 +1157,31 @@ button {
   margin-top: var(--space-3);
 }
 
+.admin-load-more-sentinel {
+  display: flex;
+  min-height: 72px;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+  line-height: 20px;
+  text-align: center;
+}
+
+.admin-load-more-sentinel a {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-text);
+  padding: 0 var(--space-4);
+  text-decoration: none;
+}
+
 .admin-candidate-card {
   display: grid;
   gap: var(--space-4);
@@ -1084,10 +1193,33 @@ button {
 }
 
 .admin-candidate-header {
-  display: flex;
+  display: grid;
   gap: var(--space-3);
   align-items: flex-start;
-  justify-content: space-between;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.admin-candidate-header-actions {
+  display: flex;
+  max-width: 100%;
+  flex-wrap: nowrap;
+  gap: 6px;
+  align-items: center;
+  justify-content: flex-start;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+}
+
+.admin-candidate-header-actions::-webkit-scrollbar {
+  display: none;
+}
+
+.admin-candidate-header-actions .admin-source-link,
+.admin-candidate-header-actions .admin-action-row button {
+  min-height: 36px;
+  padding: 0 9px;
+  font-size: var(--font-size-caption);
 }
 
 .admin-candidate-header h2 {
@@ -1121,6 +1253,7 @@ button {
 .admin-ocr-form button,
 .admin-ocr-run-form button,
 .admin-publish-form button,
+.admin-unpublish-form button,
 .admin-action-row button {
   min-height: 40px;
   border: 1px solid var(--color-primary);
@@ -1332,6 +1465,27 @@ button {
   margin-top: var(--space-3);
 }
 
+.admin-unpublish-form {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  border-top: 1px solid #bbf7d0;
+  padding-top: var(--space-3);
+}
+
+.admin-unpublish-form button {
+  width: fit-content;
+  border-color: var(--color-danger);
+  background: var(--color-danger);
+  color: #ffffff;
+}
+
+.admin-unpublish-form span {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-small);
+  line-height: 20px;
+}
+
 .admin-publish-grid {
   display: grid;
   gap: var(--space-3);
@@ -1450,8 +1604,9 @@ button {
 
 .admin-action-row {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  gap: 6px;
 }
 
 .admin-action-row form {
@@ -1475,8 +1630,25 @@ button {
     align-items: end;
   }
 
+  .admin-manual-add-panel {
+    grid-template-columns: minmax(180px, 0.8fr) minmax(0, 1.2fr);
+    align-items: end;
+  }
+
+  .admin-manual-add-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
   .admin-candidate-card {
     padding: var(--space-5);
+  }
+
+  .admin-candidate-header {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .admin-candidate-header-actions {
+    justify-content: flex-end;
   }
 
   .admin-candidate-grid {

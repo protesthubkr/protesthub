@@ -57,7 +57,8 @@ const DATE_HINT_PATTERN =
 const PLACE_HINT_PATTERN =
   /(광장|역|출구|앞|시청|구청|군청|국회|대사관|영사관|법원|검찰청|경찰청|본관|거리|공원|집결|행진|로터리|사거리|분향소|센터|회관|빌딩|타워)/;
 
-const REQUIRED_REVIEW_KEYWORDS = ["일시", "장소"];
+const REVIEW_KEYWORDS = ["일시", "날짜", "일정"];
+const MIN_WEAK_EVENT_KEYWORDS_FOR_REVIEW = 3;
 
 type CandidateSignals = {
   hasPhoto: boolean;
@@ -90,9 +91,11 @@ export function getCandidateReasons(post: XPost, media: XMedia[]) {
   const reasons: string[] = ["heuristic:v2"];
 
   if (signals.hasRequiredReviewKeywords) {
-    reasons.push("review_keywords:일시+장소");
+    reasons.push(
+      `review_keywords:${findReviewKeywords(getPostText(post)).join("+")}`,
+    );
   } else {
-    reasons.push("missing_review_keywords:일시+장소");
+    reasons.push("missing_review_keywords:일시|날짜|일정");
   }
 
   if (signals.hasPhoto) {
@@ -115,6 +118,12 @@ export function getCandidateReasons(post: XPost, media: XMedia[]) {
     reasons.push("low_confidence_image_only");
   }
 
+  if (hasEnoughWeakEventKeywords(signals)) {
+    reasons.push(
+      `weak_keyword_threshold:${signals.weakKeywords.length}/${MIN_WEAK_EVENT_KEYWORDS_FOR_REVIEW}`,
+    );
+  }
+
   reasons.push(
     ...signals.strongKeywords.map((keyword) => `strong_keyword:${keyword}`),
     ...signals.weakKeywords.map((keyword) => `weak_keyword:${keyword}`),
@@ -128,8 +137,12 @@ export function shouldCreateCandidate(post: XPost, media: XMedia[]) {
   return Boolean(getPostText(post).trim() || media.length > 0);
 }
 
-export function shouldReviewCandidate(post: XPost) {
-  return hasRequiredReviewKeywords(getPostText(post));
+export function shouldReviewCandidate(post: XPost, media: XMedia[]) {
+  const signals = getCandidateSignals(post, media);
+
+  return (
+    signals.hasRequiredReviewKeywords || hasEnoughWeakEventKeywords(signals)
+  );
 }
 
 function getCandidateSignals(post: XPost, media: XMedia[]): CandidateSignals {
@@ -146,7 +159,7 @@ function getCandidateSignals(post: XPost, media: XMedia[]): CandidateSignals {
     hasDateHint: DATE_HINT_PATTERN.test(text),
     hasPlaceHint: PLACE_HINT_PATTERN.test(text),
     isImageOnlyPost: hasPhoto && meaningfulPostText.length <= 12,
-    hasRequiredReviewKeywords: hasRequiredReviewKeywords(postText),
+    hasRequiredReviewKeywords: hasReviewKeyword(postText),
     strongKeywords: findMatches(text, STRONG_EVENT_KEYWORDS),
     weakKeywords: findMatches(text, WEAK_EVENT_KEYWORDS),
     noticeOnlyKeywords: findMatches(text, NOTICE_ONLY_KEYWORDS),
@@ -159,8 +172,16 @@ function getSearchableText(post: XPost, media: XMedia[]) {
     .join("\n");
 }
 
-function hasRequiredReviewKeywords(text: string) {
-  return REQUIRED_REVIEW_KEYWORDS.every((keyword) => text.includes(keyword));
+function hasReviewKeyword(text: string) {
+  return findReviewKeywords(text).length > 0;
+}
+
+function hasEnoughWeakEventKeywords(signals: CandidateSignals) {
+  return signals.weakKeywords.length >= MIN_WEAK_EVENT_KEYWORDS_FOR_REVIEW;
+}
+
+function findReviewKeywords(text: string) {
+  return findMatches(text, REVIEW_KEYWORDS);
 }
 
 function findMatches(text: string, keywords: string[]) {

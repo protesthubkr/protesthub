@@ -14,6 +14,8 @@ export type CandidateStatusFilter = CandidateStatus | "all";
 
 export type CandidateReviewScope = "focused" | "image" | "all";
 
+export const ADMIN_CANDIDATES_PAGE_SIZE = 50;
+
 export type CandidateMedia = {
   mediaKey: string;
   mediaType: string;
@@ -54,6 +56,16 @@ type CandidateRow = {
   candidate_reason: string[];
   created_at: string;
   updated_at: string;
+};
+
+type CandidateSignalFields = {
+  candidateReason: string[];
+  mediaKeys: string[];
+};
+
+type CandidateScopeCountRow = {
+  candidate_reason: string[] | null;
+  media_keys: string[] | null;
 };
 
 type MediaRow = {
@@ -133,17 +145,25 @@ export function parseCandidateReviewScope(
     : "focused";
 }
 
+export function parseCandidatePageParam(value: string | undefined) {
+  const parsed = Number.parseInt(value ?? "", 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+}
+
 export async function getReviewCandidates(
   status: CandidateStatusFilter,
   scope: CandidateReviewScope,
+  page = 1,
 ) {
   const supabase = getSupabaseAdminClient();
+  const visibleLimit = page * ADMIN_CANDIDATES_PAGE_SIZE;
 
   if (!supabase) {
     return {
       candidates: [] as ReviewCandidate[],
       counts: createEmptyCounts(),
       error: "Supabase service role 환경변수가 설정되지 않았습니다.",
+      hasMoreCandidates: false,
     };
   }
 
@@ -166,9 +186,7 @@ export async function getReviewCandidates(
       ].join(","),
     )
     .order("created_at", { ascending: false })
-    .limit(
-      status === "needs_review" && scope !== "all" ? 500 : 50,
-    );
+    .limit(getCandidateQueryLimit(status, scope, visibleLimit));
 
   if (status !== "all") {
     query = query.eq("status", status);
@@ -176,7 +194,7 @@ export async function getReviewCandidates(
 
   const [{ data, error }, counts] = await Promise.all([
     query,
-    getCandidateCounts(),
+    getCandidateCounts(scope),
   ]);
 
   if (error || !data) {
@@ -184,6 +202,7 @@ export async function getReviewCandidates(
       candidates: [] as ReviewCandidate[],
       counts,
       error: error?.message ?? "후보 목록을 불러오지 못했습니다.",
+      hasMoreCandidates: false,
     };
   }
 
@@ -196,15 +215,22 @@ export async function getReviewCandidates(
     mapCandidateRow(row, mediaByKey, publicEventsById),
   );
   const visibleCandidates = filterCandidatesByScope(candidates, status, scope);
+  const hasMoreCandidates = hasMoreReviewCandidates({
+    counts,
+    scope,
+    status,
+    visibleLimit,
+  });
 
   return {
-    candidates: visibleCandidates.slice(0, 50),
+    candidates: visibleCandidates.slice(0, visibleLimit),
     counts,
     error: null,
+    hasMoreCandidates,
   };
 }
 
-export async function getCandidateCounts() {
+export async function getCandidateCounts(scope: CandidateReviewScope = "all") {
   const supabase = getSupabaseAdminClient();
 
   if (!supabase) {
@@ -230,7 +256,29 @@ export async function getCandidateCounts() {
   });
   counts.all = entries.reduce((sum, [, count]) => sum + count, 0);
 
+  if (scope !== "all") {
+    counts.needs_review = await getScopedNeedsReviewCount(supabase, scope);
+  }
+
   return counts;
+}
+
+async function getScopedNeedsReviewCount(
+  supabase: NonNullable<ReturnType<typeof getSupabaseAdminClient>>,
+  scope: CandidateReviewScope,
+) {
+  const { data, error } = await supabase
+    .from("x_event_candidates")
+    .select("candidate_reason,media_keys")
+    .eq("status", "needs_review");
+
+  if (error || !data) {
+    return 0;
+  }
+
+  return (data as unknown as CandidateScopeCountRow[]).filter((row) =>
+    isCandidateVisibleInScope(mapCandidateSignalFields(row), scope),
+  ).length;
 }
 
 async function getCandidateMedia(mediaKeys: string[]) {
@@ -352,7 +400,16 @@ function createEmptyCounts(): Record<CandidateStatusFilter, number> {
   };
 }
 
-function isLowSignalCandidate(candidate: ReviewCandidate) {
+function mapCandidateSignalFields(
+  row: CandidateScopeCountRow,
+): CandidateSignalFields {
+  return {
+    candidateReason: row.candidate_reason ?? [],
+    mediaKeys: row.media_keys ?? [],
+  };
+}
+
+function isLowSignalCandidate(candidate: CandidateSignalFields) {
   const reasons = candidate.candidateReason;
 
   if (reasons.includes("low_confidence_image_only")) {
@@ -392,6 +449,21 @@ function isLowSignalCandidate(candidate: ReviewCandidate) {
   return !hasStrongKeyword;
 }
 
+function isCandidateVisibleInScope(
+  candidate: CandidateSignalFields,
+  scope: CandidateReviewScope,
+) {
+  if (scope === "focused") {
+    return !isLowSignalCandidate(candidate);
+  }
+
+  if (scope === "image") {
+    return isLowSignalCandidate(candidate) && candidate.mediaKeys.length > 0;
+  }
+
+  return true;
+}
+
 function filterCandidatesByScope(
   candidates: ReviewCandidate[],
   status: CandidateStatusFilter,
@@ -401,16 +473,37 @@ function filterCandidatesByScope(
     return candidates;
   }
 
-  if (scope === "focused") {
-    return candidates.filter((candidate) => !isLowSignalCandidate(candidate));
+  return candidates.filter((candidate) =>
+    isCandidateVisibleInScope(candidate, scope),
+  );
+}
+
+function getCandidateQueryLimit(
+  status: CandidateStatusFilter,
+  scope: CandidateReviewScope,
+  visibleLimit: number,
+) {
+  if (status === "needs_review" && scope !== "all") {
+    return Math.max(visibleLimit + ADMIN_CANDIDATES_PAGE_SIZE, 500);
   }
 
-  if (scope === "image") {
-    return candidates.filter(
-      (candidate) =>
-        isLowSignalCandidate(candidate) && candidate.media.length > 0,
-    );
+  return visibleLimit + 1;
+}
+
+function hasMoreReviewCandidates({
+  counts,
+  scope,
+  status,
+  visibleLimit,
+}: {
+  counts: Record<CandidateStatusFilter, number>;
+  scope: CandidateReviewScope;
+  status: CandidateStatusFilter;
+  visibleLimit: number;
+}) {
+  if (status === "needs_review" && scope !== "all") {
+    return counts.needs_review > visibleLimit;
   }
 
-  return candidates;
+  return counts[status] > visibleLimit;
 }

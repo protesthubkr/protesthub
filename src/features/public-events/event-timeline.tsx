@@ -6,18 +6,31 @@ import { EventCard } from "./event-card";
 type EventTimelineProps = {
   dateGroups: DateEventGroup[];
   hasMoreEvents: boolean;
+  hasPreviousEvents: boolean;
   isLoadingMore: boolean;
+  isLoadingPrevious: boolean;
   loadMoreRef: RefObject<HTMLDivElement | null>;
+  loadPreviousRef: RefObject<HTMLDivElement | null>;
 };
 
 export function EventTimeline({
   dateGroups,
   hasMoreEvents,
+  hasPreviousEvents,
   isLoadingMore,
+  isLoadingPrevious,
   loadMoreRef,
+  loadPreviousRef,
 }: EventTimelineProps) {
   return (
     <>
+      {hasPreviousEvents || isLoadingPrevious ? (
+        <div className="load-previous-sentinel" ref={loadPreviousRef}>
+          {isLoadingPrevious
+            ? "이전 집회를 불러오는 중"
+            : "위로 스크롤하면 이전 일주일을 불러와요"}
+        </div>
+      ) : null}
       {dateGroups.length > 0 ? (
         <div className="date-section-list">
           {dateGroups.map((group) => (

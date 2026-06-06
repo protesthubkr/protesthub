@@ -53,6 +53,7 @@ src/features/admin-candidates/
 
 src/lib/
   events.ts                      공개 목록 window, organizer 옵션, 상세 단건 조회.
+  event-query-model.ts           공개 조회 Supabase row 타입, occurrence/window 변환, 캘린더 요약 순수 함수.
   types.ts                       공개 이벤트, 목록 occurrence, 필터 타입.
   issues.ts / regions.ts         의제/지역 옵션의 단일 출처.
   format.ts                      날짜/시간 순수 util.
@@ -85,7 +86,23 @@ src/lib/llm/
 
 ## Supabase 공개 조회 구조
 
-목록 최적화의 기준 view는 `public_event_occurrences`다.
+목록 추가 로드는 `get_public_event_occurrence_window()` RPC를 사용한다.
+
+```sql
+get_public_event_occurrence_window(
+  p_from_date date,
+  p_window_days integer,
+  p_issue_filters text[],
+  p_region_filters text[],
+  p_organizer_filters text[]
+)
+```
+
+- 목록 API는 RPC 1회로 해당 1주 window의 occurrence와 `has_more_events`를 함께 받는다.
+- RPC는 `event_dates`와 `public_events`를 직접 조회하며, 빈 필터 배열은 전체 조회로 처리한다.
+- RPC 응답 row와 JSON payload 변환은 `src/lib/event-query-model.ts`의 순수 함수가 담당한다.
+
+캘린더 월 요약과 상세 카드의 기준 view는 `public_event_occurrences`, `public_event_cards`다.
 
 ```sql
 public_event_occurrences
@@ -100,9 +117,9 @@ public_event_occurrences
   occurrence_start_time
 ```
 
-- 목록은 이 view에서 날짜 범위와 필터를 적용한다.
+- 캘린더는 `public_event_occurrences` view에서 날짜 범위와 필터를 적용한다.
 - 상세는 기존 `public_event_cards`에서 id 단건을 조회한다.
-- `public_event_occurrences` view는 필수다. view나 index가 없으면 목록 조회가 실패하도록 두어 DB 배포 누락을 빨리 드러낸다.
+- `get_public_event_occurrence_window()` RPC와 `public_event_occurrences` view는 필수다. RPC/view/index가 없으면 공개 조회가 실패하도록 두어 DB 배포 누락을 빨리 드러낸다.
 
 ## 검수와 공개
 
@@ -111,17 +128,20 @@ public_event_occurrences
 3. 구조화 결과는 `extraction_payload.structured_event` schema v2 형태로 저장한다.
 4. 공개 기본값은 기존 공개 이벤트가 있으면 그 값을 우선하고, 없으면 구조화 결과를 사용한다.
 5. 공개 적용은 `public_events` upsert, 기존 `event_dates` 삭제, 새 `event_dates` insert, 후보 `published` 갱신 순서다.
-6. 공개 후 `/`, `/events/[id]`, `/admin/candidates`를 revalidate한다. `/api/events`는 짧은 CDN TTL로 최대 60초 안에 갱신된다.
+6. 공개 내리기는 `public_events` row를 삭제해 `event_dates`를 cascade 삭제하고 후보를 `needs_review`로 되돌린다.
+7. 공개 후 `/`, `/events/[id]`, `/admin/candidates`를 revalidate한다. `/api/events`는 짧은 CDN TTL로 최대 60초 안에 갱신된다.
 
 ## X 수집
 
 1. `/api/ingest/x`가 Bearer `INGEST_SECRET`을 검증한다.
 2. `runXIngest()`는 운영 계정의 팔로잉 계정 목록을 읽는다.
-3. 계정별로 이전 수집 성공 시점 이후 post만 가져온다.
+3. 기본 수집은 계정별 최신 저장 post 이후만 가져오고, 백필 수집은 `startDate`/`startTime` 옵션으로 `since_id`를 우회한다.
 4. `note_tweet.text`가 있으면 본문으로 우선 사용한다.
 5. 텍스트 또는 미디어가 있는 post만 후보 row가 될 수 있다.
-6. 본문에 `일시`와 `장소`가 모두 있는 post만 `needs_review`, 나머지는 `ignored`로 저장한다.
-7. 오늘 이전 일정으로 판정되면 `ignored`와 `past_event_date` 근거를 남긴다.
+6. 본문에 `일시`, `날짜`, `일정` 중 하나라도 있거나 보조 신호가 3개 이상인 post를 `needs_review`, 나머지는 `ignored`로 저장한다.
+7. 일반 증분 수집에서 오늘 이전 일정으로 판정되면 `ignored`와 `past_event_date` 근거를 남긴다.
+8. `startDate`/`startTime` 백필 수집은 과거 일정 판정이 있어도 키워드 post를 검수 대기로 유지하고 `past_event_date` 근거만 남긴다.
+9. 백필이나 장기 미수집 계정은 `maxPages` 또는 `X_BACKFILL_TIMELINE_PAGES_PER_ACCOUNT`로 계정별 timeline pagination 상한을 둔다.
 
 ## 변경 안전 규칙
 

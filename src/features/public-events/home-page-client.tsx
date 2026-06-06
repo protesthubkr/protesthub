@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import { REGION_OPTIONS } from "@/lib/regions";
@@ -10,11 +11,9 @@ import type {
   EventViewMode,
   FilterStep,
 } from "@/lib/types";
-import { CalendarMonthView } from "./calendar-month-view";
 import { ConditionChips } from "./condition-chips";
 import { EmptyState } from "./empty-state";
 import { EventTimeline } from "./event-timeline";
-import { FilterSheet } from "./filter-sheet";
 import {
   buildEventHref,
   buildConditionChips,
@@ -25,6 +24,14 @@ import { useEventListWindow } from "./use-event-list-window";
 import { useFilterOverlayLock } from "./use-filter-overlay-lock";
 import { useHomeFilterState } from "./use-home-filter-state";
 import { ViewModeSwitch } from "./view-mode-switch";
+
+const CalendarMonthView = dynamic(() =>
+  import("./calendar-month-view").then((module) => module.CalendarMonthView),
+);
+
+const FilterSheet = dynamic(() =>
+  import("./filter-sheet").then((module) => module.FilterSheet),
+);
 
 type HomePageClientProps = {
   calendarMonth: string;
@@ -68,14 +75,18 @@ export function HomePageClient({
   const {
     dateGroups,
     hasMoreEvents,
+    hasPreviousEvents,
     isLoadingMore,
+    isLoadingPrevious,
     loadMoreRef,
+    loadPreviousRef,
     loadedEvents,
   } = useEventListWindow({
     activeViewMode,
     filters,
     initialWindow,
     isFilterOpen: state.isFilterOpen,
+    todayDate,
   });
   const conditionChips = useMemo(
     () => buildConditionChips(filters),
@@ -166,8 +177,11 @@ export function HomePageClient({
           <EventTimeline
             dateGroups={dateGroups}
             hasMoreEvents={hasMoreEvents}
+            hasPreviousEvents={hasPreviousEvents}
             isLoadingMore={isLoadingMore}
+            isLoadingPrevious={isLoadingPrevious}
             loadMoreRef={loadMoreRef}
+            loadPreviousRef={loadPreviousRef}
           />
         )}
 

@@ -24,12 +24,13 @@ export function createEmptyIngestCounters(): IngestCounters {
 export async function createIngestRun(
   supabase: SupabaseClient,
   metadata: Record<string, unknown>,
+  strategy = INGEST_STRATEGY,
 ) {
   const { data, error } = await supabase
     .from("x_ingest_runs")
     .insert({
       status: "running",
-      strategy: INGEST_STRATEGY,
+      strategy,
       metadata,
     })
     .select("id")

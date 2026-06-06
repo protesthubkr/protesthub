@@ -2,6 +2,8 @@ import type { XIngestConfig } from "./types";
 
 const DEFAULT_POSTS_PER_ACCOUNT = 10;
 const DEFAULT_MAX_FOLLOWING_ACCOUNTS = 100;
+const DEFAULT_TIMELINE_PAGES_PER_ACCOUNT = 1;
+const DEFAULT_BACKFILL_TIMELINE_PAGES_PER_ACCOUNT = 3;
 const DEFAULT_INCLUDE_REPLIES = false;
 
 export class XIngestConfigError extends Error {
@@ -41,6 +43,18 @@ export function getXIngestConfig(): XIngestConfig {
       DEFAULT_MAX_FOLLOWING_ACCOUNTS,
       1,
       1000,
+    ),
+    timelinePagesPerAccount: parseBoundedInteger(
+      process.env.X_TIMELINE_PAGES_PER_ACCOUNT,
+      DEFAULT_TIMELINE_PAGES_PER_ACCOUNT,
+      1,
+      25,
+    ),
+    backfillTimelinePagesPerAccount: parseBoundedInteger(
+      process.env.X_BACKFILL_TIMELINE_PAGES_PER_ACCOUNT,
+      DEFAULT_BACKFILL_TIMELINE_PAGES_PER_ACCOUNT,
+      1,
+      25,
     ),
     includeReplies: parseBoolean(
       process.env.X_INCLUDE_REPLIES,

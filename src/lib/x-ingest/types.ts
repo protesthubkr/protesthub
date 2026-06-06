@@ -54,6 +54,16 @@ export type XTimelineResponse = {
   errors?: unknown[];
 };
 
+export type XSinglePostResponse = {
+  data?: XPost;
+  includes?: {
+    users?: XUser[];
+    media?: XMedia[];
+    tweets?: XPost[];
+  };
+  errors?: unknown[];
+};
+
 export type XFollowingResponse = {
   data?: XUser[];
   meta?: {
@@ -68,7 +78,15 @@ export type XIngestConfig = {
   operatingUserId: string;
   postsPerAccount: number;
   maxFollowingAccounts: number;
+  timelinePagesPerAccount: number;
+  backfillTimelinePagesPerAccount: number;
   includeReplies: boolean;
+};
+
+export type XIngestRunOptions = {
+  maxTimelinePagesPerAccount?: number;
+  reviewPastEventNotices?: boolean;
+  startTime?: string;
 };
 
 export type XIngestResult = {

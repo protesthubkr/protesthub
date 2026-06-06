@@ -1,4 +1,9 @@
-import type { XFollowingResponse, XTimelineResponse, XUser } from "./types";
+import type {
+  XFollowingResponse,
+  XSinglePostResponse,
+  XTimelineResponse,
+  XUser,
+} from "./types";
 
 const X_API_BASE_URL = "https://api.x.com/2";
 
@@ -95,6 +100,7 @@ export async function fetchUserPosts({
   includeReplies,
   userId,
   maxResults,
+  maxPages,
   sinceId,
   startTime,
 }: {
@@ -102,6 +108,74 @@ export async function fetchUserPosts({
   includeReplies: boolean;
   userId: string;
   maxResults: number;
+  maxPages: number;
+  sinceId?: string;
+  startTime?: string;
+}) {
+  const mergedResponse: XTimelineResponse = {
+    data: [],
+    includes: { media: [], tweets: [], users: [] },
+  };
+  let paginationToken: string | undefined;
+  let pagesFetched = 0;
+
+  do {
+    const page = await fetchUserPostsPage({
+      bearerToken,
+      includeReplies,
+      userId,
+      maxResults,
+      paginationToken,
+      sinceId,
+      startTime,
+    });
+
+    mergedResponse.data?.push(...(page.data ?? []));
+    mergedResponse.includes?.media?.push(...(page.includes?.media ?? []));
+    mergedResponse.includes?.tweets?.push(...(page.includes?.tweets ?? []));
+    mergedResponse.includes?.users?.push(...(page.includes?.users ?? []));
+    mergedResponse.errors = [
+      ...(mergedResponse.errors ?? []),
+      ...(page.errors ?? []),
+    ];
+    mergedResponse.meta = page.meta;
+    paginationToken = page.meta?.next_token;
+    pagesFetched += 1;
+  } while (paginationToken && pagesFetched < maxPages);
+
+  return mergedResponse;
+}
+
+export async function fetchPostById({
+  bearerToken,
+  postId,
+}: {
+  bearerToken: string;
+  postId: string;
+}) {
+  const url = new URL(`${X_API_BASE_URL}/tweets/${postId}`);
+  url.searchParams.set("tweet.fields", TWEET_FIELDS);
+  url.searchParams.set("expansions", TWEET_EXPANSIONS);
+  url.searchParams.set("media.fields", MEDIA_FIELDS);
+  url.searchParams.set("user.fields", USER_FIELDS);
+
+  return fetchX<XSinglePostResponse>(url, bearerToken);
+}
+
+async function fetchUserPostsPage({
+  bearerToken,
+  includeReplies,
+  userId,
+  maxResults,
+  paginationToken,
+  sinceId,
+  startTime,
+}: {
+  bearerToken: string;
+  includeReplies: boolean;
+  userId: string;
+  maxResults: number;
+  paginationToken?: string;
   sinceId?: string;
   startTime?: string;
 }) {
@@ -120,6 +194,10 @@ export async function fetchUserPosts({
     url.searchParams.set("since_id", sinceId);
   } else if (startTime) {
     url.searchParams.set("start_time", startTime);
+  }
+
+  if (paginationToken) {
+    url.searchParams.set("pagination_token", paginationToken);
   }
 
   return fetchX<XTimelineResponse>(url, bearerToken);

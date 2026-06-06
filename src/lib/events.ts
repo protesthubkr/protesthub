@@ -1,102 +1,18 @@
-import {
-  addDays,
-  compareOccurrences,
-  getMonthStartDate,
-  getNextMonthStartDate,
-} from "./format";
+import { getMonthStartDate, getNextMonthStartDate } from "./format";
 import { getSupabaseClient } from "./supabase";
-import type {
-  EventCalendarDaySummary,
-  EventCalendarMonth,
-  EventFilters,
-  EventListOccurrence,
-  IssueKey,
-  PublicEvent,
-} from "./types";
-
-const DAYS_PER_EVENT_WINDOW = 7;
-const CALENDAR_DAY_SAMPLE_LIMIT = 4;
-
-type SupabaseEventCardRow = {
-  id: string;
-  title: string;
-  description: string | null;
-  venue: string;
-  address: string;
-  region: string;
-  source_account_name: string;
-  source_post_url: string;
-  cancel_source_url: string | null;
-  issue_tags: IssueKey[];
-  primary_issue: IssueKey;
-  status: "published" | "canceled";
-  last_checked_at: string;
-  poster_image_url: string | null;
-  dates: { date: string; start_time: string | null }[];
-};
-
-type SupabaseEventOccurrenceRow = {
-  id: string;
-  title: string;
-  venue: string;
-  region: string;
-  source_account_name: string;
-  issue_tags: IssueKey[];
-  primary_issue: IssueKey;
-  occurrence_date: string;
-  occurrence_start_time: string | null;
-};
-
-type OrganizerRow = {
-  source_account_name: string;
-};
-
-type SupabaseCalendarOccurrenceRow = {
-  id: string;
-  title: string;
-  primary_issue: IssueKey;
-  occurrence_date: string;
-  occurrence_start_time: string | null;
-};
-
-function mapEventCardRow(row: SupabaseEventCardRow): PublicEvent {
-  return {
-    id: row.id,
-    title: row.title,
-    description: row.description ?? "",
-    venue: row.venue,
-    address: row.address,
-    region: row.region,
-    sourceAccountName: row.source_account_name,
-    sourcePostUrl: row.source_post_url,
-    cancelSourceUrl: row.cancel_source_url ?? undefined,
-    issueTags: row.issue_tags,
-    primaryIssue: row.primary_issue,
-    status: row.status,
-    lastCheckedAt: row.last_checked_at,
-    posterImageUrl: row.poster_image_url ?? undefined,
-    dates: row.dates.map((date) => ({
-      date: date.date,
-      startTime: date.start_time,
-    })),
-  };
-}
-
-function mapOccurrenceRow(
-  row: SupabaseEventOccurrenceRow,
-): EventListOccurrence {
-  return {
-    id: row.id,
-    title: row.title,
-    venue: row.venue,
-    region: row.region,
-    sourceAccountName: row.source_account_name,
-    issueTags: row.issue_tags,
-    primaryIssue: row.primary_issue,
-    occurrenceDate: row.occurrence_date,
-    occurrenceStartTime: row.occurrence_start_time,
-  };
-}
+import {
+  compareCalendarOccurrences,
+  DAYS_PER_EVENT_WINDOW,
+  getUniqueOrganizers,
+  mapEventCardRow,
+  mapOccurrenceWindowRpcRow,
+  summarizeCalendarDays,
+  type OrganizerRow,
+  type SupabaseCalendarOccurrenceRow,
+  type SupabaseEventCardRow,
+  type SupabaseEventOccurrenceWindowRpcRow,
+} from "./event-query-model";
+import type { EventCalendarMonth, EventFilters } from "./types";
 
 function getRequiredSupabaseClient() {
   const supabase = getSupabaseClient();
@@ -108,10 +24,6 @@ function getRequiredSupabaseClient() {
   return supabase;
 }
 
-function getWindowEndDate(fromDate: string) {
-  return addDays(fromDate, DAYS_PER_EVENT_WINDOW);
-}
-
 export async function getPublicEventOccurrenceWindow({
   filters,
   fromDate,
@@ -120,60 +32,26 @@ export async function getPublicEventOccurrenceWindow({
   fromDate: string;
 }) {
   const supabase = getRequiredSupabaseClient();
-  const nextFromDate = getWindowEndDate(fromDate);
-  const baseSelect =
-    "id,title,venue,region,source_account_name,issue_tags,primary_issue,occurrence_date,occurrence_start_time";
+  const { data, error } = await supabase.rpc(
+    "get_public_event_occurrence_window",
+    {
+      p_from_date: fromDate,
+      p_issue_filters: filters.issues,
+      p_organizer_filters: filters.organizers,
+      p_region_filters: filters.regions,
+      p_window_days: DAYS_PER_EVENT_WINDOW,
+    },
+  );
 
-  let windowQuery = supabase
-    .from("public_event_occurrences")
-    .select(baseSelect)
-    .gte("occurrence_date", fromDate)
-    .lt("occurrence_date", nextFromDate)
-    .order("occurrence_date", { ascending: true })
-    .order("occurrence_start_time", { ascending: true });
-  let futureQuery = supabase
-    .from("public_event_occurrences")
-    .select("id")
-    .gte("occurrence_date", nextFromDate)
-    .limit(1);
-
-  if (filters.issues.length > 0) {
-    windowQuery = windowQuery.overlaps("issue_tags", filters.issues);
-    futureQuery = futureQuery.overlaps("issue_tags", filters.issues);
+  if (error) {
+    throw new Error(error.message);
   }
 
-  if (filters.regions.length > 0) {
-    windowQuery = windowQuery.in("region", filters.regions);
-    futureQuery = futureQuery.in("region", filters.regions);
-  }
+  const rpcRow = Array.isArray(data)
+    ? ((data[0] ?? null) as SupabaseEventOccurrenceWindowRpcRow | null)
+    : null;
 
-  if (filters.organizers.length > 0) {
-    windowQuery = windowQuery.in("source_account_name", filters.organizers);
-    futureQuery = futureQuery.in("source_account_name", filters.organizers);
-  }
-
-  const [windowResult, futureResult] = await Promise.all([
-    windowQuery,
-    futureQuery,
-  ]);
-
-  if (windowResult.error) {
-    throw new Error(windowResult.error.message);
-  }
-
-  if (futureResult.error) {
-    throw new Error(futureResult.error.message);
-  }
-
-  return {
-    events: ((windowResult.data ?? []) as SupabaseEventOccurrenceRow[])
-      .map(mapOccurrenceRow)
-      .sort(compareOccurrences),
-    hasMoreEvents: Boolean(futureResult.data?.length),
-    nextFromDate,
-    windowEndDate: nextFromDate,
-    windowStartDate: fromDate,
-  };
+  return mapOccurrenceWindowRpcRow(rpcRow, fromDate);
 }
 
 export async function getPublicEventCalendarMonth({
@@ -190,7 +68,7 @@ export async function getPublicEventCalendarMonth({
   let query = supabase
     .from("public_event_occurrences")
     .select(
-      "id,title,primary_issue,occurrence_date,occurrence_start_time,issue_tags,region,source_account_name",
+      "id,title,primary_issue,occurrence_date,occurrence_start_time",
     )
     .gte("occurrence_date", monthStartDate)
     .lt("occurrence_date", nextMonthStartDate)
@@ -257,60 +135,4 @@ export async function getEventById(id: string) {
   }
 
   return data ? mapEventCardRow(data as SupabaseEventCardRow) : null;
-}
-
-function getUniqueOrganizers(organizers: string[]) {
-  return Array.from(new Set(organizers.filter(Boolean))).sort((a, b) =>
-    a.localeCompare(b, "ko"),
-  );
-}
-
-function summarizeCalendarDays(rows: SupabaseCalendarOccurrenceRow[]) {
-  const summariesByDate = new Map<string, EventCalendarDaySummary>();
-
-  rows.forEach((row) => {
-    const currentSummary = summariesByDate.get(row.occurrence_date) ?? {
-      count: 0,
-      date: row.occurrence_date,
-      overflowCount: 0,
-      samples: [],
-    };
-
-    currentSummary.count += 1;
-
-    if (currentSummary.samples.length < CALENDAR_DAY_SAMPLE_LIMIT) {
-      currentSummary.samples.push({
-        id: row.id,
-        primaryIssue: row.primary_issue,
-        time: row.occurrence_start_time,
-        title: row.title,
-      });
-    }
-
-    currentSummary.overflowCount = Math.max(
-      0,
-      currentSummary.count - currentSummary.samples.length,
-    );
-    summariesByDate.set(row.occurrence_date, currentSummary);
-  });
-
-  return Array.from(summariesByDate.values()).sort((a, b) =>
-    a.date.localeCompare(b.date),
-  );
-}
-
-function compareCalendarOccurrences(
-  a: SupabaseCalendarOccurrenceRow,
-  b: SupabaseCalendarOccurrenceRow,
-) {
-  return compareOccurrences(
-    {
-      occurrenceDate: a.occurrence_date,
-      occurrenceStartTime: a.occurrence_start_time,
-    },
-    {
-      occurrenceDate: b.occurrence_date,
-      occurrenceStartTime: b.occurrence_start_time,
-    },
-  );
 }

@@ -7,8 +7,8 @@ import {
   getPublicEventCalendarMonth,
   getPublicEventOccurrenceWindow,
 } from "@/lib/events";
+import { createEmptyOccurrenceWindow } from "@/lib/event-query-model";
 import { getKoreanTodayDate, getMonthKey } from "@/lib/format";
-import type { EventOccurrenceWindow } from "@/lib/types";
 
 export type HomeSearchParams = Record<string, string | string[] | undefined>;
 
@@ -27,7 +27,7 @@ export async function getPublicEventsHomePageData(params: HomeSearchParams) {
           filters: searchState.filters,
           fromDate: listFromDate,
         })
-      : Promise.resolve(createEmptyWindow(todayDate));
+      : Promise.resolve(createEmptyOccurrenceWindow(todayDate));
   const calendarPromise =
     searchState.viewMode === "calendar"
       ? getPublicEventCalendarMonth({
@@ -52,16 +52,6 @@ export async function getPublicEventsHomePageData(params: HomeSearchParams) {
     searchSignature: getEventQuerySignature(searchState),
     todayDate,
     viewMode: searchState.viewMode,
-  };
-}
-
-function createEmptyWindow(date: string): EventOccurrenceWindow {
-  return {
-    events: [],
-    hasMoreEvents: false,
-    nextFromDate: date,
-    windowEndDate: date,
-    windowStartDate: date,
   };
 }
 

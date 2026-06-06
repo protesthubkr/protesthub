@@ -14,8 +14,8 @@
 | 작업 | 먼저 볼 파일 |
 | --- | --- |
 | 공개 목록 초기 로드 | `src/app/page.tsx`, `src/features/public-events/home-page-data.ts`, `src/lib/events.ts` |
-| 공개 목록 추가 로드 | `src/features/public-events/use-event-list-window.ts`, `src/app/api/events/route.ts`, `src/lib/events.ts` |
-| 캘린더 월 조회 | `src/features/public-events/use-calendar-month-data.ts`, `src/app/api/events/calendar/route.ts`, `src/lib/events.ts` |
+| 공개 목록 추가 로드 | `src/features/public-events/use-event-list-window.ts`, `src/app/api/events/route.ts`, `src/lib/events.ts`, `src/lib/event-query-model.ts` |
+| 캘린더 월 조회 | `src/features/public-events/use-calendar-month-data.ts`, `src/app/api/events/calendar/route.ts`, `src/lib/events.ts`, `src/lib/event-query-model.ts` |
 | 리스트/캘린더 전환 | `src/features/public-events/home-page-client.tsx`, `view-mode-switch.tsx`, `filters.ts` |
 | 필터 동작 | `src/features/public-events/filters.ts`, `use-home-filter-state.ts` |
 | 날짜/시간 목록 표시 | `src/features/public-events/event-list-model.ts`, `event-timeline.tsx` |
@@ -41,7 +41,7 @@
 - 클라이언트에서 전체 이벤트 배열을 받은 뒤 필터링하거나 날짜 window를 계산하는 구조로 되돌리지 않는다.
 - organizer 옵션은 별도 가벼운 조회로 가져온다.
 - 상세 페이지는 `getEventById(id)` 단건 조회만 사용한다.
-- 운영 DB에는 `public_event_occurrences` view와 관련 index가 적용되어야 한다. view가 없으면 fallback 없이 조회 실패로 드러나야 한다.
+- 운영 DB에는 `get_public_event_occurrence_window()` RPC, `public_event_occurrences` view, 관련 index가 적용되어야 한다. DB 객체가 없으면 fallback 없이 조회 실패로 드러나야 한다.
 
 ## Next.js/Vercel 캐시 원칙
 
@@ -56,6 +56,7 @@
 - 새 책임이 생기면 route 파일에 넣지 말고 가까운 feature/lib 파일로 이동한다.
 - UI 텍스트와 도메인 규칙을 같은 함수에 섞지 않는다.
 - DB row 생성과 DB 저장을 분리한다. row 생성은 순수 함수, 저장은 repository/서버 액션에 둔다.
+- 공개 조회 row 변환, empty window 생성, 캘린더 요약은 `src/lib/event-query-model.ts`에 둔다.
 - OpenAI 호출, prompt, schema, 저장 포맷을 한 파일에 합치지 않는다.
 - `src/app` route는 가능한 한 import와 prop 전달만 남긴다.
 - `server-only` 성격의 모듈은 클라이언트 컴포넌트에서 import하지 않는다.
@@ -95,13 +96,15 @@ git diff --check
 - `/admin/candidates?secret=...`에서 후보 카드가 렌더링되는지 확인한다.
 - OCR/구조화 버튼은 실제 API 비용이 발생하므로 필요한 경우에만 누른다.
 - 공개 폼 기본값은 기존 공개 이벤트가 있는 후보와 없는 후보를 각각 확인한다.
-- `/api/ingest/x`는 Bearer secret과 함께 테스트한다.
+- `/api/ingest/x`는 Bearer secret과 함께 테스트한다. 백필은 `startDate=YYYY-MM-DD` 또는 `startTime=...` query로 실행한다.
+- 구조화 추출은 GPT-5 계열 reasoning token이 출력 예산을 소모할 수 있으므로 `OPENAI_EXTRACTION_REASONING_EFFORT=minimal`, `OPENAI_EXTRACTION_MAX_OUTPUT_TOKENS=6000`을 기본값으로 둔다.
 
 ## 주의해야 할 불변 조건
 
 - 빈 필터 배열은 전체 선택으로 해석한다.
 - `structured_event`는 schema v2 형태만 저장한다.
 - X 후보는 텍스트 또는 미디어가 있는 post만 만든다.
-- 검수 대기는 본문에 `일시`와 `장소`가 모두 있는 post만 해당한다.
-- 오늘 이전 집회 안내는 `ignored`로 보낸다.
+- 검수 대기는 본문에 `일시`, `날짜`, `일정` 중 하나라도 있거나 보조 신호가 3개 이상인 post에 해당한다.
+- 일반 증분 수집에서 오늘 이전 집회 안내는 `ignored`로 보낸다.
+- `startDate`/`startTime` 백필 수집에서는 과거 일정 판정이 있어도 검수 키워드 post를 검수 대기로 유지한다.
 - `note_tweet.text`가 있으면 X 본문으로 우선 사용한다.

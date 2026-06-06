@@ -3,11 +3,11 @@ export function formatCandidateReason(reason: string) {
     return "후보 기준 v2";
   }
 
-  if (reason === "review_keywords:일시+장소") {
-    return "검수 키워드 일시+장소";
+  if (reason.startsWith("review_keywords:")) {
+    return `검수 키워드 ${reason.replace("review_keywords:", "")}`;
   }
 
-  if (reason === "missing_review_keywords:일시+장소") {
+  if (reason.startsWith("missing_review_keywords:")) {
     return "검수 키워드 부족";
   }
 
@@ -23,12 +23,20 @@ export function formatCandidateReason(reason: string) {
     return `보조 신호 ${reason.replace("weak_keyword:", "")}`;
   }
 
+  if (reason.startsWith("weak_keyword_threshold:")) {
+    return `보조 신호 기준 ${reason.replace("weak_keyword_threshold:", "")}`;
+  }
+
   if (reason.startsWith("notice_hint:")) {
     return `공지성 신호 ${reason.replace("notice_hint:", "")}`;
   }
 
   if (reason.startsWith("ocr_keyword:")) {
     return `OCR 키워드 ${reason.replace("ocr_keyword:", "")}`;
+  }
+
+  if (reason.startsWith("manual_review_month_keyword:")) {
+    return `수동 월 키워드 ${reason.replace("manual_review_month_keyword:", "")}`;
   }
 
   const exactLabels: Record<string, string> = {
@@ -45,6 +53,9 @@ export function formatCandidateReason(reason: string) {
     past_event_date: "오늘 이전 일정 제외",
     llm_structured_extracted: "구조화 추출됨",
     published_event: "공개 이벤트 저장",
+    unpublished_event: "공개 이벤트 내림",
+    manual_single_post: "수동 추가",
+    manual_review_requested: "수동 검수 요청",
     "llm_input:post_text_only": "LLM 입력 본문만",
     "llm_input:post_text_and_ocr": "LLM 입력 본문+OCR",
     llm_event_candidate: "LLM 집회 후보",

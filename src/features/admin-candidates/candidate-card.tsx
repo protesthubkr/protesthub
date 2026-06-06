@@ -6,9 +6,7 @@ import type {
 } from "@/lib/admin-candidates";
 import { CANDIDATE_STATUS_LABELS } from "@/lib/admin-candidates";
 import { formatKoreanDateTime } from "@/lib/format";
-import {
-  formatCandidateReason,
-} from "./reason-labels";
+import { formatCandidateReason } from "./reason-labels";
 import {
   formatConfidence,
   formatStructuredDates,
@@ -32,6 +30,7 @@ import {
 
 type CandidateCardProps = {
   candidate: ReviewCandidate;
+  currentPage: number;
   currentStatus: CandidateStatusFilter;
   isOcrConfigured: boolean;
   scope: CandidateReviewScope;
@@ -40,6 +39,7 @@ type CandidateCardProps = {
 
 export function CandidateCard({
   candidate,
+  currentPage,
   currentStatus,
   isOcrConfigured,
   scope,
@@ -58,7 +58,13 @@ export function CandidateCard({
 
   return (
     <article className="admin-candidate-card">
-      <CandidateHeader candidate={candidate} />
+      <CandidateHeader
+        candidate={candidate}
+        currentPage={currentPage}
+        currentStatus={currentStatus}
+        scope={scope}
+        secret={secret}
+      />
       <CandidateSourceGrid candidate={candidate} />
       <CandidateReasonList reasons={candidate.candidateReason} />
 
@@ -72,6 +78,7 @@ export function CandidateCard({
       {structuredEvent ? (
         <PublishEventForm
           candidate={candidate}
+          currentPage={currentPage}
           currentStatus={currentStatus}
           scope={scope}
           secret={secret}
@@ -86,12 +93,14 @@ export function CandidateCard({
 
       <OcrMemoForm
         candidate={candidate}
+        currentPage={currentPage}
         currentStatus={currentStatus}
         scope={scope}
         secret={secret}
       />
       <RunOcrForm
         candidate={candidate}
+        currentPage={currentPage}
         currentStatus={currentStatus}
         isOcrConfigured={isOcrConfigured}
         scope={scope}
@@ -99,6 +108,7 @@ export function CandidateCard({
       />
       <RunTextOnlyExtractionForm
         canRun={canRunTextOnlyExtraction}
+        currentPage={currentPage}
         currentStatus={currentStatus}
         isOcrConfigured={isOcrConfigured}
         scope={scope}
@@ -107,6 +117,7 @@ export function CandidateCard({
       />
       <RunStructuredExtractionForm
         canRun={canRunExtraction}
+        currentPage={currentPage}
         currentStatus={currentStatus}
         hasStructuredEvent={Boolean(structuredEvent)}
         isOcrConfigured={isOcrConfigured}
@@ -114,17 +125,23 @@ export function CandidateCard({
         secret={secret}
         candidateId={candidate.id}
       />
-      <StatusButtonRow
-        candidateId={candidate.id}
-        currentStatus={currentStatus}
-        scope={scope}
-        secret={secret}
-      />
     </article>
   );
 }
 
-function CandidateHeader({ candidate }: { candidate: ReviewCandidate }) {
+function CandidateHeader({
+  candidate,
+  currentPage,
+  currentStatus,
+  scope,
+  secret,
+}: {
+  candidate: ReviewCandidate;
+  currentPage: number;
+  currentStatus: CandidateStatusFilter;
+  scope: CandidateReviewScope;
+  secret: string;
+}) {
   return (
     <header className="admin-candidate-header">
       <div>
@@ -134,14 +151,25 @@ function CandidateHeader({ candidate }: { candidate: ReviewCandidate }) {
         <h2>{candidate.sourceAccountName}</h2>
         <p>{formatKoreanDateTime(candidate.createdAt)}</p>
       </div>
-      <a
-        className="admin-source-link"
-        href={candidate.sourcePostUrl}
-        rel="noreferrer"
-        target="_blank"
-      >
-        X에서 보기
-      </a>
+      <div className="admin-candidate-header-actions">
+        {candidate.status === "published" ? null : (
+          <StatusButtonRow
+            candidateId={candidate.id}
+            currentPage={currentPage}
+            currentStatus={currentStatus}
+            scope={scope}
+            secret={secret}
+          />
+        )}
+        <a
+          className="admin-source-link"
+          href={candidate.sourcePostUrl}
+          rel="noreferrer"
+          target="_blank"
+        >
+          X에서 보기
+        </a>
+      </div>
     </header>
   );
 }
@@ -250,11 +278,13 @@ function StructuredEventSummary({
 
 function OcrMemoForm({
   candidate,
+  currentPage,
   currentStatus,
   scope,
   secret,
 }: {
   candidate: ReviewCandidate;
+  currentPage: number;
   currentStatus: CandidateStatusFilter;
   scope: CandidateReviewScope;
   secret: string;
@@ -263,6 +293,7 @@ function OcrMemoForm({
     <form action={updateCandidateOcrText} className="admin-ocr-form">
       <HiddenAdminFields
         candidateId={candidate.id}
+        currentPage={currentPage}
         currentStatus={currentStatus}
         scope={scope}
         secret={secret}
@@ -282,12 +313,14 @@ function OcrMemoForm({
 
 function RunOcrForm({
   candidate,
+  currentPage,
   currentStatus,
   isOcrConfigured,
   scope,
   secret,
 }: {
   candidate: ReviewCandidate;
+  currentPage: number;
   currentStatus: CandidateStatusFilter;
   isOcrConfigured: boolean;
   scope: CandidateReviewScope;
@@ -297,6 +330,7 @@ function RunOcrForm({
     <form action={runCandidateOcr} className="admin-ocr-run-form">
       <HiddenAdminFields
         candidateId={candidate.id}
+        currentPage={currentPage}
         currentStatus={currentStatus}
         scope={scope}
         secret={secret}
@@ -315,6 +349,7 @@ function RunOcrForm({
 function RunTextOnlyExtractionForm({
   canRun,
   candidateId,
+  currentPage,
   currentStatus,
   isOcrConfigured,
   scope,
@@ -322,6 +357,7 @@ function RunTextOnlyExtractionForm({
 }: {
   canRun: boolean;
   candidateId: string;
+  currentPage: number;
   currentStatus: CandidateStatusFilter;
   isOcrConfigured: boolean;
   scope: CandidateReviewScope;
@@ -334,6 +370,7 @@ function RunTextOnlyExtractionForm({
     >
       <HiddenAdminFields
         candidateId={candidateId}
+        currentPage={currentPage}
         currentStatus={currentStatus}
         scope={scope}
         secret={secret}
@@ -355,6 +392,7 @@ function RunTextOnlyExtractionForm({
 function RunStructuredExtractionForm({
   canRun,
   candidateId,
+  currentPage,
   currentStatus,
   hasStructuredEvent,
   isOcrConfigured,
@@ -363,6 +401,7 @@ function RunStructuredExtractionForm({
 }: {
   canRun: boolean;
   candidateId: string;
+  currentPage: number;
   currentStatus: CandidateStatusFilter;
   hasStructuredEvent: boolean;
   isOcrConfigured: boolean;
@@ -373,6 +412,7 @@ function RunStructuredExtractionForm({
     <form action={runCandidateStructuredExtraction} className="admin-ocr-run-form">
       <HiddenAdminFields
         candidateId={candidateId}
+        currentPage={currentPage}
         currentStatus={currentStatus}
         scope={scope}
         secret={secret}
@@ -395,11 +435,13 @@ function RunStructuredExtractionForm({
 
 function StatusButtonRow({
   candidateId,
+  currentPage,
   currentStatus,
   scope,
   secret,
 }: {
   candidateId: string;
+  currentPage: number;
   currentStatus: CandidateStatusFilter;
   scope: CandidateReviewScope;
   secret: string;
@@ -408,6 +450,7 @@ function StatusButtonRow({
     <div className="admin-action-row">
       <StatusButton
         candidateId={candidateId}
+        currentPage={currentPage}
         currentStatus={currentStatus}
         label="검수 대기"
         scope={scope}
@@ -416,6 +459,7 @@ function StatusButtonRow({
       />
       <StatusButton
         candidateId={candidateId}
+        currentPage={currentPage}
         currentStatus={currentStatus}
         label="무시"
         scope={scope}
@@ -424,6 +468,7 @@ function StatusButtonRow({
       />
       <StatusButton
         candidateId={candidateId}
+        currentPage={currentPage}
         currentStatus={currentStatus}
         label="중복"
         scope={scope}
@@ -432,6 +477,7 @@ function StatusButtonRow({
       />
       <StatusButton
         candidateId={candidateId}
+        currentPage={currentPage}
         currentStatus={currentStatus}
         label="취소 후보"
         scope={scope}
@@ -444,6 +490,7 @@ function StatusButtonRow({
 
 function StatusButton({
   candidateId,
+  currentPage,
   currentStatus,
   label,
   scope,
@@ -451,6 +498,7 @@ function StatusButton({
   status,
 }: {
   candidateId: string;
+  currentPage: number;
   currentStatus: CandidateStatusFilter;
   label: string;
   scope: CandidateReviewScope;
@@ -461,6 +509,7 @@ function StatusButton({
     <form action={updateCandidateStatus}>
       <HiddenAdminFields
         candidateId={candidateId}
+        currentPage={currentPage}
         currentStatus={currentStatus}
         scope={scope}
         secret={secret}

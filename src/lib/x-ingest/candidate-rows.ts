@@ -24,10 +24,12 @@ export function buildCandidateRows({
   account,
   mediaByKey,
   posts,
+  reviewPastEventNotices = false,
 }: {
   account: XUser;
   mediaByKey: Map<string, XMedia>;
   posts: XPost[];
+  reviewPastEventNotices?: boolean;
 }) {
   return posts.flatMap((post): XEventCandidateInsertRow[] => {
     const media = getMediaForPost(post, mediaByKey);
@@ -39,11 +41,11 @@ export function buildCandidateRows({
     const postText = getPostText(post);
     const eventDateFilter = analyzePastEventNotice(postText);
     const candidateReasons = getCandidateReasons(post, media);
-    const shouldReview = shouldReviewCandidate(post);
+    const shouldReview = shouldReviewCandidate(post, media);
+    const shouldIgnoreAsPast =
+      eventDateFilter.ignoredAsPast && !reviewPastEventNotices;
     const status =
-      shouldReview && !eventDateFilter.ignoredAsPast
-        ? "needs_review"
-        : "ignored";
+      shouldReview && !shouldIgnoreAsPast ? "needs_review" : "ignored";
 
     return [
       {
