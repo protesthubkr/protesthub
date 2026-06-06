@@ -15,10 +15,9 @@ export function EventDetailClient({ event }: { event: PublicEvent }) {
 
   return (
     <main className="detail-shell">
-      <DetailTopbar />
+      <DetailTopbar event={event} />
 
       <article className="detail-article">
-        <EventDetailHeader event={event} />
         <EventFactList event={event} sourceLabel="출처" />
 
         <section className="detail-section">
@@ -66,7 +65,7 @@ export function EventDetailClient({ event }: { event: PublicEvent }) {
 export function CanceledEventPage({ event }: { event: PublicEvent }) {
   return (
     <main className="detail-shell">
-      <DetailTopbar />
+      <DetailTopbar event={event} />
 
       <article className="canceled-page">
         <section className="canceled-notice">
@@ -74,7 +73,6 @@ export function CanceledEventPage({ event }: { event: PublicEvent }) {
           <p>취소 공지가 확인되어 공개 목록에서는 숨겨졌어요.</p>
         </section>
 
-        <EventDetailHeader event={event} extraClassName="canceled-detail-header" />
         <EventFactList event={event} sourceLabel="취소 출처" />
 
         <SourcePostLink
@@ -86,29 +84,17 @@ export function CanceledEventPage({ event }: { event: PublicEvent }) {
   );
 }
 
-function DetailTopbar() {
+function DetailTopbar({ event }: { event: PublicEvent }) {
   return (
-    <div className="detail-topbar">
-      <Link className="back-link" href="/" aria-label="목록으로 돌아가기">
-        <span aria-hidden="true">‹</span>
-      </Link>
-    </div>
-  );
-}
-
-function EventDetailHeader({
-  event,
-  extraClassName,
-}: {
-  event: PublicEvent;
-  extraClassName?: string;
-}) {
-  return (
-    <header
-      className={`detail-header ${extraClassName ? extraClassName : ""}`.trim()}
-    >
-      <h1>{event.title}</h1>
-      <div className="issue-badge-list">
+    <header className="detail-topbar">
+      <div className="detail-title-row">
+        <Link className="back-link" href="/" aria-label="목록으로 돌아가기">
+          <span aria-hidden="true">‹</span>
+        </Link>
+        <h1>{event.title}</h1>
+        <span className="detail-title-spacer" aria-hidden="true" />
+      </div>
+      <div className="issue-badge-list detail-title-tags">
         {event.issueTags.map((issue) => (
           <IssueBadge key={issue} issue={issue} />
         ))}

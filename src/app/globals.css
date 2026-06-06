@@ -908,9 +908,26 @@ button:disabled {
 }
 
 .detail-topbar {
-  display: flex;
+  display: grid;
+  gap: var(--space-3);
+}
+
+.detail-title-row {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
   min-height: 44px;
   align-items: center;
+  gap: var(--space-2);
+}
+
+.detail-title-row h1 {
+  margin: 0;
+  color: var(--color-text);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-heavy);
+  line-height: 24px;
+  overflow-wrap: anywhere;
+  text-align: center;
 }
 
 .back-link {
@@ -931,25 +948,18 @@ button:disabled {
   line-height: 1;
 }
 
+.detail-title-spacer {
+  width: 44px;
+  height: 44px;
+}
+
+.detail-title-tags {
+  justify-content: center;
+}
+
 .detail-article,
 .canceled-page {
   margin-top: var(--space-3);
-}
-
-.canceled-detail-header {
-  margin-top: var(--space-5);
-}
-
-.detail-header h1 {
-  margin: 0;
-  color: var(--color-text);
-  font-size: var(--font-size-detail-title);
-  font-weight: var(--font-weight-heavy);
-  line-height: 31px;
-}
-
-.detail-header .issue-badge-list {
-  margin-top: var(--space-4);
 }
 
 .detail-fact-list {
