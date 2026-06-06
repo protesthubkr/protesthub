@@ -12,9 +12,31 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const siteName = "집회 모아보기";
+const siteDescription =
+  "다가오는 집회 정보를 날짜, 지역, 의제별로 모아봅니다.";
+
 export const metadata: Metadata = {
-  title: "집회 모아보기",
-  description: "앞으로 열리는 집회 정보를 시간순으로 훑고 의제, 지역, 주최 단체로 좁혀보는 서비스",
+  metadataBase: new URL(getSiteUrl()),
+  title: {
+    default: siteName,
+    template: `%s | ${siteName}`,
+  },
+  description: siteDescription,
+  applicationName: siteName,
+  openGraph: {
+    title: siteName,
+    description: siteDescription,
+    locale: "ko_KR",
+    siteName,
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: siteName,
+    description: siteDescription,
+    images: ["/opengraph-image.png"],
+  },
 };
 
 export default function RootLayout({
@@ -27,4 +49,24 @@ export default function RootLayout({
       <body>{children}</body>
     </html>
   );
+}
+
+function getSiteUrl() {
+  const explicitSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+  const vercelUrl =
+    process.env.VERCEL_PROJECT_PRODUCTION_URL ?? process.env.VERCEL_URL;
+
+  if (explicitSiteUrl) {
+    return withProtocol(explicitSiteUrl);
+  }
+
+  if (vercelUrl) {
+    return withProtocol(vercelUrl);
+  }
+
+  return "http://localhost:3000";
+}
+
+function withProtocol(url: string) {
+  return /^https?:\/\//.test(url) ? url : `https://${url}`;
 }

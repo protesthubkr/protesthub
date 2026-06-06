@@ -1,4 +1,5 @@
 import type { StructuredEventResult } from "@/lib/llm/structured-event";
+import { getIssueLabelFromValue } from "@/lib/issues";
 import {
   getStoredStructuredEventInputMode,
   getStoredStructuredEventResult,
@@ -50,5 +51,7 @@ export function formatStructuredInputMode(
 }
 
 export function formatTags(tags: string[] | undefined) {
-  return tags && tags.length > 0 ? tags.join(", ") : "미확인";
+  return tags && tags.length > 0
+    ? tags.map(getIssueLabelFromValue).join(", ")
+    : "미확인";
 }

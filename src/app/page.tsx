@@ -1,14 +1,16 @@
 import { Suspense } from "react";
 import { HomePageClient } from "@/features/public-events/home-page-client";
 import {
-  getFilterSignature,
-  parseEventFilters,
+  getEventQuerySignature,
+  parseEventSearchState,
 } from "@/features/public-events/filters";
 import {
   getPublishedOrganizerOptions,
+  getPublicEventCalendarMonth,
   getPublicEventOccurrenceWindow,
 } from "@/lib/events";
-import { getKoreanTodayDate } from "@/lib/format";
+import { getKoreanTodayDate, getMonthKey } from "@/lib/format";
+import type { EventOccurrenceWindow } from "@/lib/types";
 
 export const revalidate = 60;
 
@@ -22,23 +24,58 @@ export default async function Home({
   searchParams: HomeSearchParams;
 }) {
   const params = await searchParams;
-  const filters = parseEventFilters(toURLSearchParams(params));
-  const fromDate = getKoreanTodayDate();
-  const [initialWindow, organizers] = await Promise.all([
-    getPublicEventOccurrenceWindow({ filters, fromDate }),
+  const searchState = parseEventSearchState(toURLSearchParams(params));
+  const todayDate = getKoreanTodayDate();
+  const listStartDate =
+    searchState.viewMode === "list" ? searchState.date : null;
+  const calendarMonth =
+    searchState.month ?? getMonthKey(searchState.date ?? todayDate);
+  const listFromDate = listStartDate ?? todayDate;
+  const listWindowPromise =
+    searchState.viewMode === "list"
+      ? getPublicEventOccurrenceWindow({
+          filters: searchState.filters,
+          fromDate: listFromDate,
+        })
+      : Promise.resolve(createEmptyWindow(todayDate));
+  const calendarPromise =
+    searchState.viewMode === "calendar"
+      ? getPublicEventCalendarMonth({
+          filters: searchState.filters,
+          month: calendarMonth,
+        })
+      : Promise.resolve(null);
+  const [initialWindow, initialCalendar, organizers] = await Promise.all([
+    listWindowPromise,
+    calendarPromise,
     getPublishedOrganizerOptions(),
   ]);
 
   return (
     <Suspense fallback={<main className="app-shell">불러오는 중</main>}>
       <HomePageClient
-        key={getFilterSignature(filters)}
-        filters={filters}
+        calendarMonth={calendarMonth}
+        filters={searchState.filters}
+        initialCalendar={initialCalendar}
         initialWindow={initialWindow}
+        key={getEventQuerySignature(searchState)}
+        listStartDate={listStartDate}
         organizers={organizers}
+        todayDate={todayDate}
+        viewMode={searchState.viewMode}
       />
     </Suspense>
   );
+}
+
+function createEmptyWindow(date: string): EventOccurrenceWindow {
+  return {
+    events: [],
+    hasMoreEvents: false,
+    nextFromDate: date,
+    windowEndDate: date,
+    windowStartDate: date,
+  };
 }
 
 function toURLSearchParams(

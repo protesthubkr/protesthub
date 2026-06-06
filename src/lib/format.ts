@@ -13,6 +13,11 @@ export function formatKoreanDate(date: string) {
   return `${parsed.getMonth() + 1}/${parsed.getDate()} ${weekday}`;
 }
 
+export function formatKoreanMonth(month: string) {
+  const [year, monthNumber] = month.split("-").map(Number);
+  return `${year}년 ${monthNumber}월`;
+}
+
 export function addDays(date: string, days: number) {
   const [year, month, day] = date.split("-").map(Number);
   const next = new Date(Date.UTC(year, month - 1, day + days));
@@ -21,6 +26,27 @@ export function addDays(date: string, days: number) {
   const nextDay = String(next.getUTCDate()).padStart(2, "0");
 
   return `${nextYear}-${nextMonth}-${nextDay}`;
+}
+
+export function addMonths(month: string, months: number) {
+  const [year, monthNumber] = month.split("-").map(Number);
+  const next = new Date(Date.UTC(year, monthNumber - 1 + months, 1));
+  const nextYear = next.getUTCFullYear();
+  const nextMonth = String(next.getUTCMonth() + 1).padStart(2, "0");
+
+  return `${nextYear}-${nextMonth}`;
+}
+
+export function getMonthKey(date: string) {
+  return date.slice(0, 7);
+}
+
+export function getMonthStartDate(month: string) {
+  return `${month}-01`;
+}
+
+export function getNextMonthStartDate(month: string) {
+  return getMonthStartDate(addMonths(month, 1));
 }
 
 export function getKoreanTodayDate() {

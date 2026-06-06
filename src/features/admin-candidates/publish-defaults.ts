@@ -1,5 +1,5 @@
 import type { ReviewCandidate } from "@/lib/admin-candidates";
-import { ISSUE_OPTIONS } from "@/lib/issues";
+import { getIssueKeyFromValue } from "@/lib/issues";
 import { REGION_OPTIONS } from "@/lib/regions";
 import type { EventDate, IssueKey } from "@/lib/types";
 import type { StructuredEventResult } from "./structured-event-view";
@@ -119,14 +119,7 @@ function getPublishPrimaryIssue(
 }
 
 function getIssueKey(value: string | undefined) {
-  if (!value) {
-    return null;
-  }
-
-  return (
-    ISSUE_OPTIONS.find((issue) => issue.key === value || issue.label === value)
-      ?.key ?? null
-  );
+  return getIssueKeyFromValue(value);
 }
 
 function getPosterImageUrl(candidate: ReviewCandidate) {

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-labelledby="title desc">
+  <title id="title">Simple calendar icon</title>
+  <desc id="desc">A bold tear-off calendar page with three rounded binding rings and a curved front sheet.</desc>
+  <g fill="none" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="32">
+    <path d="M105 76H496V466H105V407"/>
+    <path d="M105 76V166H496V76"/>
+    <line x1="196" y1="46" x2="196" y2="106"/>
+    <line x1="302" y1="46" x2="302" y2="106"/>
+    <line x1="407" y1="46" x2="407" y2="106"/>
+    <path d="M105 166H496C488 259 458 342 407 406H16C72 344 105 257 105 166Z"/>
+  </g>
+</svg>

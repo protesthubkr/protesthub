@@ -1,5 +1,5 @@
 import type { RefObject } from "react";
-import { formatShortDate, formatTime } from "@/lib/format";
+import { formatKoreanDate, formatTime } from "@/lib/format";
 import type { DateEventGroup } from "./event-list-model";
 import { EventCard } from "./event-card";
 
@@ -40,9 +40,12 @@ export function EventTimeline({
 
 function DateSection({ group }: { group: DateEventGroup }) {
   return (
-    <section className="date-section">
+    <section
+      aria-label={`${formatKoreanDate(group.date)} 집회 ${group.eventCount}건`}
+      className="date-section"
+    >
       <h2 className="date-section-header">
-        <span>{formatShortDate(group.date)}</span>{" "}
+        <span>{formatKoreanDate(group.date)}</span>{" "}
         <span>{group.eventCount}건</span>
       </h2>
       <div className="time-group-list">

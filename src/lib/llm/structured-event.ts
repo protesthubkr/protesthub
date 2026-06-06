@@ -1,5 +1,9 @@
 import { buildStructuredEventPrompt } from "./structured-event-prompt";
-import { STRUCTURED_EVENT_ISSUE_TAGS, STRUCTURED_EVENT_REGIONS } from "./structured-event-options";
+import { getIssueKeyFromValue, getIssueLabel } from "../issues";
+import {
+  STRUCTURED_EVENT_ISSUE_TAGS,
+  STRUCTURED_EVENT_REGIONS,
+} from "./structured-event-options";
 import { STRUCTURED_EVENT_SCHEMA } from "./structured-event-schema";
 
 export type StructuredEventExtractionInput = {
@@ -198,9 +202,14 @@ function getFallbackReasons(
 function sanitizeStructuredEventResult(
   result: StructuredEventResult,
 ): StructuredEventResult {
-  const issueTags = result.issue_tags.filter((tag) =>
-    STRUCTURED_EVENT_ISSUE_TAGS.includes(tag),
+  const issueTags = Array.from(
+    new Set(
+      result.issue_tags
+        .map(normalizeIssueTag)
+        .filter((tag) => STRUCTURED_EVENT_ISSUE_TAGS.includes(tag)),
+    ),
   );
+  const primaryIssue = normalizeIssueTag(result.primary_issue);
   const place = normalizePlaceFields({
     venue: result.venue.trim(),
     address: result.address.trim(),
@@ -221,10 +230,16 @@ function sanitizeStructuredEventResult(
       }))
       .filter((date) => date.date),
     issue_tags: issueTags,
-    primary_issue: STRUCTURED_EVENT_ISSUE_TAGS.includes(result.primary_issue)
-      ? result.primary_issue
+    primary_issue: STRUCTURED_EVENT_ISSUE_TAGS.includes(primaryIssue)
+      ? primaryIssue
       : "",
   };
+}
+
+function normalizeIssueTag(value: string) {
+  const issueKey = getIssueKeyFromValue(value);
+
+  return issueKey ? getIssueLabel(issueKey) : value.trim();
 }
 
 function normalizePlaceFields({

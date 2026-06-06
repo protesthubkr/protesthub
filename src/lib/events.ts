@@ -1,6 +1,13 @@
-import { addDays, compareOccurrences } from "./format";
+import {
+  addDays,
+  compareOccurrences,
+  getMonthStartDate,
+  getNextMonthStartDate,
+} from "./format";
 import { getSupabaseClient } from "./supabase";
 import type {
+  EventCalendarDaySummary,
+  EventCalendarMonth,
   EventFilters,
   EventListOccurrence,
   IssueKey,
@@ -41,6 +48,14 @@ type SupabaseEventOccurrenceRow = {
 
 type OrganizerRow = {
   source_account_name: string;
+};
+
+type SupabaseCalendarOccurrenceRow = {
+  id: string;
+  title: string;
+  primary_issue: IssueKey;
+  occurrence_date: string;
+  occurrence_start_time: string | null;
 };
 
 function mapEventCardRow(row: SupabaseEventCardRow): PublicEvent {
@@ -155,6 +170,59 @@ export async function getPublicEventOccurrenceWindow({
       .sort(compareOccurrences),
     hasMoreEvents: Boolean(futureResult.data?.length),
     nextFromDate,
+    windowEndDate: nextFromDate,
+    windowStartDate: fromDate,
+  };
+}
+
+export async function getPublicEventCalendarMonth({
+  filters,
+  month,
+}: {
+  filters: EventFilters;
+  month: string;
+}): Promise<EventCalendarMonth> {
+  const supabase = getRequiredSupabaseClient();
+  const monthStartDate = getMonthStartDate(month);
+  const nextMonthStartDate = getNextMonthStartDate(month);
+
+  let query = supabase
+    .from("public_event_occurrences")
+    .select(
+      "id,title,primary_issue,occurrence_date,occurrence_start_time,issue_tags,region,source_account_name",
+    )
+    .gte("occurrence_date", monthStartDate)
+    .lt("occurrence_date", nextMonthStartDate)
+    .order("occurrence_date", { ascending: true })
+    .order("occurrence_start_time", { ascending: true });
+
+  if (filters.issues.length > 0) {
+    query = query.overlaps("issue_tags", filters.issues);
+  }
+
+  if (filters.regions.length > 0) {
+    query = query.in("region", filters.regions);
+  }
+
+  if (filters.organizers.length > 0) {
+    query = query.in("source_account_name", filters.organizers);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return {
+    days: summarizeCalendarDays(
+      ((data ?? []) as SupabaseCalendarOccurrenceRow[]).sort(
+        compareCalendarOccurrences,
+      ),
+    ),
+    month,
+    monthStartDate,
+    nextMonthStartDate,
   };
 }
 
@@ -193,5 +261,55 @@ export async function getEventById(id: string) {
 function getUniqueOrganizers(organizers: string[]) {
   return Array.from(new Set(organizers.filter(Boolean))).sort((a, b) =>
     a.localeCompare(b, "ko"),
+  );
+}
+
+function summarizeCalendarDays(rows: SupabaseCalendarOccurrenceRow[]) {
+  const summariesByDate = new Map<string, EventCalendarDaySummary>();
+
+  rows.forEach((row) => {
+    const currentSummary = summariesByDate.get(row.occurrence_date) ?? {
+      count: 0,
+      date: row.occurrence_date,
+      overflowCount: 0,
+      samples: [],
+    };
+
+    currentSummary.count += 1;
+
+    if (currentSummary.samples.length < 2) {
+      currentSummary.samples.push({
+        id: row.id,
+        primaryIssue: row.primary_issue,
+        time: row.occurrence_start_time,
+        title: row.title,
+      });
+    }
+
+    currentSummary.overflowCount = Math.max(
+      0,
+      currentSummary.count - currentSummary.samples.length,
+    );
+    summariesByDate.set(row.occurrence_date, currentSummary);
+  });
+
+  return Array.from(summariesByDate.values()).sort((a, b) =>
+    a.date.localeCompare(b.date),
+  );
+}
+
+function compareCalendarOccurrences(
+  a: SupabaseCalendarOccurrenceRow,
+  b: SupabaseCalendarOccurrenceRow,
+) {
+  return compareOccurrences(
+    {
+      occurrenceDate: a.occurrence_date,
+      occurrenceStartTime: a.occurrence_start_time,
+    },
+    {
+      occurrenceDate: b.occurrence_date,
+      occurrenceStartTime: b.occurrence_start_time,
+    },
   );
 }

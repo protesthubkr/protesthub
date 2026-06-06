@@ -32,7 +32,7 @@ export const ISSUE_OPTIONS: IssueOption[] = [
   },
   {
     key: "gender",
-    label: "젠더",
+    label: "성소수자",
     primary: "#6D5BD0",
     bg: "#F3F0FF",
     text: "#5B21B6",
@@ -75,6 +75,33 @@ export const ISSUE_BY_KEY = ISSUE_OPTIONS.reduce(
   {} as Record<IssueKey, IssueOption>,
 );
 
+const ISSUE_KEY_ALIASES: Record<string, IssueKey> = {
+  젠더: "gender",
+};
+
 export function getIssueLabel(key: IssueKey) {
   return ISSUE_BY_KEY[key]?.label ?? key;
+}
+
+export function getIssueKeyFromValue(value: string | null | undefined) {
+  const normalizedValue = value?.trim();
+
+  if (!normalizedValue) {
+    return null;
+  }
+
+  return (
+    ISSUE_OPTIONS.find(
+      (issue) =>
+        issue.key === normalizedValue || issue.label === normalizedValue,
+    )?.key ??
+    ISSUE_KEY_ALIASES[normalizedValue] ??
+    null
+  );
+}
+
+export function getIssueLabelFromValue(value: string) {
+  const issueKey = getIssueKeyFromValue(value);
+
+  return issueKey ? getIssueLabel(issueKey) : value;
 }

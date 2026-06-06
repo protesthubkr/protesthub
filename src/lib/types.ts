@@ -49,6 +49,31 @@ export type EventOccurrenceWindow = {
   events: EventListOccurrence[];
   hasMoreEvents: boolean;
   nextFromDate: string;
+  windowEndDate: string;
+  windowStartDate: string;
+};
+
+export type EventViewMode = "list" | "calendar";
+
+export type EventCalendarDaySample = {
+  id: string;
+  primaryIssue: IssueKey;
+  time: string | null;
+  title: string;
+};
+
+export type EventCalendarDaySummary = {
+  count: number;
+  date: string;
+  overflowCount: number;
+  samples: EventCalendarDaySample[];
+};
+
+export type EventCalendarMonth = {
+  days: EventCalendarDaySummary[];
+  month: string;
+  monthStartDate: string;
+  nextMonthStartDate: string;
 };
 
 export type FilterStep = "issue" | "region" | "organizer";

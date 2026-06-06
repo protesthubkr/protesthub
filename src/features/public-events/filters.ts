@@ -1,18 +1,74 @@
 import { ISSUE_OPTIONS, getIssueLabel } from "@/lib/issues";
 import { REGION_OPTIONS } from "@/lib/regions";
-import type { EventFilters, FilterStep, IssueKey } from "@/lib/types";
+import type {
+  EventFilters,
+  EventViewMode,
+  FilterStep,
+  IssueKey,
+} from "@/lib/types";
 
 export type ConditionChip = {
   label: string;
   step: FilterStep;
 };
 
+export type EventSearchState = {
+  date: string | null;
+  filters: EventFilters;
+  month: string | null;
+  viewMode: EventViewMode;
+};
+
+export function parseEventSearchState(
+  searchParams: URLSearchParams,
+): EventSearchState {
+  return {
+    date: parseDateParam(searchParams.get("date")),
+    filters: parseEventFilters(searchParams),
+    month: parseMonthParam(searchParams.get("month")),
+    viewMode: parseViewMode(searchParams.get("view")),
+  };
+}
+
 export function parseEventFilters(searchParams: URLSearchParams): EventFilters {
   return {
     issues: parseParam(searchParams, "issues").filter(isIssueKey),
-    regions: parseParam(searchParams, "regions"),
+    regions: parseParam(searchParams, "regions").filter(isRegion),
     organizers: parseParam(searchParams, "organizers"),
   };
+}
+
+export function buildEventHref({
+  date = null,
+  filters,
+  month = null,
+  organizers,
+  pathname,
+  viewMode = "list",
+}: {
+  date?: string | null;
+  filters: EventFilters;
+  month?: string | null;
+  organizers: string[];
+  pathname: string;
+  viewMode?: EventViewMode;
+}) {
+  const params = buildEventFilterSearchParams({ filters, organizers });
+
+  if (viewMode === "calendar") {
+    params.set("view", "calendar");
+
+    if (month) {
+      params.set("month", month);
+    }
+  } else if (date) {
+    params.set("view", "list");
+    params.set("date", date);
+  }
+
+  const nextQuery = params.toString();
+
+  return nextQuery ? `${pathname}?${nextQuery}` : pathname;
 }
 
 export function buildEventFilterHref({
@@ -24,10 +80,7 @@ export function buildEventFilterHref({
   organizers: string[];
   pathname: string;
 }) {
-  const params = buildEventFilterSearchParams({ filters, organizers });
-  const nextQuery = params.toString();
-
-  return nextQuery ? `${pathname}?${nextQuery}` : pathname;
+  return buildEventHref({ filters, organizers, pathname });
 }
 
 export function buildEventFilterSearchParams({
@@ -60,6 +113,15 @@ export function getFilterSignature(filters: EventFilters) {
     filters.issues.join("|"),
     filters.regions.join("|"),
     filters.organizers.join("|"),
+  ].join("::");
+}
+
+export function getEventQuerySignature(searchState: EventSearchState) {
+  return [
+    getFilterSignature(searchState.filters),
+    searchState.viewMode,
+    searchState.month ?? "",
+    searchState.date ?? "",
   ].join("::");
 }
 
@@ -102,6 +164,35 @@ export function toggleAllFilterValues<T extends string>(
   return selectedValues.length === allValues.length ? [] : [...allValues];
 }
 
+export function parseDateParam(value: string | null) {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return null;
+  }
+
+  const [year, month, day] = value.split("-").map(Number);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+
+  if (
+    parsed.getUTCFullYear() !== year ||
+    parsed.getUTCMonth() + 1 !== month ||
+    parsed.getUTCDate() !== day
+  ) {
+    return null;
+  }
+
+  return value;
+}
+
+export function parseMonthParam(value: string | null) {
+  if (!value || !/^\d{4}-\d{2}$/.test(value)) {
+    return null;
+  }
+
+  const month = Number(value.slice(5, 7));
+
+  return month >= 1 && month <= 12 ? value : null;
+}
+
 function appendPartialSelection<T extends string>(
   params: URLSearchParams,
   key: string,
@@ -124,8 +215,9 @@ function appendSelection<T extends string>(
 }
 
 function parseParam(searchParams: URLSearchParams, key: string) {
-  return (searchParams.get(key) ?? "")
-    .split(",")
+  return searchParams
+    .getAll(key)
+    .flatMap((value) => value.split(","))
     .map((value) => value.trim())
     .filter(Boolean);
 }
@@ -134,6 +226,14 @@ function isIssueKey(value: string): value is IssueKey {
   return ISSUE_OPTIONS.some((issue) => issue.key === value);
 }
 
+function isRegion(value: string) {
+  return REGION_OPTIONS.includes(value);
+}
+
 function getIssueKeys() {
   return ISSUE_OPTIONS.map((issue) => issue.key);
+}
+
+function parseViewMode(value: string | null): EventViewMode {
+  return value === "calendar" ? "calendar" : "list";
 }

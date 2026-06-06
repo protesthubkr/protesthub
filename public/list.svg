@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-labelledby="title desc">
+  <title id="title">Simple checklist file icon</title>
+  <desc id="desc">A rounded document with a folded corner and four checklist rows, styled with bold black rounded lines and circular bullets.</desc>
+  <defs>
+    <clipPath id="bullet-cut-outs" clipPathUnits="userSpaceOnUse">
+      <path fill-rule="evenodd" clip-rule="evenodd" d="
+        M0 0H512V512H0Z
+        M140 171a14 14 0 1 0 28 0a14 14 0 1 0 -28 0
+        M140 256a14 14 0 1 0 28 0a14 14 0 1 0 -28 0
+        M140 341a14 14 0 1 0 28 0a14 14 0 1 0 -28 0
+        M140 426a14 14 0 1 0 28 0a14 14 0 1 0 -28 0
+      "/>
+    </clipPath>
+  </defs>
+  <g fill="none" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="32">
+    <path d="M100 16H352L428 92V480Q428 496 412 496H100Q84 496 84 480V32Q84 16 100 16Z"/>
+    <path d="M352 16V76Q352 92 368 92H428"/>
+  </g>
+  <g clip-path="url(#bullet-cut-outs)" fill="black" stroke="black" stroke-linecap="round" stroke-width="32">
+    <circle cx="154" cy="171" r="35" stroke="none"/>
+    <circle cx="154" cy="256" r="35" stroke="none"/>
+    <circle cx="154" cy="341" r="35" stroke="none"/>
+    <circle cx="154" cy="426" r="35" stroke="none"/>
+    <line x1="225" y1="171" x2="383" y2="171"/>
+    <line x1="225" y1="256" x2="383" y2="256"/>
+    <line x1="225" y1="341" x2="383" y2="341"/>
+    <line x1="225" y1="426" x2="383" y2="426"/>
+  </g>
+</svg>

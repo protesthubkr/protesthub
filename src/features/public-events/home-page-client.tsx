@@ -5,11 +5,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { compareOccurrences } from "@/lib/format";
 import { REGION_OPTIONS } from "@/lib/regions";
 import type {
+  EventCalendarMonth,
   EventFilters,
   EventListOccurrence,
   EventOccurrenceWindow,
+  EventViewMode,
   FilterStep,
 } from "@/lib/types";
+import { CalendarMonthView } from "./calendar-month-view";
 import { LOAD_MORE_ROOT_MARGIN } from "./config";
 import { ConditionChips } from "./condition-chips";
 import { EmptyState } from "./empty-state";
@@ -18,26 +21,42 @@ import { EventTimeline } from "./event-timeline";
 import { FilterSheet } from "./filter-sheet";
 import {
   appendEventFiltersToSearchParams,
+  buildEventHref,
   buildConditionChips,
   buildEventFilterHref,
 } from "./filters";
 import { useHomeFilterState } from "./use-home-filter-state";
 
 type HomePageClientProps = {
+  calendarMonth: string;
   filters: EventFilters;
+  initialCalendar: EventCalendarMonth | null;
   initialWindow: EventOccurrenceWindow;
+  listStartDate: string | null;
   organizers: string[];
+  todayDate: string;
+  viewMode: EventViewMode;
 };
 
 export function HomePageClient({
+  calendarMonth,
   filters,
+  initialCalendar,
   initialWindow,
+  listStartDate,
   organizers,
+  todayDate,
+  viewMode,
 }: HomePageClientProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [state, dispatch] = useHomeFilterState(filters);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const [activeViewMode, setActiveViewMode] = useState(viewMode);
+  const [activeCalendarMonth, setActiveCalendarMonth] =
+    useState(calendarMonth);
+  const [calendarData, setCalendarData] = useState(initialCalendar);
+  const [isCalendarLoading, setIsCalendarLoading] = useState(false);
   const [loadedEvents, setLoadedEvents] = useState(initialWindow.events);
   const [nextFromDate, setNextFromDate] = useState(
     initialWindow.nextFromDate,
@@ -70,7 +89,7 @@ export function HomePageClient({
   }, [state.isFilterOpen]);
 
   const loadMoreEvents = useCallback(async () => {
-    if (isLoadingMore || !hasMoreEvents) {
+    if (activeViewMode !== "list" || isLoadingMore || !hasMoreEvents) {
       return;
     }
 
@@ -98,13 +117,54 @@ export function HomePageClient({
     } finally {
       setIsLoadingMore(false);
     }
-  }, [filters, hasMoreEvents, isLoadingMore, nextFromDate]);
+  }, [activeViewMode, filters, hasMoreEvents, isLoadingMore, nextFromDate]);
+
+  const loadCalendarMonth = useCallback(
+    async (nextMonth: string) => {
+      setActiveViewMode("calendar");
+      setActiveCalendarMonth(nextMonth);
+      setIsCalendarLoading(true);
+
+      try {
+        const params = new URLSearchParams({ month: nextMonth });
+        appendEventFiltersToSearchParams(params, filters);
+
+        const response = await fetch(
+          `/api/events/calendar?${params.toString()}`,
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to load calendar summaries.");
+        }
+
+        const nextCalendar = (await response.json()) as EventCalendarMonth;
+        setCalendarData(nextCalendar);
+        window.history.pushState(
+          null,
+          "",
+          buildEventHref({
+            filters,
+            month: nextMonth,
+            organizers,
+            pathname,
+            viewMode: "calendar",
+          }),
+        );
+      } catch {
+        setCalendarData(null);
+      } finally {
+        setIsCalendarLoading(false);
+      }
+    },
+    [filters, organizers, pathname],
+  );
 
   useEffect(() => {
     const sentinel = loadMoreRef.current;
 
     if (
       !sentinel ||
+      activeViewMode !== "list" ||
       !hasMoreEvents ||
       isLoadingMore ||
       state.isFilterOpen
@@ -124,7 +184,13 @@ export function HomePageClient({
     observer.observe(sentinel);
 
     return () => observer.disconnect();
-  }, [hasMoreEvents, isLoadingMore, loadMoreEvents, state.isFilterOpen]);
+  }, [
+    activeViewMode,
+    hasMoreEvents,
+    isLoadingMore,
+    loadMoreEvents,
+    state.isFilterOpen,
+  ]);
 
   function openFilter(step: FilterStep = "issue") {
     dispatch({ type: "open-filter", filters, step });
@@ -132,14 +198,47 @@ export function HomePageClient({
 
   function applyFilters() {
     router.push(
-      buildEventFilterHref({
+      buildEventHref({
+        date: activeViewMode === "list" ? listStartDate : null,
         filters: state.draft,
+        month: activeViewMode === "calendar" ? activeCalendarMonth : null,
+        organizers,
+        pathname,
+        viewMode: activeViewMode,
+      }),
+    );
+    window.scrollTo({ top: 0 });
+    dispatch({ type: "close-filter" });
+  }
+
+  function switchToCalendar() {
+    void loadCalendarMonth(activeCalendarMonth);
+  }
+
+  function switchToList() {
+    setActiveViewMode("list");
+    router.push(
+      buildEventFilterHref({
+        filters,
         organizers,
         pathname,
       }),
     );
     window.scrollTo({ top: 0 });
-    dispatch({ type: "close-filter" });
+  }
+
+  function selectCalendarDate(date: string) {
+    setActiveViewMode("list");
+    router.push(
+      buildEventHref({
+        date,
+        filters,
+        organizers,
+        pathname,
+        viewMode: "list",
+      }),
+    );
+    window.scrollTo({ top: 0 });
   }
 
   return (
@@ -153,9 +252,24 @@ export function HomePageClient({
       >
         <div className="results-top">
           <ConditionChips chips={conditionChips} onOpenFilter={openFilter} />
+          <ViewModeToggle
+            viewMode={activeViewMode}
+            onCalendarClick={switchToCalendar}
+            onListClick={switchToList}
+          />
         </div>
 
-        {loadedEvents.length === 0 && !hasMoreEvents ? (
+        {activeViewMode === "calendar" ? (
+          <CalendarMonthView
+            calendar={calendarData}
+            isLoading={isCalendarLoading}
+            month={activeCalendarMonth}
+            selectedDate={listStartDate}
+            todayDate={todayDate}
+            onMonthChange={loadCalendarMonth}
+            onSelectDate={selectCalendarDate}
+          />
+        ) : loadedEvents.length === 0 && !hasMoreEvents ? (
           <EmptyState onOpenFilter={() => openFilter("issue")} />
         ) : (
           <EventTimeline
@@ -201,6 +315,36 @@ export function HomePageClient({
         />
       ) : null}
     </main>
+  );
+}
+
+function ViewModeToggle({
+  viewMode,
+  onCalendarClick,
+  onListClick,
+}: {
+  viewMode: EventViewMode;
+  onCalendarClick: () => void;
+  onListClick: () => void;
+}) {
+  const nextViewMode = viewMode === "list" ? "calendar" : "list";
+  const label =
+    nextViewMode === "calendar"
+      ? "캘린더 보기로 전환"
+      : "리스트 보기로 전환";
+  const onClick = nextViewMode === "calendar" ? onCalendarClick : onListClick;
+
+  return (
+    <div className="view-mode-toggle">
+      <button
+        aria-label={label}
+        className={`view-mode-button is-${nextViewMode}`}
+        type="button"
+        onClick={onClick}
+      >
+        <span aria-hidden="true" className="view-mode-icon" />
+      </button>
+    </div>
   );
 }
 

@@ -1,5 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { parseEventFilters } from "@/features/public-events/filters";
+import {
+  parseDateParam,
+  parseEventFilters,
+} from "@/features/public-events/filters";
 import { getPublicEventOccurrenceWindow } from "@/lib/events";
 import { getKoreanTodayDate } from "@/lib/format";
 
@@ -21,12 +24,4 @@ export async function GET(request: NextRequest) {
       "Cache-Control": PUBLIC_LIST_CACHE_CONTROL,
     },
   });
-}
-
-function parseDateParam(value: string | null) {
-  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return null;
-  }
-
-  return value;
 }
