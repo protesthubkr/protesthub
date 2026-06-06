@@ -28,6 +28,7 @@ export function useCalendarMonthData({
   const [activeCalendarMonth, setActiveCalendarMonth] =
     useState(initialMonth);
   const [calendarData, setCalendarData] = useState(initialCalendar);
+  const [calendarError, setCalendarError] = useState<string | null>(null);
   const [isCalendarLoading, setIsCalendarLoading] = useState(false);
   const requestIdRef = useRef(0);
 
@@ -36,6 +37,7 @@ export function useCalendarMonthData({
       onShowCalendar();
       setActiveCalendarMonth(nextMonth);
       setIsCalendarLoading(true);
+      setCalendarError(null);
       const requestId = requestIdRef.current + 1;
       requestIdRef.current = requestId;
 
@@ -50,6 +52,7 @@ export function useCalendarMonthData({
         }
 
         setCalendarData(nextCalendar);
+        setCalendarError(null);
         window.history.pushState(
           null,
           "",
@@ -67,6 +70,9 @@ export function useCalendarMonthData({
         }
 
         setCalendarData(null);
+        setCalendarError(
+          "캘린더를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.",
+        );
       } finally {
         if (requestIdRef.current === requestId) {
           setIsCalendarLoading(false);
@@ -78,6 +84,7 @@ export function useCalendarMonthData({
 
   return {
     activeCalendarMonth,
+    calendarError,
     calendarData,
     isCalendarLoading,
     loadCalendarMonth,

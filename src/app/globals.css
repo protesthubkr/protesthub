@@ -24,6 +24,7 @@
 
   --radius-sm: 4px;
   --radius-md: 8px;
+  --radius-lg: 12px;
   --radius-pill: 999px;
 
   --font-family-sans: "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
@@ -35,6 +36,7 @@
   --font-size-meta: 14px;
   --font-size-body: 15px;
   --font-size-control: 15px;
+  --font-size-calendar-event: 10.5px;
   --font-size-title: 17px;
   --font-size-sheet-title: 18px;
   --font-size-detail-title: 22px;
@@ -57,6 +59,10 @@
   --color-focus: #2563eb;
   --color-danger: #dc2626;
   --color-danger-bg: #fef2f2;
+  --color-success: #15803d;
+  --color-success-bg: #f0fdf4;
+  --shadow-card: 0 1px 2px rgb(15 23 42 / 5%);
+  --shadow-card-hover: 0 4px 14px rgb(15 23 42 / 8%);
 }
 
 @theme inline {
@@ -123,6 +129,10 @@ button {
   font: inherit;
 }
 
+button:disabled {
+  cursor: not-allowed;
+}
+
 .app-shell,
 .detail-shell {
   width: min(100%, var(--content-max));
@@ -175,6 +185,9 @@ button {
   font-size: var(--font-size-small);
   font-weight: var(--font-weight-semibold);
   line-height: 18px;
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease;
 }
 
 .view-mode-toggle {
@@ -193,6 +206,11 @@ button {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-surface);
+  color: var(--color-text);
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease,
+    transform 150ms ease;
 }
 
 .view-mode-icon {
@@ -228,12 +246,21 @@ button {
   border-radius: 50%;
   background: var(--color-primary);
   box-shadow: none;
+  transition:
+    background-color 150ms ease,
+    transform 150ms ease;
 }
 
 .filter-icon-button img {
   width: 21px;
   height: 21px;
   filter: invert(1);
+}
+
+.condition-chip:active,
+.view-mode-button:active,
+.filter-icon-button:active {
+  transform: translateY(1px);
 }
 
 .calendar-month-view {
@@ -265,19 +292,23 @@ button {
 }
 
 .calendar-month-nav {
-  min-height: 40px;
+  min-height: var(--touch-target);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-surface);
   color: var(--color-text);
   font-size: var(--font-size-small);
   font-weight: var(--font-weight-semibold);
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease;
 }
 
 .calendar-month-nav:disabled {
   border-color: var(--color-border);
   background: var(--color-surface-muted);
   color: var(--color-text-subtle);
+  opacity: 0.72;
 }
 
 .calendar-weekday-row {
@@ -288,6 +319,20 @@ button {
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-bold);
   line-height: 18px;
+}
+
+.calendar-error,
+.timeline-error {
+  margin: 0 var(--page-gutter);
+  border: 1px solid #fecaca;
+  border-radius: var(--radius-md);
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  padding: var(--space-3);
+  text-align: center;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+  line-height: 20px;
 }
 
 .calendar-grid {
@@ -303,7 +348,7 @@ button {
 .calendar-day-cell {
   display: grid;
   min-width: 0;
-  min-height: 104px;
+  min-height: 108px;
   align-content: start;
   gap: 5px;
   overflow: hidden;
@@ -312,6 +357,7 @@ button {
   color: var(--color-text);
   padding: 6px 3px;
   text-align: left;
+  transition: background-color 150ms ease;
 }
 
 .calendar-day-cell:disabled {
@@ -342,7 +388,7 @@ button {
 }
 
 .calendar-day-cell.is-today {
-  box-shadow: inset 0 0 0 1px var(--color-border-strong);
+  box-shadow: inset 0 0 0 1.5px var(--color-border-strong);
 }
 
 .calendar-day-number {
@@ -360,14 +406,14 @@ button {
 .calendar-event-sample {
   display: block;
   width: 100%;
-  min-height: 15px;
+  min-height: 17px;
   min-width: 0;
   overflow: hidden;
   border-radius: 4px;
   background: color-mix(in srgb, var(--sample-color) 16%, white);
   color: var(--sample-color);
-  padding: 1px 3px;
-  font-size: 9.5px;
+  padding: 2px 3px;
+  font-size: var(--font-size-calendar-event);
   font-weight: var(--font-weight-semibold);
   line-height: 13px;
   text-overflow: ellipsis;
@@ -389,7 +435,7 @@ button {
 .calendar-event-overflow {
   overflow: hidden;
   color: var(--color-text-muted);
-  font-size: 9.5px;
+  font-size: var(--font-size-calendar-event);
   font-weight: var(--font-weight-bold);
   line-height: 13px;
   text-overflow: ellipsis;
@@ -444,6 +490,11 @@ button {
   line-height: 20px;
 }
 
+.timeline-error {
+  margin-top: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
 .time-group-list {
   display: grid;
   gap: var(--space-4);
@@ -484,14 +535,23 @@ button {
   gap: var(--space-3);
   content-visibility: auto;
   contain-intrinsic-size: auto 132px;
-  padding: 15px 15px 15px 16px;
+  padding: var(--space-4);
   border: 1px solid var(--color-border);
   border-left: 3px solid var(--event-accent);
   border-radius: var(--radius-md);
   background: var(--color-surface);
   color: inherit;
   text-decoration: none;
-  box-shadow: 0 1px 2px rgb(15 23 42 / 5%);
+  box-shadow: var(--shadow-card);
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    transform 150ms ease;
+}
+
+.event-card:hover {
+  border-color: var(--color-border-strong);
+  box-shadow: var(--shadow-card-hover);
 }
 
 .event-card:focus-visible,
@@ -504,17 +564,65 @@ button {
 .filter-sheet-header button:focus-visible,
 .step-tab:focus-visible,
 .twitter-source-button:focus-visible,
-.back-link:focus-visible {
+.back-link:focus-visible,
+.admin-shell a:focus-visible,
+.admin-shell button:focus-visible,
+.admin-shell input:focus-visible,
+.admin-shell select:focus-visible,
+.admin-shell textarea:focus-visible,
+.admin-raw-details summary:focus-visible {
   outline: 3px solid var(--color-focus);
   outline-offset: 2px;
 }
 
+.event-card-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 28px;
+  gap: var(--space-3);
+  align-items: start;
+}
+
 .event-title {
+  min-width: 0;
   margin: 0;
   color: var(--color-text);
   font-size: var(--font-size-title);
   font-weight: var(--font-weight-bold);
   line-height: 25px;
+}
+
+.event-card-indicator {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--color-surface-muted) 72%, white);
+  color: var(--color-text-muted);
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease,
+    color 150ms ease,
+    transform 150ms ease;
+}
+
+.event-card-indicator::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  margin-left: -1px;
+  border-top: 2px solid currentColor;
+  border-right: 2px solid currentColor;
+  transform: rotate(45deg);
+}
+
+.event-card:hover .event-card-indicator,
+.event-card:focus-visible .event-card-indicator {
+  border-color: var(--event-accent);
+  background: var(--color-surface);
+  color: var(--event-accent);
+  transform: translateX(2px);
 }
 
 .event-meta-list {
@@ -570,6 +678,7 @@ button {
   display: grid;
   min-height: calc(100vh - 84px);
   place-content: center;
+  gap: var(--space-2);
   padding: var(--space-8) var(--page-gutter);
   text-align: center;
 }
@@ -609,9 +718,10 @@ button {
 }
 
 .empty-state p {
-  margin: var(--space-2) 0 var(--space-5);
+  margin: 0 0 var(--space-3);
   color: var(--color-text-muted);
   font-size: var(--font-size-meta);
+  line-height: 22px;
 }
 
 .loading-state p {
@@ -638,6 +748,14 @@ button {
   font-size: var(--font-size-control);
   font-weight: var(--font-weight-bold);
   text-decoration: none;
+  transition:
+    background-color 150ms ease,
+    transform 150ms ease;
+}
+
+.empty-state button:active,
+.twitter-source-button:active {
+  transform: translateY(1px);
 }
 
 .filter-backdrop {
@@ -657,7 +775,7 @@ button {
   height: calc(100dvh - var(--results-top-height));
   max-height: calc(100dvh - var(--results-top-height));
   grid-template-rows: auto minmax(0, 1fr) auto;
-  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   background: var(--color-surface);
   overflow: hidden;
 }
@@ -687,6 +805,11 @@ button {
   color: var(--color-text);
   font-size: var(--font-size-meta);
   font-weight: var(--font-weight-semibold);
+  transition: background-color 150ms ease;
+}
+
+.filter-sheet-header button:active {
+  background: var(--color-surface-muted);
 }
 
 .step-tabs {
@@ -705,6 +828,10 @@ button {
   color: var(--color-text-muted);
   font-size: var(--font-size-control);
   font-weight: var(--font-weight-semibold);
+  transition:
+    border-color 150ms ease,
+    color 150ms ease,
+    background-color 150ms ease;
 }
 
 .step-tab.is-active {
@@ -753,6 +880,12 @@ button {
   font-size: 16px;
   font-weight: var(--font-weight-medium);
   line-height: 22px;
+  word-break: keep-all;
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease,
+    box-shadow 150ms ease,
+    transform 150ms ease;
 }
 
 .choice-button.is-full-width {
@@ -764,6 +897,10 @@ button {
   background: #e5e7eb;
   color: #111827;
   box-shadow: inset 0 0 0 1px #cbd5e1;
+}
+
+.choice-button:active {
+  transform: translateY(1px);
 }
 
 .detail-shell {
@@ -824,7 +961,7 @@ button {
 
 .detail-fact-row {
   display: grid;
-  grid-template-columns: 54px minmax(0, 1fr);
+  grid-template-columns: 64px minmax(0, 1fr);
   gap: var(--space-3);
   padding: 13px 0;
 }
@@ -915,6 +1052,10 @@ button {
   margin-top: var(--space-4);
 }
 
+.detail-source-section .twitter-source-button {
+  margin-top: 0;
+}
+
 .last-checked {
   margin: var(--space-6) 0 0;
   color: var(--color-text-subtle);
@@ -984,6 +1125,17 @@ button {
   color: var(--color-text-muted);
   font-size: var(--font-size-body);
   line-height: 24px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 @media (min-width: 720px) {
@@ -1061,6 +1213,10 @@ button {
   color: var(--color-text-muted);
   padding: 0 13px;
   text-decoration: none;
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease,
+    color 150ms ease;
 }
 
 .admin-status-tabs a.is-active,
@@ -1089,7 +1245,7 @@ button {
   border-radius: var(--radius-md);
   background: var(--color-surface);
   padding: var(--space-4);
-  box-shadow: 0 1px 2px rgb(15 23 42 / 4%);
+  box-shadow: var(--shadow-card);
 }
 
 .admin-manual-add-panel h2 {
@@ -1120,7 +1276,7 @@ button {
 
 .admin-manual-add-row input {
   width: 100%;
-  min-height: 42px;
+  min-height: var(--touch-target);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-bg);
@@ -1131,13 +1287,11 @@ button {
 }
 
 .admin-manual-add-row input:focus {
-  outline: 2px solid rgb(21 128 61 / 22%);
-  outline-offset: 2px;
   border-color: var(--color-primary);
 }
 
 .admin-manual-add-row button {
-  min-height: 42px;
+  min-height: var(--touch-target);
   border: 1px solid var(--color-primary);
   border-radius: var(--radius-md);
   background: var(--color-primary);
@@ -1229,7 +1383,7 @@ button {
   border-radius: var(--radius-md);
   background: var(--color-surface);
   padding: var(--space-4);
-  box-shadow: 0 1px 2px rgb(15 23 42 / 5%);
+  box-shadow: var(--shadow-card);
 }
 
 .admin-candidate-header {
@@ -1257,8 +1411,8 @@ button {
 
 .admin-candidate-header-actions .admin-source-link,
 .admin-candidate-header-actions .admin-action-row button {
-  min-height: 36px;
-  padding: 0 9px;
+  min-height: 40px;
+  padding: 0 10px;
   font-size: var(--font-size-caption);
 }
 
@@ -1295,7 +1449,7 @@ button {
 .admin-publish-form button,
 .admin-unpublish-form button,
 .admin-action-row button {
-  min-height: 40px;
+  min-height: var(--touch-target);
   border: 1px solid var(--color-primary);
   border-radius: var(--radius-md);
   background: var(--color-primary);
@@ -1304,6 +1458,11 @@ button {
   font-size: var(--font-size-small);
   font-weight: var(--font-weight-bold);
   text-decoration: none;
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease,
+    color 150ms ease,
+    transform 150ms ease;
 }
 
 .admin-source-link {
@@ -1476,16 +1635,16 @@ button {
 .admin-publish-panel {
   border: 1px solid #bbf7d0;
   border-radius: var(--radius-md);
-  background: #f0fdf4;
+  background: var(--color-success-bg);
   padding: var(--space-3);
 }
 
 .admin-publish-panel summary {
   width: fit-content;
   min-height: 40px;
-  border: 1px solid #15803d;
+  border: 1px solid var(--color-success);
   border-radius: var(--radius-md);
-  background: #15803d;
+  background: var(--color-success);
   color: #ffffff;
   cursor: pointer;
   padding: 9px 12px;
@@ -1597,8 +1756,8 @@ button {
 
 .admin-publish-form button {
   justify-self: start;
-  border-color: #15803d;
-  background: #15803d;
+  border-color: var(--color-success);
+  background: var(--color-success);
 }
 
 .admin-ocr-form {
@@ -1656,7 +1815,16 @@ button {
 .admin-action-row button {
   border-color: var(--color-border);
   background: var(--color-surface);
-  color: var(--color-text);
+  color: var(--color-text-muted);
+}
+
+.admin-action-row button:active,
+.admin-source-link:active,
+.admin-ocr-form button:active,
+.admin-ocr-run-form button:active,
+.admin-publish-form button:active,
+.admin-unpublish-form button:active {
+  transform: translateY(1px);
 }
 
 @media (min-width: 760px) {

@@ -14,6 +14,7 @@ import {
 
 type CalendarMonthViewProps = {
   calendar: EventCalendarMonth | null;
+  errorMessage: string | null;
   isLoading: boolean;
   month: string;
   todayDate: string;
@@ -23,6 +24,7 @@ type CalendarMonthViewProps = {
 
 export function CalendarMonthView({
   calendar,
+  errorMessage,
   isLoading,
   month,
   todayDate,
@@ -68,6 +70,12 @@ export function CalendarMonthView({
           <span key={weekday}>{weekday}</span>
         ))}
       </div>
+
+      {errorMessage ? (
+        <div className="calendar-error" role="status">
+          {errorMessage}
+        </div>
+      ) : null}
 
       <div className="calendar-grid">
         {gridDates.map((date) => {

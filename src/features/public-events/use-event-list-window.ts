@@ -57,6 +57,7 @@ export function useEventListWindow({
   const hasPreviousEvents = windowStartDate > todayDate;
   const [isLoadingPrevious, setIsLoadingPrevious] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const dateGroups = useMemo(
     () => groupOccurrencesByDateAndTime(loadedEvents),
@@ -74,6 +75,7 @@ export function useEventListWindow({
     }
 
     setIsLoadingMore(true);
+    setLoadError(null);
 
     try {
       const params = new URLSearchParams({ from: nextFromDate });
@@ -87,6 +89,9 @@ export function useEventListWindow({
       setNextFromDate(nextWindow.nextFromDate);
       setHasMoreEvents(nextWindow.hasMoreEvents);
     } catch {
+      setLoadError(
+        "다음 일정을 불러오지 못했어요. 잠시 후 화면을 새로고침해 주세요.",
+      );
       setHasMoreEvents(false);
     } finally {
       setIsLoadingMore(false);
@@ -122,6 +127,7 @@ export function useEventListWindow({
       scrollY: window.scrollY,
     };
     setIsLoadingPrevious(true);
+    setLoadError(null);
 
     try {
       const params = new URLSearchParams({ from: previousFromDate });
@@ -133,6 +139,10 @@ export function useEventListWindow({
         mergeOccurrences(previousWindow.events, currentEvents),
       );
       setWindowStartDate(previousFromDate);
+    } catch {
+      setLoadError(
+        "이전 일정을 불러오지 못했어요. 잠시 후 화면을 새로고침해 주세요.",
+      );
     } finally {
       setIsLoadingPrevious(false);
     }
@@ -259,6 +269,7 @@ export function useEventListWindow({
     hasPreviousEvents,
     isLoadingMore,
     isLoadingPrevious,
+    loadError,
     loadMoreRef,
     loadPreviousRef,
     loadedEvents,

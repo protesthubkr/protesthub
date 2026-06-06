@@ -5,9 +5,10 @@
 ## 먼저 읽을 파일
 
 1. `docs/architecture.md`
-2. 요청과 직접 관련된 `src/features/*` 폴더
-3. 관련 `src/lib/*` 도메인 파일
-4. DB 조회나 저장을 건드리면 `supabase/schema.sql`
+2. UI/UX를 건드리면 `docs/ui-principles.md`
+3. 요청과 직접 관련된 `src/features/*` 폴더
+4. 관련 `src/lib/*` 도메인 파일
+5. DB 조회나 저장을 건드리면 `supabase/schema.sql`
 
 ## 작업별 진입점
 
@@ -22,6 +23,7 @@
 | 월 캘린더 표시 | `src/features/public-events/calendar-month-model.ts`, `calendar-month-view.tsx` |
 | 목록 카드 | `src/features/public-events/event-card.tsx` |
 | 상세 페이지 | `src/app/events/[id]/page.tsx`, `event-detail-client.tsx` |
+| UI 원칙/시각 위계 | `docs/ui-principles.md`, `src/app/globals.css` |
 | 검수 카드 | `src/features/admin-candidates/candidate-card.tsx` |
 | 공개 폼 기본값 | `src/features/admin-candidates/publish-defaults.ts` |
 | 검수 서버 액션 | `src/features/admin-candidates/actions.ts` |

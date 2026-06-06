@@ -9,6 +9,7 @@ type EventTimelineProps = {
   hasPreviousEvents: boolean;
   isLoadingMore: boolean;
   isLoadingPrevious: boolean;
+  loadError: string | null;
   loadMoreRef: RefObject<HTMLDivElement | null>;
   loadPreviousRef: RefObject<HTMLDivElement | null>;
 };
@@ -19,6 +20,7 @@ export function EventTimeline({
   hasPreviousEvents,
   isLoadingMore,
   isLoadingPrevious,
+  loadError,
   loadMoreRef,
   loadPreviousRef,
 }: EventTimelineProps) {
@@ -44,10 +46,15 @@ export function EventTimeline({
         <div className="empty-week" aria-live="polite" aria-busy="true">
           집회를 불러오는 중
         </div>
-      ) : (
+      ) : loadError ? null : (
         <div className="empty-week">불러온 기간에는 집회가 없어요</div>
       )}
-      {!isLoadingEmptyWindow ? (
+      {loadError ? (
+        <div className="timeline-error" role="status">
+          {loadError}
+        </div>
+      ) : null}
+      {!isLoadingEmptyWindow && !loadError ? (
         <div className="load-more-sentinel" ref={loadMoreRef}>
           {isLoadingMore
             ? "다음 집회를 불러오는 중"

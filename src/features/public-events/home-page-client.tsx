@@ -63,6 +63,7 @@ export function HomePageClient({
   const showCalendar = useCallback(() => setActiveViewMode("calendar"), []);
   const {
     activeCalendarMonth,
+    calendarError,
     calendarData,
     isCalendarLoading,
     loadCalendarMonth,
@@ -80,6 +81,7 @@ export function HomePageClient({
     hasPreviousEvents,
     isLoadingMore,
     isLoadingPrevious,
+    loadError,
     loadMoreRef,
     loadPreviousRef,
     loadedEvents,
@@ -174,6 +176,7 @@ export function HomePageClient({
         {activeViewMode === "calendar" ? (
           <CalendarMonthView
             calendar={calendarData}
+            errorMessage={calendarError}
             isLoading={isCalendarLoading}
             month={activeCalendarMonth}
             todayDate={todayDate}
@@ -182,7 +185,7 @@ export function HomePageClient({
           />
         ) : isListRouteLoading ? (
           <LoadingState />
-        ) : loadedEvents.length === 0 && !hasMoreEvents ? (
+        ) : loadedEvents.length === 0 && !hasMoreEvents && !loadError ? (
           <EmptyState onOpenFilter={() => openFilter("issue")} />
         ) : (
           <EventTimeline
@@ -191,6 +194,7 @@ export function HomePageClient({
             hasPreviousEvents={hasPreviousEvents}
             isLoadingMore={isLoadingMore}
             isLoadingPrevious={isLoadingPrevious}
+            loadError={loadError}
             loadMoreRef={loadMoreRef}
             loadPreviousRef={loadPreviousRef}
           />

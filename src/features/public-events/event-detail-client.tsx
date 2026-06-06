@@ -26,9 +26,9 @@ export function EventDetailClient({ event }: { event: PublicEvent }) {
           <p className="detail-description">{event.description}</p>
         </section>
 
-        <section className="detail-section">
-          <h2>포스터</h2>
-          {event.posterImageUrl ? (
+        {event.posterImageUrl ? (
+          <section className="detail-section">
+            <h2>포스터</h2>
             <button
               aria-label="포스터 확대 보기"
               className="poster-button"
@@ -38,10 +38,14 @@ export function EventDetailClient({ event }: { event: PublicEvent }) {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={event.posterImageUrl} alt={`${event.title} 포스터`} />
             </button>
-          ) : null}
-
-          <SourcePostLink href={event.sourcePostUrl} label="트위터에서 보기" />
-        </section>
+            <SourcePostLink href={event.sourcePostUrl} label="트위터에서 보기" />
+          </section>
+        ) : (
+          <section className="detail-section detail-source-section">
+            <h2>원본 출처</h2>
+            <SourcePostLink href={event.sourcePostUrl} label="트위터에서 보기" />
+          </section>
+        )}
 
         <p className="last-checked">
           최종 확인 {formatKoreanDateTime(event.lastCheckedAt)}

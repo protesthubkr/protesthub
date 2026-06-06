@@ -9,6 +9,7 @@ export function EventCard({ event }: { event: EventListOccurrence }) {
 
   return (
     <Link
+      aria-label={`${event.title} 상세 보기`}
       className="event-card"
       href={`/events/${event.id}`}
       style={
@@ -17,7 +18,10 @@ export function EventCard({ event }: { event: EventListOccurrence }) {
         } as CSSProperties
       }
     >
-      <h3 className="event-title">{event.title}</h3>
+      <div className="event-card-heading">
+        <h3 className="event-title">{event.title}</h3>
+        <span className="event-card-indicator" aria-hidden="true" />
+      </div>
       <dl className="event-meta-list">
         <div>
           <dt>주최</dt>

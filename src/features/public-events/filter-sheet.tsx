@@ -37,7 +37,7 @@ export function FilterSheet({
   return (
     <div className="filter-backdrop" role="presentation" onClick={onClose}>
       <section
-        aria-label="집회 필터"
+        aria-labelledby="filter-sheet-title"
         aria-modal="true"
         className="filter-sheet"
         role="dialog"
@@ -47,7 +47,7 @@ export function FilterSheet({
           <button type="button" onClick={onClose}>
             닫기
           </button>
-          <h1>필터</h1>
+          <h1 id="filter-sheet-title">필터</h1>
           <button type="button" onClick={onApply}>
             적용
           </button>
@@ -112,7 +112,10 @@ function IssueFilterPanel({
   return (
     <FilterPanel title="관심 의제를 골라주세요" columns={2}>
       <ChoiceButton
-        checked={selectedIssues.length === ISSUE_OPTIONS.length}
+        checked={
+          selectedIssues.length === 0 ||
+          selectedIssues.length === ISSUE_OPTIONS.length
+        }
         fullWidth
         label="전체"
         onToggle={onToggleAll}
@@ -143,7 +146,10 @@ function RegionFilterPanel({
   return (
     <FilterPanel title="지역을 골라주세요" columns={2}>
       <ChoiceButton
-        checked={selectedRegions.length === regions.length}
+        checked={
+          selectedRegions.length === 0 ||
+          selectedRegions.length === regions.length
+        }
         fullWidth
         label="전체"
         onToggle={onToggleAll}
@@ -175,7 +181,9 @@ function OrganizerFilterPanel({
     <FilterPanel title="주최 단체를 골라주세요">
       <ChoiceButton
         checked={
-          organizers.length > 0 && selectedOrganizers.length === organizers.length
+          organizers.length > 0 &&
+          (selectedOrganizers.length === 0 ||
+            selectedOrganizers.length === organizers.length)
         }
         label="전체"
         onToggle={onToggleAll}
