@@ -157,17 +157,19 @@ public_event_occurrences
 3. 팔로잉 목록을 새로 반영해야 할 때는 `/admin/candidates`의 X 수집 실행 패널에서 "팔로잉 갱신 후 수집"을 누른다. API로 직접 실행해야 할 때만 `/api/ingest/x?refreshFollowing=true`를 사용한다.
 4. 기본 수집은 `x_accounts`의 계정별 수집 커서를 기준으로 가져온다. `last_ingested_post_id`가 최근 30일 안이면 `since_id`를 쓰고, 커서가 없거나 너무 오래됐으면 최대 `now - 30일`까지만 `start_time`으로 조회한다.
 5. timeline 1차 요청은 `tweet.fields`만 사용하고 `expansions`, `media.fields`, `user.fields`를 붙이지 않는다.
-6. 기본 `hydrateMode`는 `deferred`다. 1차 수집은 원문, 날짜/장소 신호, 첨부 media key, 인용 post id만 저장하고 X 상세 API를 자동 호출하지 않는다.
-7. 첨부나 인용이 있어 상세 수집이 필요한 후보만 `x_detail_deferred` 근거와 `pending_media_keys`, `pending_quoted_post_ids`를 가진다.
-8. 관리자가 해당 후보 카드의 `X 상세 수집` 또는 수집 패널의 `검수 대기 상세 수집`을 누를 때만 `/2/tweets?ids=...` 상세 요청으로 hydrate한다. 이때 media URL, alt text, referenced tweet, author expansion을 가져온다.
-9. 상세 수집이 끝나면 `candidate-detail-hydration.ts`가 `x_posts`, `x_media`, `x_post_media`, `x_event_candidates`를 갱신하고 `extraction_payload.x_hydration.status = "hydrated"`로 바꾼다.
-10. `note_tweet.text`가 있으면 본문으로 우선 사용한다.
-11. 텍스트 또는 첨부 media key가 있는 post만 후보 row가 될 수 있다.
-12. 본문에 `일시`, `날짜`, `일정` 중 하나라도 있거나 보조 신호가 3개 이상인 post를 `needs_review`, 나머지는 `ignored`로 저장한다.
-13. 일반 증분 수집에서 오늘 이전 일정으로 판정되면 `ignored`와 `past_event_date` 근거를 남긴다.
-14. `startDate`/`startTime` 백필 수집은 `since_id`를 우회하지만, 요청 시작 시각이 30일보다 오래됐으면 30일 전으로 잘라서 조회한다.
-15. 계정별 timeline 조회가 끝나면 `x_accounts.last_ingested_at`, `last_ingested_post_id`, `last_ingested_post_created_at`, `last_ingest_run_id`를 갱신한다. 신규 계정에 post가 없어도 `last_ingested_at`은 남겨 다음 수집에서 같은 30일 범위를 반복 조회하지 않는다.
-16. 백필이나 장기 미수집 계정은 `maxPages` 또는 `X_BACKFILL_TIMELINE_PAGES_PER_ACCOUNT`로 계정별 timeline pagination 상한을 둔다.
+6. 공식 계정의 리포스트 wrapper는 후보로 만들지 않는다. 대신 `referenced_tweets.type=retweeted` 원포스트 id만 모아 `/2/tweets?ids=...`로 원포스트를 hydrate하고 후보화한다.
+7. 원포스트 작성자는 팔로잉 계정으로 승격하지 않고 `is_following=false` 참조 계정으로만 저장한다.
+8. 기본 `hydrateMode`는 `deferred`다. 리포스트 원포스트 예외를 제외하면, 1차 수집은 원문, 날짜/장소 신호, 첨부 media key, 인용 post id만 저장하고 X 상세 API를 자동 호출하지 않는다.
+9. 첨부나 인용이 있어 상세 수집이 필요한 후보만 `x_detail_deferred` 근거와 `pending_media_keys`, `pending_quoted_post_ids`를 가진다.
+10. 관리자가 해당 후보 카드의 `X 상세 수집` 또는 수집 패널의 `검수 대기 상세 수집`을 누를 때만 `/2/tweets?ids=...` 상세 요청으로 hydrate한다. 이때 media URL, alt text, referenced tweet, author expansion을 가져온다.
+11. 상세 수집이 끝나면 `candidate-detail-hydration.ts`가 `x_posts`, `x_media`, `x_post_media`, `x_event_candidates`를 갱신하고 `extraction_payload.x_hydration.status = "hydrated"`로 바꾼다.
+12. `note_tweet.text`가 있으면 본문으로 우선 사용한다.
+13. 텍스트 또는 첨부 media key가 있는 post만 후보 row가 될 수 있다.
+14. 본문에 `일시`, `날짜`, `일정` 중 하나라도 있거나 보조 신호가 3개 이상인 post를 `needs_review`, 나머지는 `ignored`로 저장한다.
+15. 일반 증분 수집에서 오늘 이전 일정으로 판정되면 `ignored`와 `past_event_date` 근거를 남긴다.
+16. `startDate`/`startTime` 백필 수집은 `since_id`를 우회하지만, 요청 시작 시각이 30일보다 오래됐으면 30일 전으로 잘라서 조회한다.
+17. 계정별 timeline 조회가 끝나면 `x_accounts.last_ingested_at`, `last_ingested_post_id`, `last_ingested_post_created_at`, `last_ingest_run_id`를 갱신한다. 신규 계정에 post가 없어도 `last_ingested_at`은 남겨 다음 수집에서 같은 30일 범위를 반복 조회하지 않는다.
+18. 백필이나 장기 미수집 계정은 `maxPages` 또는 `X_BACKFILL_TIMELINE_PAGES_PER_ACCOUNT`로 계정별 timeline pagination 상한을 둔다.
 
 ## 변경 안전 규칙
 

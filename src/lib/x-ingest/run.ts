@@ -11,6 +11,7 @@ import {
   finishIngestRun,
   getAccountIngestCursor,
   getCollectibleStoredAccounts,
+  insertDiscoveredAccounts,
   insertCandidateRows,
   updateAccountIngestCursor,
   upsertAccounts,
@@ -18,14 +19,26 @@ import {
   upsertPostMedia,
   upsertPosts,
 } from "./repository";
-import type { XIngestResult, XIngestRunOptions, XMedia, XPost } from "./types";
+import type {
+  XIngestResult,
+  XIngestRunOptions,
+  XMedia,
+  XPost,
+  XUser,
+} from "./types";
 import {
   fetchFollowingAccounts,
   fetchPostsByIds,
   fetchUserPosts,
   XApiError,
 } from "./x-api";
-import { getPostText, shouldReviewCandidate } from "./normalize";
+import {
+  getPostText,
+  getPostUrl,
+  getReferencedPostIds,
+  shouldReviewCandidate,
+} from "./normalize";
+import type { XPostDiscovery } from "./candidate-rows";
 
 export { XApiError, XIngestConfigError };
 
@@ -114,29 +127,46 @@ export async function runXIngest(
         timeline.data ?? [],
         requestCursor.startTime,
       );
+      const regularPosts = posts.filter((post) => !isRetweetWrapper(post));
+      const retweetedOriginals = await fetchRetweetedOriginalPosts({
+        bearerToken: config.bearerToken,
+        posts,
+        retweetedByAccount: account,
+      });
       const hydratedTimeline =
         hydrateMode === "candidate_posts_only"
           ? await hydrateCandidatePosts({
               bearerToken: config.bearerToken,
-              posts,
+              posts: regularPosts,
               reviewPastEventNotices,
             })
           : createEmptyHydratedTimeline();
       const hydratedPostsById = createPostMap(hydratedTimeline.data ?? []);
-      const postsForStorage = posts.map(
+      const regularPostsForStorage = regularPosts.map(
         (post) => hydratedPostsById.get(post.id) ?? post,
       );
-      const media = dedupeMedia(hydratedTimeline.includes?.media ?? []);
+      const postsForStorage = [
+        ...regularPostsForStorage,
+        ...retweetedOriginals.posts,
+      ];
+      const media = dedupeMedia([
+        ...(hydratedTimeline.includes?.media ?? []),
+        ...retweetedOriginals.media,
+      ]);
       const mediaByKey = createMediaMap(media);
 
-      counters.postsSeen += postsForStorage.length;
+      counters.postsSeen += posts.length + retweetedOriginals.posts.length;
+      await insertDiscoveredAccounts(supabase, retweetedOriginals.authors);
       await upsertMedia(supabase, media);
-      counters.postsWritten += await upsertPosts(
-        supabase,
+      counters.postsWritten += await upsertPosts(supabase, runId, account, [
+        ...regularPostsForStorage,
+      ]);
+      counters.postsWritten += await upsertDiscoveredPostsByAuthor({
+        authors: retweetedOriginals.authors,
+        posts: retweetedOriginals.posts,
         runId,
-        account,
-        postsForStorage,
-      );
+        supabase,
+      });
       await upsertPostMedia(
         supabase,
         postsForStorage,
@@ -144,18 +174,27 @@ export async function runXIngest(
       );
       counters.candidatesCreated += await insertCandidateRows(
         supabase,
-        buildCandidateRows({
-          account,
-          hydrateMode,
-          posts: postsForStorage,
-          mediaByKey,
-          reviewPastEventNotices,
-        }),
+        [
+          ...buildCandidateRows({
+            account,
+            hydrateMode,
+            posts: regularPostsForStorage,
+            mediaByKey,
+            reviewPastEventNotices,
+          }),
+          ...buildDiscoveredCandidateRows({
+            authors: retweetedOriginals.authors,
+            discoveryByPostId: retweetedOriginals.discoveryByPostId,
+            mediaByKey,
+            posts: retweetedOriginals.posts,
+            reviewPastEventNotices,
+          }),
+        ],
       );
       await updateAccountIngestCursor({
         accountId: account.id,
         checkedAt: new Date().toISOString(),
-        latestPost: chooseLatestPostCursor(cursor, postsForStorage),
+        latestPost: chooseLatestPostCursor(cursor, posts),
         runId,
         supabase,
       });
@@ -176,6 +215,143 @@ export async function runXIngest(
 
 function createEmptyHydratedTimeline() {
   return { data: [], includes: { media: [], tweets: [], users: [] } };
+}
+
+async function fetchRetweetedOriginalPosts({
+  bearerToken,
+  posts,
+  retweetedByAccount,
+}: {
+  bearerToken: string;
+  posts: XPost[];
+  retweetedByAccount: XUser;
+}) {
+  const retweets = posts.flatMap((post) =>
+    getReferencedPostIds(post, "retweeted").map((originalPostId) => ({
+      originalPostId,
+      wrapperPost: post,
+    })),
+  );
+  const originalPostIds = retweets.map((retweet) => retweet.originalPostId);
+
+  if (originalPostIds.length === 0) {
+    return {
+      authors: [],
+      discoveryByPostId: new Map<string, XPostDiscovery>(),
+      media: [],
+      posts: [],
+    };
+  }
+
+  const response = await fetchPostsByIds({
+    bearerToken,
+    postIds: originalPostIds,
+  });
+  const retweetByOriginalPostId = new Map(
+    retweets.map((retweet) => [retweet.originalPostId, retweet.wrapperPost]),
+  );
+  const discoveryByPostId = new Map<string, XPostDiscovery>();
+
+  for (const post of response.data ?? []) {
+    const wrapperPost = retweetByOriginalPostId.get(post.id);
+
+    if (!wrapperPost) {
+      continue;
+    }
+
+    discoveryByPostId.set(post.id, {
+      discoveredAt: wrapperPost.created_at,
+      sourceAccountId: retweetedByAccount.id,
+      sourceAccountName: retweetedByAccount.name,
+      sourcePostId: wrapperPost.id,
+      sourcePostUrl: getPostUrl(retweetedByAccount, wrapperPost),
+      type: "retweet",
+    });
+  }
+
+  return {
+    authors: response.includes?.users ?? [],
+    discoveryByPostId,
+    media: dedupeMedia(response.includes?.media ?? []),
+    posts: response.data ?? [],
+  };
+}
+
+async function upsertDiscoveredPostsByAuthor({
+  authors,
+  posts,
+  runId,
+  supabase,
+}: {
+  authors: XUser[];
+  posts: XPost[];
+  runId: string;
+  supabase: SupabaseClient;
+}) {
+  let written = 0;
+
+  for (const [authorId, authorPosts] of groupPostsByAuthor(posts)) {
+    const author = authors.find((item) => item.id === authorId);
+
+    if (!author) {
+      continue;
+    }
+
+    written += await upsertPosts(supabase, runId, author, authorPosts);
+  }
+
+  return written;
+}
+
+function buildDiscoveredCandidateRows({
+  authors,
+  discoveryByPostId,
+  mediaByKey,
+  posts,
+  reviewPastEventNotices,
+}: {
+  authors: XUser[];
+  discoveryByPostId: Map<string, XPostDiscovery>;
+  mediaByKey: Map<string, XMedia>;
+  posts: XPost[];
+  reviewPastEventNotices: boolean;
+}) {
+  return Array.from(groupPostsByAuthor(posts)).flatMap(
+    ([authorId, authorPosts]) => {
+      const author = authors.find((item) => item.id === authorId);
+
+      if (!author) {
+        return [];
+      }
+
+      return buildCandidateRows({
+        account: author,
+        discoveryByPostId,
+        hydrateMode: "candidate_posts_only",
+        mediaByKey,
+        posts: authorPosts,
+        reviewPastEventNotices,
+      });
+    },
+  );
+}
+
+function groupPostsByAuthor(posts: XPost[]) {
+  const groups = new Map<string, XPost[]>();
+
+  for (const post of posts) {
+    if (!post.author_id) {
+      continue;
+    }
+
+    groups.set(post.author_id, [...(groups.get(post.author_id) ?? []), post]);
+  }
+
+  return groups;
+}
+
+function isRetweetWrapper(post: XPost) {
+  return getReferencedPostIds(post, "retweeted").length > 0;
 }
 
 async function refreshFollowingAccounts({

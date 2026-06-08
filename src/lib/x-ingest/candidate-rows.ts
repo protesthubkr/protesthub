@@ -25,14 +25,25 @@ export type XEventCandidateInsertRow = {
   candidate_reason: string[];
 };
 
+export type XPostDiscovery = {
+  discoveredAt?: string;
+  sourceAccountId: string;
+  sourceAccountName: string;
+  sourcePostId: string;
+  sourcePostUrl: string;
+  type: "retweet";
+};
+
 export function buildCandidateRows({
   account,
+  discoveryByPostId,
   hydrateMode = "deferred",
   mediaByKey,
   posts,
   reviewPastEventNotices = false,
 }: {
   account: XUser;
+  discoveryByPostId?: Map<string, XPostDiscovery>;
   hydrateMode?: XHydrateMode;
   mediaByKey: Map<string, XMedia>;
   posts: XPost[];
@@ -57,6 +68,7 @@ export function buildCandidateRows({
     const postText = getPostText(post);
     const eventDateFilter = analyzePastEventNotice(postText);
     const candidateReasons = getCandidateReasons(post, media);
+    const discovery = discoveryByPostId?.get(post.id);
     const shouldReview = shouldReviewCandidate(post, media);
     const shouldIgnoreAsPast =
       eventDateFilter.ignoredAsPast && !reviewPastEventNotices;
@@ -75,6 +87,7 @@ export function buildCandidateRows({
           source: "x_ingest_heuristic_v2",
           needs_ocr: media.length > 0,
           event_date_filter: eventDateFilter,
+          ...(discovery ? { discovery } : {}),
           quoted_post_ids: quotedPostIds,
           replied_to_post_ids: repliedToPostIds,
           x_hydration: {
@@ -97,6 +110,7 @@ export function buildCandidateRows({
                   mediaKeys,
                   quotedPostIds,
                 }),
+                ...(discovery ? ["discovered_via_retweet"] : []),
                 ...(eventDateFilter.ignoredAsPast ? ["past_event_date"] : []),
               ]
             : [
@@ -106,6 +120,7 @@ export function buildCandidateRows({
                   mediaKeys,
                   quotedPostIds,
                 }),
+                ...(discovery ? ["discovered_via_retweet"] : []),
               ],
       },
     ];

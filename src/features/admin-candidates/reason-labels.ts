@@ -86,6 +86,7 @@ export function formatCandidateReason(reason: string) {
     unpublished_event: "공개 이벤트 내림",
     manual_single_post: "수동 추가",
     manual_review_requested: "수동 검수 요청",
+    discovered_via_retweet: "공식 계정 리포스트 원문",
     admin_ignored: "관리자 무시",
     admin_duplicate: "관리자 중복",
     admin_canceled_candidate: "관리자 취소 후보",

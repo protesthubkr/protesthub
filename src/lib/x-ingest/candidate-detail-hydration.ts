@@ -9,7 +9,7 @@ import {
   createIngestRun,
   finishIngestRun,
   getAttachmentMediaKeysByPostId,
-  upsertAccounts,
+  insertDiscoveredAccounts,
   upsertMedia,
   upsertPostMedia,
   upsertPosts,
@@ -134,7 +134,7 @@ async function hydrateCandidateRows({
 
     counters.accountsSeen = new Set(users.map((user) => user.id)).size;
     counters.postsSeen = uniqueRows.length;
-    await upsertAccounts(supabase, users);
+    await insertDiscoveredAccounts(supabase, users);
     await upsertMedia(supabase, media);
 
     for (const candidate of uniqueRows) {

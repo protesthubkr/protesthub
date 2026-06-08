@@ -1,6 +1,6 @@
 const DEFAULT_EXTRACTION_MODEL = "gpt-5-nano";
 const DEFAULT_EXTRACTION_FALLBACK_MODEL = "gpt-5-mini";
-const DEFAULT_EXTRACTION_MAX_OUTPUT_TOKENS = 2000;
+const DEFAULT_EXTRACTION_MAX_OUTPUT_TOKENS = 6000;
 const DEFAULT_EXTRACTION_REASONING_EFFORT = "minimal";
 const REASONING_EFFORTS = new Set([
   "none",
@@ -42,7 +42,7 @@ export function getExtractionMaxOutputTokens() {
     return DEFAULT_EXTRACTION_MAX_OUTPUT_TOKENS;
   }
 
-  return Math.min(Math.max(parsed, 800), 10000);
+  return Math.min(Math.max(parsed, 2000), 30000);
 }
 
 export function getReasoningRequestOptions(model: string) {

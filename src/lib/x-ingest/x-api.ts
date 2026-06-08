@@ -218,10 +218,11 @@ async function fetchUserPostsPage({
 }) {
   const url = new URL(`${X_API_BASE_URL}/users/${userId}/tweets`);
   url.searchParams.set("max_results", String(maxResults));
-  url.searchParams.set(
-    "exclude",
-    includeReplies ? "retweets" : "retweets,replies",
-  );
+
+  if (!includeReplies) {
+    url.searchParams.set("exclude", "replies");
+  }
+
   url.searchParams.set("tweet.fields", TWEET_FIELDS);
 
   if (sinceId) {

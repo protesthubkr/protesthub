@@ -133,6 +133,40 @@ export async function upsertAccounts(
   }
 }
 
+export async function insertDiscoveredAccounts(
+  supabase: SupabaseClient,
+  accounts: XUser[],
+) {
+  const uniqueAccounts = Array.from(
+    new Map(accounts.map((account) => [account.id, account])).values(),
+  );
+
+  if (uniqueAccounts.length === 0) {
+    return;
+  }
+
+  const { error } = await supabase.from("x_accounts").upsert(
+    uniqueAccounts.map((account) => ({
+      x_user_id: account.id,
+      username: account.username,
+      account_name: account.name,
+      is_following: false,
+      is_protected: account.protected ?? false,
+      is_verified: account.verified ?? null,
+      last_seen_at: new Date().toISOString(),
+      raw_payload: account,
+    })),
+    {
+      ignoreDuplicates: true,
+      onConflict: "x_user_id",
+    },
+  );
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
 export async function getCollectibleStoredAccounts(
   supabase: SupabaseClient,
   maxAccounts: number,

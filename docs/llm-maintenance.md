@@ -110,8 +110,8 @@ git diff --check
 - OCR/구조화 버튼은 실제 API 비용이 발생하므로 필요한 경우에만 누른다.
 - 공개 폼 기본값은 기존 공개 이벤트가 있는 후보와 없는 후보를 각각 확인한다.
 - `/api/ingest/x`는 Bearer secret과 함께 테스트한다. 백필은 `startDate=YYYY-MM-DD` 또는 `startTime=...` query로 실행하되, 실제 조회 시작점은 최대 30일 전으로 제한된다.
-- 구조화 추출은 상세설명과 evidence를 생성하지 않는다. 기본 출력 예산은 `OPENAI_EXTRACTION_MAX_OUTPUT_TOKENS=2000` 수준으로 두고, GPT-5 계열 reasoning token 비용을 줄이기 위해 `OPENAI_EXTRACTION_REASONING_EFFORT=minimal`을 사용한다.
-- 구조화 프롬프트는 긴 원문과 OCR을 그대로 모두 넣지 않고 앞부분 중심으로 압축하되, 끝부분 일부를 보존한다. 입력 길이 정책을 바꿀 때는 `src/lib/llm/structured-event-prompt.ts`를 먼저 확인한다.
+- 구조화 추출은 상세설명과 evidence를 생성하지 않는다. 정확도가 더 중요하므로 기본 출력 예산은 `OPENAI_EXTRACTION_MAX_OUTPUT_TOKENS=6000` 수준으로 두고, GPT-5 계열 reasoning token 비용을 줄이기 위해 `OPENAI_EXTRACTION_REASONING_EFFORT=minimal`을 사용한다.
+- 구조화 프롬프트는 원문과 OCR을 임의로 잘라 넣지 않는다. 입력 길이 제한을 다시 도입하려면 실제 추출 품질 회귀를 먼저 비교한다.
 
 ## 주의해야 할 불변 조건
 
@@ -121,10 +121,11 @@ git diff --check
 - 팔로잉 목록을 새로 반영할 때는 `/admin/candidates`의 X 수집 실행 패널을 우선 사용하고, API 직접 실행이 필요할 때만 `/api/ingest/x?refreshFollowing=true`를 쓴다.
 - timeline 1차 요청에는 `expansions`, `media.fields`, `user.fields`를 붙이지 않는다.
 - 기본 X 수집은 `hydrateMode=deferred`로 동작한다. 검수 후보로 판정되어도 상세 요청을 자동 실행하지 않는다.
+- 예외적으로 공식 계정의 리포스트 wrapper는 후보로 만들지 않고, `referenced_tweets.type=retweeted` 원포스트만 ID 기반 상세 요청으로 가져와 후보화한다. 원포스트 작성자는 `is_following=false` 참조 계정으로만 저장한다.
 - X 후보는 텍스트 또는 첨부 media key가 있는 post만 만든다.
 - 첨부나 인용이 있어 상세 수집이 필요한 후보만 `x_detail_deferred` 근거를 가진다.
 - media URL, alt text, referenced tweet, author expansion은 해당 후보 카드의 `X 상세 수집` 또는 수집 패널의 `검수 대기 상세 수집`을 눌렀을 때만 hydrate한다.
-- 상세 수집 로직은 `src/lib/x-ingest/candidate-detail-hydration.ts`에만 둔다. 다시 `run.ts`에 자동 hydrate를 넣지 않는다.
+- 후보 상세 수집 로직은 `src/lib/x-ingest/candidate-detail-hydration.ts`에 둔다. `run.ts`의 자동 상세 요청은 리포스트 원포스트 확보 용도에만 한정한다.
 - 검수 대기는 본문에 `일시`, `날짜`, `일정` 중 하나라도 있거나 보조 신호가 3개 이상인 post에 해당한다.
 - 일반 X 수집은 `x_accounts`의 계정별 수집 커서를 사용한다.
 - 커서가 없는 신규 계정이나 오래된 커서는 최대 30일 전까지만 조회한다.
