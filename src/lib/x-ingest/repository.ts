@@ -366,14 +366,16 @@ export async function upsertPosts(
   account: XUser,
   posts: XPost[],
 ) {
-  if (posts.length === 0) {
+  const uniquePosts = dedupePostsById(posts);
+
+  if (uniquePosts.length === 0) {
     return 0;
   }
 
   const { data, error } = await supabase
     .from("x_posts")
     .upsert(
-      posts.map((post) => ({
+      uniquePosts.map((post) => ({
         x_post_id: post.id,
         author_x_user_id: post.author_id ?? account.id,
         text: getPostText(post),
@@ -396,7 +398,7 @@ export async function upsertPosts(
     throw new Error(error.message);
   }
 
-  return data?.length ?? posts.length;
+  return data?.length ?? uniquePosts.length;
 }
 
 export async function upsertPostMedia(
@@ -404,14 +406,20 @@ export async function upsertPostMedia(
   posts: XPost[],
   knownMediaKeys?: Set<string>,
 ) {
-  const rows = posts.flatMap((post) =>
-    (post.attachments?.media_keys ?? [])
-      .filter((mediaKey) => !knownMediaKeys || knownMediaKeys.has(mediaKey))
-      .map((mediaKey, index) => ({
-        x_post_id: post.id,
-        media_key: mediaKey,
-        media_order: index,
-      })),
+  const rows = Array.from(
+    new Map(
+      dedupePostsById(posts)
+        .flatMap((post) =>
+          (post.attachments?.media_keys ?? [])
+            .filter((mediaKey) => !knownMediaKeys || knownMediaKeys.has(mediaKey))
+            .map((mediaKey, index) => ({
+              x_post_id: post.id,
+              media_key: mediaKey,
+              media_order: index,
+            })),
+        )
+        .map((row) => [`${row.x_post_id}:${row.media_key}`, row]),
+    ).values(),
   );
 
   if (rows.length === 0) {
@@ -431,13 +439,17 @@ export async function insertCandidateRows(
   supabase: SupabaseClient,
   rows: XEventCandidateInsertRow[],
 ) {
-  if (rows.length === 0) {
+  const uniqueRows = Array.from(
+    new Map(rows.map((row) => [row.x_post_id, row])).values(),
+  );
+
+  if (uniqueRows.length === 0) {
     return 0;
   }
 
   const { data, error } = await supabase
     .from("x_event_candidates")
-    .upsert(rows, {
+    .upsert(uniqueRows, {
       onConflict: "x_post_id",
       ignoreDuplicates: true,
     })
@@ -447,7 +459,11 @@ export async function insertCandidateRows(
     throw new Error(error.message);
   }
 
-  return data?.length ?? rows.length;
+  return data?.length ?? uniqueRows.length;
+}
+
+function dedupePostsById(posts: XPost[]) {
+  return Array.from(new Map(posts.map((post) => [post.id, post])).values());
 }
 
 function formatError(error: unknown) {
