@@ -9,8 +9,8 @@ import type { XIngestRunOptions } from "@/lib/x-ingest/types";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-export async function GET(request: NextRequest) {
-  return handleIngestRequest(request);
+export function GET() {
+  return methodNotAllowed(["POST"]);
 }
 
 export async function POST(request: NextRequest) {
@@ -46,7 +46,6 @@ async function handleIngestRequest(request: NextRequest) {
         {
           error: "X API request failed",
           status: error.status,
-          payload: error.payload,
         },
         { status: 502 },
       );
@@ -69,6 +68,18 @@ function isAuthorized(request: NextRequest) {
   }
 
   return request.headers.get("authorization") === `Bearer ${secret}`;
+}
+
+function methodNotAllowed(allowedMethods: string[]) {
+  return NextResponse.json(
+    { error: "Method Not Allowed" },
+    {
+      headers: {
+        Allow: allowedMethods.join(", "),
+      },
+      status: 405,
+    },
+  );
 }
 
 class XIngestRequestError extends Error {}

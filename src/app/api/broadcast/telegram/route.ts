@@ -8,18 +8,27 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
-  return handleTelegramBroadcastRequest(request);
+  if (!isAuthorizedWithSecret(request, process.env.CRON_SECRET)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    const result = await broadcastPendingTelegramEvents();
+    return NextResponse.json(result);
+  } catch (error) {
+    return getBroadcastFailureResponse(error);
+  }
 }
 
 export async function POST(request: NextRequest) {
+  if (!isAuthorizedWithSecret(request, process.env.BROADCAST_SECRET)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   return handleTelegramBroadcastRequest(request);
 }
 
 async function handleTelegramBroadcastRequest(request: NextRequest) {
-  if (!isAuthorized(request)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   try {
     const options = await parseBroadcastOptions(request);
     const result = options.eventId
@@ -39,28 +48,35 @@ async function handleTelegramBroadcastRequest(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
-    return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : String(error),
-      },
-      { status: 500 },
-    );
+    return getBroadcastFailureResponse(error);
   }
 }
 
-function isAuthorized(request: NextRequest) {
-  const secrets = [
-    process.env.CRON_SECRET,
-    process.env.BROADCAST_SECRET,
-    process.env.INGEST_SECRET,
-  ].filter((secret): secret is string => Boolean(secret));
-
-  if (secrets.length === 0 && process.env.NODE_ENV !== "production") {
+function isAuthorizedWithSecret(
+  request: NextRequest,
+  secret: string | undefined,
+) {
+  if (!secret && process.env.NODE_ENV !== "production") {
     return true;
   }
 
-  const authorization = request.headers.get("authorization");
-  return secrets.some((secret) => authorization === `Bearer ${secret}`);
+  return Boolean(
+    secret && request.headers.get("authorization") === `Bearer ${secret}`,
+  );
+}
+
+function getBroadcastFailureResponse(error: unknown) {
+  return NextResponse.json(
+    {
+      error:
+        process.env.NODE_ENV === "production"
+          ? "Telegram broadcast failed"
+          : error instanceof Error
+            ? error.message
+            : String(error),
+    },
+    { status: 500 },
+  );
 }
 
 class TelegramBroadcastRequestError extends Error {}

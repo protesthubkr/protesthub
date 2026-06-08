@@ -467,3 +467,84 @@ select
   p.window_start_date as window_start_date
 from params p;
 $$;
+
+-- Security boundary for Supabase's exposed public schema.
+-- Public clients may read published/canceled public event data only; all ingest,
+-- candidate, media, and broadcast bookkeeping remains service-role only.
+alter table source_accounts enable row level security;
+alter table public_events enable row level security;
+alter table event_dates enable row level security;
+alter table telegram_event_broadcasts enable row level security;
+alter table x_ingest_runs enable row level security;
+alter table x_accounts enable row level security;
+alter table x_posts enable row level security;
+alter table x_media enable row level security;
+alter table x_post_media enable row level security;
+alter table x_event_candidates enable row level security;
+
+revoke all on table
+  source_accounts,
+  public_events,
+  event_dates,
+  telegram_event_broadcasts,
+  x_ingest_runs,
+  x_accounts,
+  x_posts,
+  x_media,
+  x_post_media,
+  x_event_candidates
+from anon, authenticated;
+
+grant select on table public_events, event_dates to anon, authenticated;
+grant select on public_event_cards, public_event_occurrences to anon, authenticated;
+
+drop policy if exists public_events_read_public on public_events;
+create policy public_events_read_public
+  on public_events
+  for select
+  to anon, authenticated
+  using (status in ('published', 'canceled'));
+
+drop policy if exists event_dates_read_public on event_dates;
+create policy event_dates_read_public
+  on event_dates
+  for select
+  to anon, authenticated
+  using (
+    exists (
+      select 1
+      from public_events
+      where public_events.id = event_dates.event_id
+        and public_events.status in ('published', 'canceled')
+    )
+  );
+
+revoke execute on function public.claim_telegram_event_broadcast(
+  text,
+  text,
+  date,
+  text
+) from public, anon, authenticated;
+
+grant execute on function public.claim_telegram_event_broadcast(
+  text,
+  text,
+  date,
+  text
+) to service_role;
+
+revoke execute on function public.get_public_event_occurrence_window(
+  date,
+  integer,
+  text[],
+  text[],
+  text[]
+) from public;
+
+grant execute on function public.get_public_event_occurrence_window(
+  date,
+  integer,
+  text[],
+  text[],
+  text[]
+) to anon, authenticated;
