@@ -189,7 +189,7 @@ function formatTelegramTime(time: string | null) {
 }
 
 function formatTelegramPlace(event: PublicEvent) {
-  return [event.venue, event.address].filter(Boolean).join(" ");
+  return event.venue;
 }
 
 function truncateTelegramMessage(text: string) {
