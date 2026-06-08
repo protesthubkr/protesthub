@@ -30,7 +30,13 @@ export function EventDetailClient({ event }: { event: PublicEvent }) {
               onClick={() => setIsPosterOpen(true)}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={event.posterImageUrl} alt={`${event.title} 포스터`} />
+              <img
+                src={event.posterImageUrl}
+                alt={`${event.title} 포스터`}
+                decoding="async"
+                fetchPriority="low"
+                loading="lazy"
+              />
             </button>
             <SourcePostLink href={event.sourcePostUrl} label="트위터에서 보기" />
           </section>
@@ -173,7 +179,11 @@ function PosterZoomModal({
         </button>
         <div className="poster-zoom-scroll">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={imageUrl} alt={`${title} 포스터 확대 이미지`} />
+          <img
+            src={imageUrl}
+            alt={`${title} 포스터 확대 이미지`}
+            decoding="async"
+          />
         </div>
       </div>
     </div>

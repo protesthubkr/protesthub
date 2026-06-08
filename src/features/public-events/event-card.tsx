@@ -12,6 +12,7 @@ export function EventCard({ event }: { event: EventListOccurrence }) {
       aria-label={`${event.title} 상세 보기`}
       className="event-card"
       href={`/events/${event.id}`}
+      prefetch={false}
       style={
         {
           "--event-accent": primaryIssue.primary,
