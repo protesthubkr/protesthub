@@ -23,7 +23,6 @@ export type StructuredEventResult = {
   is_event: boolean;
   confidence: number;
   title: string;
-  description: string;
   venue: string;
   address: string;
   region: string;
@@ -318,7 +317,6 @@ function sanitizeStructuredEventResult(
     ...result,
     confidence: Math.min(Math.max(Math.round(result.confidence), 0), 100),
     title: result.title.trim(),
-    description: result.description.trim(),
     venue: place.venue,
     address: place.address,
     organizers: result.organizers.map((item) => item.trim()).filter(Boolean),

@@ -40,7 +40,7 @@
 - 첫 화면은 오늘부터 1주일만 조회한다.
 - 바닥 도달 시 `/api/events`로 다음 1주일만 조회한다.
 - 미래 날짜에서 시작한 리스트는 pull-to-load로 이전 1주일을 붙일 수 있지만, 오늘 이전 데이터는 공개 조회하지 않는다.
-- 캘린더 뷰는 `/api/events/calendar`로 월별 요약만 조회한다. 상세 설명, 장소 상세, 출처 URL, 포스터는 싣지 않는다.
+- 캘린더 뷰는 `/api/events/calendar`로 월별 요약만 조회한다. 장소 상세, 출처 URL, 포스터는 싣지 않는다.
 - 캘린더 뷰 payload도 오늘 이전 occurrence를 제외한다. 과거 월 query는 오늘이 속한 월로 보정한다.
 - 날짜 범위, 의제, 지역, 주최 필터는 서버 조회에서 적용한다.
 - 클라이언트에서 전체 이벤트 배열을 받은 뒤 필터링하거나 날짜 window를 계산하는 구조로 되돌리지 않는다.
@@ -110,7 +110,7 @@ git diff --check
 ## 주의해야 할 불변 조건
 
 - 빈 필터 배열은 전체 선택으로 해석한다.
-- `structured_event`는 schema v2 형태만 저장한다.
+- `structured_event`는 schema v3 형태만 저장하며, 별도 상세설명 필드는 두지 않는다.
 - 일반 `/api/ingest/x` 수집은 팔로잉 목록 API를 호출하지 않고 `x_accounts`의 캐시된 계정만 사용한다.
 - 팔로잉 목록을 새로 반영할 때는 `/admin/candidates`의 X 수집 실행 패널을 우선 사용하고, API 직접 실행이 필요할 때만 `/api/ingest/x?refreshFollowing=true`를 쓴다.
 - timeline 1차 요청에는 `expansions`, `media.fields`, `user.fields`를 붙이지 않는다.

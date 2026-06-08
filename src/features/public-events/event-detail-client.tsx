@@ -20,11 +20,6 @@ export function EventDetailClient({ event }: { event: PublicEvent }) {
       <article className="detail-article">
         <EventFactList event={event} sourceLabel="출처" />
 
-        <section className="detail-section">
-          <h2>상세 설명</h2>
-          <p className="detail-description">{event.description}</p>
-        </section>
-
         {event.posterImageUrl ? (
           <section className="detail-section">
             <h2>포스터</h2>

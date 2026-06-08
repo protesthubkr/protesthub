@@ -13,7 +13,6 @@ const CALENDAR_DAY_SAMPLE_LIMIT = 4;
 export type SupabaseEventCardRow = {
   id: string;
   title: string;
-  description: string | null;
   venue: string;
   address: string;
   region: string;
@@ -64,7 +63,6 @@ export function mapEventCardRow(row: SupabaseEventCardRow): PublicEvent {
   return {
     id: row.id,
     title: row.title,
-    description: row.description ?? "",
     venue: row.venue,
     address: row.address,
     region: row.region,

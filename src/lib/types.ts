@@ -18,7 +18,6 @@ export type EventDate = {
 export type PublicEvent = {
   id: string;
   title: string;
-  description: string;
   venue: string;
   address: string;
   region: string;

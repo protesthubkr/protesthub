@@ -12,7 +12,6 @@ export type PublishDateRow = {
 export type PublishFormDefaults = {
   address: string;
   dateRows: PublishDateRow[];
-  description: string;
   issueKeys: IssueKey[];
   posterImageUrl: string;
   primaryIssue: IssueKey | "";
@@ -34,8 +33,6 @@ export function getPublishFormDefaults(
     dateRows: candidate.publicEvent
       ? getPublishPublicDateRows(candidate.publicEvent.dates)
       : getPublishDateRows(structuredEvent),
-    description:
-      candidate.publicEvent?.description ?? structuredEvent.description ?? "",
     issueKeys,
     posterImageUrl:
       candidate.publicEvent?.posterImageUrl ?? getPosterImageUrl(candidate),

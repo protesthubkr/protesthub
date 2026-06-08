@@ -69,11 +69,6 @@ export function PublishEventForm({
           </label>
         </div>
 
-        <label>
-          설명
-          <textarea defaultValue={defaults.description} name="description" rows={3} />
-        </label>
-
         <fieldset>
           <legend>일정</legend>
           {defaults.dateRows.map((date, index) => (

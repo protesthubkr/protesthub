@@ -347,7 +347,6 @@ export async function publishCandidateEvent(formData: FormData) {
   const eventId = candidate.id;
   const now = new Date().toISOString();
   const title = getTrimmedRequiredString(formData, "title");
-  const description = getOptionalString(formData, "description")?.trim() ?? "";
   const venue = getTrimmedRequiredString(formData, "venue");
   const address = getOptionalString(formData, "address")?.trim() ?? "";
   const region = getValidRegion(formData);
@@ -364,7 +363,6 @@ export async function publishCandidateEvent(formData: FormData) {
       {
         id: eventId,
         title,
-        description,
         venue,
         address,
         region,

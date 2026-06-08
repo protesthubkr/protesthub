@@ -84,7 +84,6 @@ type MediaRow = {
 type PublicEventRow = {
   id: string;
   title: string;
-  description: string | null;
   venue: string;
   address: string;
   region: string;
@@ -364,7 +363,6 @@ function mapPublicEventRow(row: PublicEventRow): PublicEvent {
   return {
     id: row.id,
     title: row.title,
-    description: row.description ?? "",
     venue: row.venue,
     address: row.address,
     region: row.region,

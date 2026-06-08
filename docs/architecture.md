@@ -5,7 +5,7 @@
 ## 핵심 원칙
 
 - `src/app`은 Next.js route 진입점만 둔다. 화면 상태, view model, 도메인 규칙은 `src/features` 또는 `src/lib`에 둔다.
-- 공개 목록은 `EventListOccurrence`만 사용한다. 카드에 필요한 최소 필드만 전달하고, 설명/주소/포스터/취소 URL은 상세 페이지에서만 조회한다.
+- 공개 목록은 `EventListOccurrence`만 사용한다. 카드에 필요한 최소 필드만 전달하고, 주소/포스터/취소 URL은 상세 페이지에서만 조회한다.
 - 상세 페이지는 `getEventById(id)`로 단건 조회한다. 목록 데이터를 가져와서 `find`하지 않는다.
 - 필터링과 1주 단위 날짜 window는 서버에서 처리한다. 클라이언트는 이미 받은 occurrence를 누적하고 그룹핑만 한다.
 - 빈 필터 배열은 “전체 조회”를 뜻한다. 전체 선택 상태는 URL query에 남기지 않는다.
@@ -135,7 +135,7 @@ public_event_occurrences
 
 1. `/admin/candidates?secret=...`가 후보 목록을 보여준다.
 2. OCR, 본문 구조화, 본문+OCR 구조화는 모두 `features/admin-candidates/actions.ts` 서버 액션을 통한다.
-3. 구조화 결과는 `extraction_payload.structured_event` schema v2 형태로 저장한다.
+3. 구조화 결과는 상세설명 없이 `extraction_payload.structured_event` schema v3 형태로 저장한다.
 4. 공개 기본값은 기존 공개 이벤트가 있으면 그 값을 우선하고, 없으면 구조화 결과를 사용한다.
 5. 공개 적용은 `public_events` upsert, 기존 `event_dates` 삭제, 새 `event_dates` insert, 후보 `published` 갱신 순서다.
 6. 공개 내리기는 `public_events` row를 삭제해 `event_dates`를 cascade 삭제하고 후보를 `needs_review`로 되돌린다.

@@ -11,8 +11,8 @@ export type StructuredEventDateAudit = {
   result_dates_past: boolean;
 };
 
-export type StoredStructuredEventV2 = StructuredEventResult & {
-  schema_version: 2;
+export type StoredStructuredEvent = StructuredEventResult & {
+  schema_version: 3;
   provider: "openai_responses";
   model: string;
   input_mode: StructuredEventInputMode;
@@ -36,9 +36,9 @@ export function createStoredStructuredEvent({
   ranAt,
   result,
   dateAudit,
-}: CreateStoredStructuredEventInput): StoredStructuredEventV2 {
+}: CreateStoredStructuredEventInput): StoredStructuredEvent {
   return {
-    schema_version: 2,
+    schema_version: 3,
     provider,
     model,
     input_mode: inputMode,
@@ -51,30 +51,19 @@ export function createStoredStructuredEvent({
 export function getStoredStructuredEventResult(
   extractionPayload: Record<string, unknown> | null | undefined,
 ) {
-  const structuredEvent = extractionPayload?.structured_event;
-
-  if (!structuredEvent || typeof structuredEvent !== "object") {
-    return null;
-  }
-
-  if ("schema_version" in structuredEvent && structuredEvent.schema_version === 2) {
-    return structuredEvent as unknown as StructuredEventResult;
-  }
-
-  return null;
+  return getStoredStructuredEvent(extractionPayload);
 }
 
 export function getStoredStructuredEventInputMode(
   extractionPayload: Record<string, unknown> | null | undefined,
 ): StructuredEventInputMode | null {
-  const structuredEvent = extractionPayload?.structured_event;
+  const structuredEvent = getStoredStructuredEvent(extractionPayload);
 
-  if (!structuredEvent || typeof structuredEvent !== "object") {
+  if (!structuredEvent) {
     return null;
   }
 
   if (
-    "input_mode" in structuredEvent &&
     (structuredEvent.input_mode === "post_text_only" ||
       structuredEvent.input_mode === "post_text_and_ocr")
   ) {
@@ -96,7 +85,6 @@ function compactStructuredEventResult(
   return {
     ...result,
     title: compactText(result.title, 120),
-    description: compactText(stripUrls(result.description), 240),
     venue: compactText(result.venue, 120),
     address: compactText(result.address, 160),
     region: result.region,
@@ -116,8 +104,20 @@ function compactStructuredEventResult(
   };
 }
 
-function stripUrls(text: string) {
-  return text.replace(/https?:\/\/\S+/g, "").trim();
+function getStoredStructuredEvent(
+  extractionPayload: Record<string, unknown> | null | undefined,
+) {
+  const structuredEvent = extractionPayload?.structured_event;
+
+  if (!structuredEvent || typeof structuredEvent !== "object") {
+    return null;
+  }
+
+  if ("schema_version" in structuredEvent && structuredEvent.schema_version === 3) {
+    return structuredEvent as unknown as StoredStructuredEvent;
+  }
+
+  return null;
 }
 
 function compactText(text: string, maxLength: number) {

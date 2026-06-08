@@ -13,7 +13,7 @@ Next.js, Vercel, Supabase 기반 시위/집회 정보 모아보기 MVP입니다.
 - 상세 페이지
 - 포스터 확대 모달
 - 취소됨 상세 페이지
-- Supabase 연결 준비와 mock data fallback
+- Supabase 공개 조회와 내부 검수 DB 연결
 - X raw 수집 파이프라인 스파이크
 - X 후보 내부 검수 화면
 
@@ -33,7 +33,7 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-Supabase를 연결하려면 `.env.example`을 참고해 환경변수를 채운 뒤 `supabase/schema.sql`을 적용하세요. 환경변수가 없으면 로컬 mock data로 동작합니다.
+Supabase를 연결하려면 `.env.example`을 참고해 환경변수를 채운 뒤 `supabase/schema.sql`을 적용하세요.
 
 ## X ingest
 

@@ -10,7 +10,6 @@ create table if not exists source_accounts (
 create table if not exists public_events (
   id text primary key,
   title text not null,
-  description text,
   venue text not null,
   address text not null,
   region text not null,
@@ -323,12 +322,13 @@ create index if not exists x_event_candidates_status_created_idx
 create index if not exists x_event_candidates_media_keys_idx
   on x_event_candidates using gin (media_keys);
 
-create or replace view public_event_cards
+drop view if exists public_event_cards;
+
+create view public_event_cards
 with (security_invoker = true) as
 select
   e.id,
   e.title,
-  e.description,
   e.venue,
   e.address,
   e.region,
