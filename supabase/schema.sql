@@ -323,7 +323,8 @@ create index if not exists x_event_candidates_status_created_idx
 create index if not exists x_event_candidates_media_keys_idx
   on x_event_candidates using gin (media_keys);
 
-create or replace view public_event_cards as
+create or replace view public_event_cards
+with (security_invoker = true) as
 select
   e.id,
   e.title,
@@ -355,7 +356,8 @@ group by e.id;
 
 drop view if exists public_event_occurrences;
 
-create view public_event_occurrences as
+create view public_event_occurrences
+with (security_invoker = true) as
 select
   e.id,
   e.title,
@@ -482,6 +484,17 @@ alter table x_media enable row level security;
 alter table x_post_media enable row level security;
 alter table x_event_candidates enable row level security;
 
+alter table source_accounts force row level security;
+alter table public_events force row level security;
+alter table event_dates force row level security;
+alter table telegram_event_broadcasts force row level security;
+alter table x_ingest_runs force row level security;
+alter table x_accounts force row level security;
+alter table x_posts force row level security;
+alter table x_media force row level security;
+alter table x_post_media force row level security;
+alter table x_event_candidates force row level security;
+
 revoke all on table
   source_accounts,
   public_events,
@@ -493,8 +506,11 @@ revoke all on table
   x_media,
   x_post_media,
   x_event_candidates
-from anon, authenticated;
+from public, anon, authenticated;
 
+revoke all on all sequences in schema public from public, anon, authenticated;
+
+revoke all on public_event_cards, public_event_occurrences from public;
 grant select on table public_events, event_dates to anon, authenticated;
 grant select on public_event_cards, public_event_occurrences to anon, authenticated;
 

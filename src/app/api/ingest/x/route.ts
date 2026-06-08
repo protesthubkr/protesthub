@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isBearerSecretAuthorized } from "@/lib/bearer-auth";
 import {
   runXIngest,
   XApiError,
@@ -61,13 +62,10 @@ async function handleIngestRequest(request: NextRequest) {
 }
 
 function isAuthorized(request: NextRequest) {
-  const secret = process.env.INGEST_SECRET;
-
-  if (!secret && process.env.NODE_ENV !== "production") {
-    return true;
-  }
-
-  return request.headers.get("authorization") === `Bearer ${secret}`;
+  return isBearerSecretAuthorized(
+    request.headers.get("authorization"),
+    process.env.INGEST_SECRET,
+  );
 }
 
 function methodNotAllowed(allowedMethods: string[]) {

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isBearerSecretAuthorized } from "@/lib/bearer-auth";
 import {
   broadcastPendingTelegramEvents,
   broadcastPublishedEventToTelegram,
@@ -56,12 +57,9 @@ function isAuthorizedWithSecret(
   request: NextRequest,
   secret: string | undefined,
 ) {
-  if (!secret && process.env.NODE_ENV !== "production") {
-    return true;
-  }
-
-  return Boolean(
-    secret && request.headers.get("authorization") === `Bearer ${secret}`,
+  return isBearerSecretAuthorized(
+    request.headers.get("authorization"),
+    secret,
   );
 }
 
