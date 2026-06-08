@@ -1,8 +1,7 @@
 import type { StructuredEventResult } from "@/lib/llm/structured-event";
 import { getIssueLabelFromValue } from "@/lib/issues";
 import {
-  getStoredStructuredEventInputMode,
-  getStoredStructuredEventResult,
+  getStoredStructuredEvent,
   type StructuredEventInputMode,
 } from "@/lib/structured-event-storage";
 
@@ -11,13 +10,13 @@ export type { StructuredEventResult };
 export function getCandidateStructuredEvent(
   extractionPayload: Record<string, unknown>,
 ): StructuredEventResult | null {
-  return getStoredStructuredEventResult(extractionPayload);
+  return getStoredStructuredEvent(extractionPayload);
 }
 
 export function getCandidateStructuredInputMode(
   extractionPayload: Record<string, unknown>,
 ): StructuredEventInputMode | null {
-  return getStoredStructuredEventInputMode(extractionPayload);
+  return getStoredStructuredEvent(extractionPayload)?.input_mode ?? null;
 }
 
 export function formatConfidence(confidence: number | undefined) {

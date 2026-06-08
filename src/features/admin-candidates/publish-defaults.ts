@@ -4,12 +4,12 @@ import { REGION_OPTIONS } from "@/lib/regions";
 import type { EventDate, IssueKey } from "@/lib/types";
 import type { StructuredEventResult } from "./structured-event-view";
 
-export type PublishDateRow = {
+type PublishDateRow = {
   date: string;
   start_time: string;
 };
 
-export type PublishFormDefaults = {
+type PublishFormDefaults = {
   address: string;
   dateRows: PublishDateRow[];
   issueKeys: IssueKey[];

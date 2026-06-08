@@ -25,13 +25,17 @@
 | 목록 카드 | `src/features/public-events/event-card.tsx` |
 | 상세 페이지 | `src/app/events/[id]/page.tsx`, `event-detail-client.tsx` |
 | UI 원칙/시각 위계 | `docs/ui-principles.md`, `src/app/globals.css` |
-| 검수 카드 | `src/features/admin-candidates/candidate-card.tsx`, `detail-hydration-action.tsx` |
+| 검수 카드 | `src/features/admin-candidates/candidate-card.tsx`, `candidate-action-forms.tsx`, `structured-event-summary.tsx`, `detail-hydration-action.tsx` |
 | 공개 폼 기본값 | `src/features/admin-candidates/publish-defaults.ts` |
-| 검수 서버 액션 | `src/features/admin-candidates/actions.ts` |
+| 검수 서버 액션 | `src/features/admin-candidates/actions.ts`, `action-form-data.ts` |
+| 공개/비공개 저장 | `src/features/admin-candidates/candidate-publication.ts`, `actions.ts` |
+| 검수 OCR 실행 | `src/features/admin-candidates/candidate-ocr.ts`, `actions.ts` |
 | X 수집 흐름 | `src/lib/x-ingest/run.ts`, `src/lib/x-ingest/candidate-detail-hydration.ts`, `repository.ts` |
 | X 후보 분류 | `src/lib/x-ingest/normalize.ts`, `candidate-rows.ts`, `hydration-state.ts` |
 | LLM 프롬프트 | `src/lib/llm/structured-event-prompt.ts` |
 | LLM JSON schema | `src/lib/llm/structured-event-schema.ts` |
+| LLM 모델/env 설정 | `src/lib/llm/structured-event-config.ts` |
+| LLM 응답 파싱/보정 | `src/lib/llm/structured-event-output.ts` |
 | LLM 결과 저장 | `src/lib/structured-event-storage.ts` |
 
 ## 공개 목록 성능 원칙
@@ -65,9 +69,10 @@
 - DB row 생성과 DB 저장을 분리한다. row 생성은 순수 함수, 저장은 repository/서버 액션에 둔다.
 - X 상세 수집 가능 여부, 첨부 키 병합, hydrate 사유 판정은 `hydration-state.ts`에 둔다.
 - 공개 조회 row 변환, empty window 생성, 캘린더 요약은 `src/lib/event-query-model.ts`에 둔다.
-- OpenAI 호출, prompt, schema, 저장 포맷을 한 파일에 합치지 않는다.
+- OpenAI 호출, prompt, schema, 모델/env 설정, 응답 파싱, 저장 포맷을 한 파일에 합치지 않는다.
 - `src/app` route는 가능한 한 import와 prop 전달만 남긴다.
 - `server-only` 성격의 모듈은 클라이언트 컴포넌트에서 import하지 않는다.
+- 검수 화면 서버 액션은 흐름 orchestration만 맡기고, FormData 파싱은 `action-form-data.ts`, 공개/비공개 저장 규칙은 `candidate-publication.ts`, OCR update 생성은 `candidate-ocr.ts`에 둔다.
 - 사용처 없는 export, 오래된 호환 wrapper, 기본 scaffold asset은 제거한다.
 
 ## 변경 절차

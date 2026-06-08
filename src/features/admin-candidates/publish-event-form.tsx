@@ -10,6 +10,7 @@ import {
   normalizeTimeInput,
 } from "./publish-defaults";
 import type { StructuredEventResult } from "./structured-event-view";
+import { HiddenAdminFields } from "./admin-hidden-fields";
 import { publishCandidateEvent, unpublishCandidateEvent } from "./actions";
 
 type PublishEventFormProps = {
@@ -167,30 +168,6 @@ export function PublishEventForm({
           <span>공개 목록과 상세 페이지에서 숨기고 검수 대기로 되돌립니다.</span>
         </form>
       ) : null}
-    </>
-  );
-}
-
-export function HiddenAdminFields({
-  candidateId,
-  currentPage,
-  currentStatus,
-  scope,
-  secret,
-}: {
-  candidateId: string;
-  currentPage: number;
-  currentStatus: CandidateStatusFilter;
-  scope: CandidateReviewScope;
-  secret: string;
-}) {
-  return (
-    <>
-      <input name="secret" type="hidden" value={secret} />
-      <input name="candidate_id" type="hidden" value={candidateId} />
-      <input name="return_page" type="hidden" value={currentPage} />
-      <input name="return_status" type="hidden" value={currentStatus} />
-      <input name="return_scope" type="hidden" value={scope} />
     </>
   );
 }

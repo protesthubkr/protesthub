@@ -43,11 +43,17 @@ src/features/public-events/
 
 src/features/admin-candidates/
   page.tsx                       검수 화면 조립.
-  candidate-card.tsx             후보 카드와 검수 액션 배치.
+  candidate-card.tsx             후보 카드 레이아웃 조립.
+  candidate-action-forms.tsx     후보 상태/OCR/구조화 실행 폼.
+  admin-hidden-fields.tsx        검수 액션 공통 hidden field.
   detail-hydration-action.tsx    X 상세 수집 버튼과 상태 문구.
+  structured-event-summary.tsx   후보 카드 안 구조화 결과 요약.
   publish-event-form.tsx         공개/수정 폼.
   publish-defaults.ts            공개 폼 기본값 생성 규칙.
-  actions.ts                     검수 서버 액션.
+  actions.ts                     검수 서버 액션 orchestration.
+  action-form-data.ts            FormData 파싱, 관리자 검증, 복귀 URL 생성.
+  candidate-publication.ts       공개/비공개 후보 조회, reason 정리, revalidate 범위.
+  candidate-ocr.ts               OCR 대상 조회, 이미지 URL 준비, OCR update 생성.
   structured-event-view.ts       구조화 결과 표시 포맷.
   reason-labels.ts               후보 근거 라벨.
   text-quality.ts                LLM/OCR 실행 가능성 판정.
@@ -74,7 +80,9 @@ src/lib/x-ingest/
   config.ts                      환경변수 파싱.
 
 src/lib/llm/
-  structured-event.ts            OpenAI 호출, fallback, sanitize.
+  structured-event.ts            OpenAI 호출과 fallback orchestration.
+  structured-event-config.ts     모델/env 설정, reasoning option 생성.
+  structured-event-output.ts     Responses 출력 파싱, 결과 sanitize, output 오류 요약.
   structured-event-prompt.ts     추출 프롬프트.
   structured-event-schema.ts     JSON schema.
   structured-event-options.ts    의제/지역 enum 연결.
@@ -134,12 +142,13 @@ public_event_occurrences
 ## 검수와 공개
 
 1. `/admin/candidates?secret=...`가 후보 목록을 보여준다.
-2. OCR, 본문 구조화, 본문+OCR 구조화는 모두 `features/admin-candidates/actions.ts` 서버 액션을 통한다.
+2. OCR, 본문 구조화, 본문+OCR 구조화는 모두 `features/admin-candidates/actions.ts` 서버 액션을 통하되, OCR update 조립은 `candidate-ocr.ts`에 둔다.
 3. 구조화 결과는 상세설명 없이 `extraction_payload.structured_event` schema v3 형태로 저장한다.
 4. 공개 기본값은 기존 공개 이벤트가 있으면 그 값을 우선하고, 없으면 구조화 결과를 사용한다.
-5. 공개 적용은 `public_events` upsert, 기존 `event_dates` 삭제, 새 `event_dates` insert, 후보 `published` 갱신 순서다.
-6. 공개 내리기는 `public_events` row를 삭제해 `event_dates`를 cascade 삭제하고 후보를 `needs_review`로 되돌린다.
-7. 공개 후 `/`, `/events/[id]`, `/admin/candidates`를 revalidate한다. `/api/events`는 짧은 CDN TTL로 최대 60초 안에 갱신된다.
+5. 공개/비공개 후보 조회, 공개 payload marker 제거, 공개 reason 교체, revalidate 범위는 `candidate-publication.ts`에 둔다.
+6. 공개 적용은 `public_events` upsert, 기존 `event_dates` 삭제, 새 `event_dates` insert, 후보 `published` 갱신 순서다.
+7. 공개 내리기는 `public_events` row를 삭제해 `event_dates`를 cascade 삭제하고 후보를 `needs_review`로 되돌린다.
+8. 공개 후 `/`, `/events/[id]`, `/admin/candidates`를 revalidate한다. `/api/events`는 짧은 CDN TTL로 최대 60초 안에 갱신된다.
 
 ## X 수집
 

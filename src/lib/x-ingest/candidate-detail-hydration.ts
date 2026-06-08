@@ -43,7 +43,7 @@ type CandidateHydrationRow = {
   candidate_reason: string[] | null;
 };
 
-export type CandidateDetailHydrationResult = {
+type CandidateDetailHydrationResult = {
   requested: number;
   hydrated: number;
   skipped: number;

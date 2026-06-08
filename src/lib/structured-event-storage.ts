@@ -4,14 +4,14 @@ export type StructuredEventInputMode =
   | "post_text_and_ocr"
   | "post_text_only";
 
-export type StructuredEventDateAudit = {
+type StructuredEventDateAudit = {
   today: string;
   detected_text_dates: string[];
   text_dates_past: boolean;
   result_dates_past: boolean;
 };
 
-export type StoredStructuredEvent = StructuredEventResult & {
+type StoredStructuredEvent = StructuredEventResult & {
   schema_version: 3;
   provider: "openai_responses";
   model: string;
@@ -48,37 +48,6 @@ export function createStoredStructuredEvent({
   };
 }
 
-export function getStoredStructuredEventResult(
-  extractionPayload: Record<string, unknown> | null | undefined,
-) {
-  return getStoredStructuredEvent(extractionPayload);
-}
-
-export function getStoredStructuredEventInputMode(
-  extractionPayload: Record<string, unknown> | null | undefined,
-): StructuredEventInputMode | null {
-  const structuredEvent = getStoredStructuredEvent(extractionPayload);
-
-  if (!structuredEvent) {
-    return null;
-  }
-
-  if (
-    (structuredEvent.input_mode === "post_text_only" ||
-      structuredEvent.input_mode === "post_text_and_ocr")
-  ) {
-    return structuredEvent.input_mode;
-  }
-
-  return null;
-}
-
-export function hasStoredStructuredEvent(
-  extractionPayload: Record<string, unknown> | null | undefined,
-) {
-  return Boolean(getStoredStructuredEventResult(extractionPayload));
-}
-
 function compactStructuredEventResult(
   result: StructuredEventResult,
 ): StructuredEventResult {
@@ -104,7 +73,7 @@ function compactStructuredEventResult(
   };
 }
 
-function getStoredStructuredEvent(
+export function getStoredStructuredEvent(
   extractionPayload: Record<string, unknown> | null | undefined,
 ) {
   const structuredEvent = extractionPayload?.structured_event;

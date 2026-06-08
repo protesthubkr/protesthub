@@ -17,7 +17,7 @@ import {
 
 const DEFAULT_BROADCAST_LIMIT = 50;
 
-export type TelegramBroadcastBatchOptions = {
+type TelegramBroadcastBatchOptions = {
   dryRun?: boolean;
   limit?: number;
   targetDate?: string;
@@ -47,7 +47,7 @@ type TelegramBroadcastTarget = {
   occurrenceDate: string;
 };
 
-export type TelegramBroadcastOutcome =
+type TelegramBroadcastOutcome =
   | {
       eventId: string;
       messageId: number;
@@ -68,7 +68,7 @@ export type TelegramBroadcastOutcome =
       status: "failed";
     };
 
-export type TelegramBroadcastDryRunOutcome = {
+type TelegramBroadcastDryRunOutcome = {
   eventId: string;
   hasPosterImage: boolean;
   message: string;

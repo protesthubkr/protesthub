@@ -2,25 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { isAdminSecretValid } from "@/lib/admin-auth";
-import {
-  CANDIDATE_STATUS_FILTERS,
-  type CandidateReviewScope,
-  type CandidateStatus,
-  type CandidateStatusFilter,
-  parseCandidatePageParam,
-  parseCandidateReviewScope,
-  parseCandidateStatusFilter,
-} from "@/lib/admin-candidates";
-import { analyzePastEventNotice } from "@/lib/event-date-filter";
-import { ISSUE_OPTIONS } from "@/lib/issues";
-import { runOpenAiPosterOcr, type OcrImage } from "@/lib/ocr/openai";
-import { getOcrCandidateReasons } from "@/lib/ocr/signals";
 import { runStructuredExtractionForCandidate } from "@/lib/pipeline/structured-extraction";
-import { REGION_OPTIONS } from "@/lib/regions";
-import { hasStoredStructuredEvent } from "@/lib/structured-event-storage";
+import { getStoredStructuredEvent } from "@/lib/structured-event-storage";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
-import type { IssueKey } from "@/lib/types";
 import {
   hydrateCandidateDetail,
   hydratePendingCandidateDetails,
@@ -31,37 +15,35 @@ import {
   promoteIgnoredCandidatesForReview,
 } from "@/lib/x-ingest/review-promotion";
 import { runXIngest } from "@/lib/x-ingest/run";
+import {
+  assertAdmin,
+  getAdminRedirectPath,
+  getAdminReturnState,
+  getCandidateStatus,
+  getOptionalString,
+  getPublishEventDates,
+  getRequiredString,
+  getTrimmedRequiredString,
+  getValidIssueTags,
+  getValidPrimaryIssue,
+  getValidRegion,
+} from "./action-form-data";
+import {
+  createCandidateOcrUpdate,
+  getCandidateForOcr,
+  getFirstCandidateImageUrl,
+} from "./candidate-ocr";
+import {
+  deletePublicEventIfPresent,
+  getAdminStatusReasons,
+  getCandidateForPublish,
+  getCandidatePublicationState,
+  hasPublishedEventPayload,
+  removePublishedEventPayload,
+  replacePublicationReasons,
+  revalidateAdminAndPublicPaths,
+} from "./candidate-publication";
 import { getAdminCandidatesHref } from "./navigation";
-
-type CandidateForOcr = {
-  id: string;
-  status: CandidateStatus;
-  text_snapshot: string;
-  media_keys: string[];
-  extraction_payload: Record<string, unknown> | null;
-  candidate_reason: string[];
-};
-
-type MediaForOcr = {
-  media_key: string;
-  url: string | null;
-  preview_image_url: string | null;
-};
-
-type CandidateForPublish = {
-  id: string;
-  status: CandidateStatus;
-  source_account_name: string;
-  source_post_url: string;
-  media_keys: string[];
-  extraction_payload: Record<string, unknown> | null;
-  candidate_reason: string[];
-};
-
-type PublishEventDate = {
-  date: string;
-  startTime: string | null;
-};
 
 export type ManualXPostFormState = {
   status: "idle" | "success" | "error";
@@ -73,10 +55,6 @@ export type XIngestControlState = {
   status: "idle" | "success" | "error";
   message: string;
 };
-
-const ISSUE_KEYS = ISSUE_OPTIONS.map((issue) => issue.key);
-const ISSUE_KEY_SET = new Set<IssueKey>(ISSUE_KEYS);
-const REGION_SET = new Set(REGION_OPTIONS);
 
 export async function addManualXPostCandidate(
   _previousState: ManualXPostFormState,
@@ -203,37 +181,21 @@ function getXIngestMode(formData: FormData) {
 export async function hydrateCandidateDetailFromAdmin(formData: FormData) {
   const secret = getRequiredString(formData, "secret");
   const candidateId = getRequiredString(formData, "candidate_id");
-  const returnStatus = parseCandidateStatusFilter(
-    getOptionalString(formData, "return_status"),
-  );
-  const returnScope = parseCandidateReviewScope(
-    getOptionalString(formData, "return_scope"),
-  );
-  const returnPage = parseCandidatePageParam(
-    getOptionalString(formData, "return_page"),
-  );
+  const returnState = getAdminReturnState(formData);
 
   assertAdmin(secret);
 
   await hydrateCandidateDetail(candidateId);
 
   revalidatePath("/admin/candidates");
-  redirect(getAdminRedirectPath(secret, returnStatus, returnScope, returnPage));
+  redirect(getAdminRedirectPath(secret, returnState));
 }
 
 export async function updateCandidateStatus(formData: FormData) {
   const secret = getRequiredString(formData, "secret");
   const candidateId = getRequiredString(formData, "candidate_id");
   const status = getCandidateStatus(formData);
-  const returnStatus = parseCandidateStatusFilter(
-    getOptionalString(formData, "return_status"),
-  );
-  const returnScope = parseCandidateReviewScope(
-    getOptionalString(formData, "return_scope"),
-  );
-  const returnPage = parseCandidatePageParam(
-    getOptionalString(formData, "return_page"),
-  );
+  const returnState = getAdminReturnState(formData);
 
   assertAdmin(secret);
 
@@ -243,20 +205,7 @@ export async function updateCandidateStatus(formData: FormData) {
     throw new Error("Supabase admin client is not configured.");
   }
 
-  const { data: candidateData, error: candidateError } = await supabase
-    .from("x_event_candidates")
-    .select("id,extraction_payload,candidate_reason")
-    .eq("id", candidateId)
-    .single();
-
-  if (candidateError || !candidateData) {
-    throw new Error(candidateError?.message ?? "Candidate not found.");
-  }
-
-  const candidate = candidateData as Pick<
-    CandidateForPublish,
-    "id" | "extraction_payload" | "candidate_reason"
-  >;
+  const candidate = await getCandidatePublicationState(supabase, candidateId);
   const unpublishedByStatusChange =
     status !== "published"
       ? await deletePublicEventIfPresent(supabase, candidateId)
@@ -294,21 +243,13 @@ export async function updateCandidateStatus(formData: FormData) {
   }
 
   revalidateAdminAndPublicPaths(candidateId);
-  redirect(getAdminRedirectPath(secret, returnStatus, returnScope, returnPage));
+  redirect(getAdminRedirectPath(secret, returnState));
 }
 
 export async function publishCandidateEvent(formData: FormData) {
   const secret = getRequiredString(formData, "secret");
   const candidateId = getRequiredString(formData, "candidate_id");
-  const returnStatus = parseCandidateStatusFilter(
-    getOptionalString(formData, "return_status"),
-  );
-  const returnScope = parseCandidateReviewScope(
-    getOptionalString(formData, "return_scope"),
-  );
-  const returnPage = parseCandidatePageParam(
-    getOptionalString(formData, "return_page"),
-  );
+  const returnState = getAdminReturnState(formData);
 
   assertAdmin(secret);
 
@@ -318,29 +259,9 @@ export async function publishCandidateEvent(formData: FormData) {
     throw new Error("Supabase admin client is not configured.");
   }
 
-  const { data: candidateData, error: candidateError } = await supabase
-    .from("x_event_candidates")
-    .select(
-      [
-        "id",
-        "status",
-        "source_account_name",
-        "source_post_url",
-        "media_keys",
-        "extraction_payload",
-        "candidate_reason",
-      ].join(","),
-    )
-    .eq("id", candidateId)
-    .single();
+  const candidate = await getCandidateForPublish(supabase, candidateId);
 
-  if (candidateError || !candidateData) {
-    throw new Error(candidateError?.message ?? "Candidate not found.");
-  }
-
-  const candidate = candidateData as unknown as CandidateForPublish;
-
-  if (!hasStoredStructuredEvent(candidate.extraction_payload)) {
+  if (!getStoredStructuredEvent(candidate.extraction_payload)) {
     throw new Error("공개하려면 먼저 구조화 추출을 실행해야 합니다.");
   }
 
@@ -428,21 +349,13 @@ export async function publishCandidateEvent(formData: FormData) {
   }
 
   revalidateAdminAndPublicPaths(eventId);
-  redirect(getAdminRedirectPath(secret, returnStatus, returnScope, returnPage));
+  redirect(getAdminRedirectPath(secret, returnState));
 }
 
 export async function unpublishCandidateEvent(formData: FormData) {
   const secret = getRequiredString(formData, "secret");
   const candidateId = getRequiredString(formData, "candidate_id");
-  const returnStatus = parseCandidateStatusFilter(
-    getOptionalString(formData, "return_status"),
-  );
-  const returnScope = parseCandidateReviewScope(
-    getOptionalString(formData, "return_scope"),
-  );
-  const returnPage = parseCandidatePageParam(
-    getOptionalString(formData, "return_page"),
-  );
+  const returnState = getAdminReturnState(formData);
 
   assertAdmin(secret);
 
@@ -452,20 +365,7 @@ export async function unpublishCandidateEvent(formData: FormData) {
     throw new Error("Supabase admin client is not configured.");
   }
 
-  const { data: candidateData, error: candidateError } = await supabase
-    .from("x_event_candidates")
-    .select("id,extraction_payload,candidate_reason")
-    .eq("id", candidateId)
-    .single();
-
-  if (candidateError || !candidateData) {
-    throw new Error(candidateError?.message ?? "Candidate not found.");
-  }
-
-  const candidate = candidateData as Pick<
-    CandidateForPublish,
-    "id" | "extraction_payload" | "candidate_reason"
-  >;
+  const candidate = await getCandidatePublicationState(supabase, candidateId);
   const eventId = candidate.id;
   const now = new Date().toISOString();
   await deletePublicEventIfPresent(supabase, eventId);
@@ -491,22 +391,14 @@ export async function unpublishCandidateEvent(formData: FormData) {
   }
 
   revalidateAdminAndPublicPaths(eventId);
-  redirect(getAdminRedirectPath(secret, returnStatus, returnScope, returnPage));
+  redirect(getAdminRedirectPath(secret, returnState));
 }
 
 export async function updateCandidateOcrText(formData: FormData) {
   const secret = getRequiredString(formData, "secret");
   const candidateId = getRequiredString(formData, "candidate_id");
   const ocrText = getOptionalString(formData, "ocr_text") ?? "";
-  const returnStatus = parseCandidateStatusFilter(
-    getOptionalString(formData, "return_status"),
-  );
-  const returnScope = parseCandidateReviewScope(
-    getOptionalString(formData, "return_scope"),
-  );
-  const returnPage = parseCandidatePageParam(
-    getOptionalString(formData, "return_page"),
-  );
+  const returnState = getAdminReturnState(formData);
 
   assertAdmin(secret);
 
@@ -529,21 +421,13 @@ export async function updateCandidateOcrText(formData: FormData) {
   }
 
   revalidatePath("/admin/candidates");
-  redirect(getAdminRedirectPath(secret, returnStatus, returnScope, returnPage));
+  redirect(getAdminRedirectPath(secret, returnState));
 }
 
 export async function runCandidateOcr(formData: FormData) {
   const secret = getRequiredString(formData, "secret");
   const candidateId = getRequiredString(formData, "candidate_id");
-  const returnStatus = parseCandidateStatusFilter(
-    getOptionalString(formData, "return_status"),
-  );
-  const returnScope = parseCandidateReviewScope(
-    getOptionalString(formData, "return_scope"),
-  );
-  const returnPage = parseCandidatePageParam(
-    getOptionalString(formData, "return_page"),
-  );
+  const returnState = getAdminReturnState(formData);
 
   assertAdmin(secret);
 
@@ -553,62 +437,17 @@ export async function runCandidateOcr(formData: FormData) {
     throw new Error("Supabase admin client is not configured.");
   }
 
-  const { data: candidateData, error: candidateError } = await supabase
-    .from("x_event_candidates")
-    .select(
-      "id,status,text_snapshot,media_keys,extraction_payload,candidate_reason",
-    )
-    .eq("id", candidateId)
-    .single();
-
-  if (candidateError || !candidateData) {
-    throw new Error(candidateError?.message ?? "Candidate not found.");
-  }
-
-  const candidate = candidateData as CandidateForOcr;
-  const media = await getMediaForOcr(candidate.media_keys);
-  const images = media
-    .map((item) => ({
-      mediaKey: item.media_key,
-      imageUrl: item.url ?? item.preview_image_url,
-    }))
-    .filter((item): item is OcrImage => Boolean(item.imageUrl));
-
-  if (images.length === 0) {
-    throw new Error("OCR을 실행할 이미지 URL이 없습니다.");
-  }
-
-  const ocr = await runOpenAiPosterOcr(images);
-  const now = new Date().toISOString();
-  const eventDateFilter = analyzePastEventNotice(
-    `${candidate.text_snapshot}\n${ocr.text}`,
-  );
-  const nextReasons = mergeReasons(
-    candidate.candidate_reason,
-    eventDateFilter.ignoredAsPast
-      ? [...getOcrCandidateReasons(ocr.text), "past_event_date"]
-      : getOcrCandidateReasons(ocr.text),
-  );
-  const nextPayload = {
-    ...(candidate.extraction_payload ?? {}),
-    event_date_filter: eventDateFilter,
-    ocr: {
-      provider: ocr.provider,
-      model: ocr.model,
-      ran_at: now,
-      image_count: images.length,
-      media_keys: images.map((image) => image.mediaKey),
-    },
-  };
+  const candidate = await getCandidateForOcr(supabase, candidateId);
+  const ocrUpdate = await createCandidateOcrUpdate(candidate);
 
   const { error: updateError } = await supabase
     .from("x_event_candidates")
     .update({
-      status: eventDateFilter.ignoredAsPast ? "ignored" : candidate.status,
-      ocr_text: ocr.text || null,
-      extraction_payload: nextPayload,
-      candidate_reason: nextReasons,
-      updated_at: now,
+      status: ocrUpdate.status,
+      ocr_text: ocrUpdate.ocrText,
+      extraction_payload: ocrUpdate.extractionPayload,
+      candidate_reason: ocrUpdate.candidateReason,
+      updated_at: ocrUpdate.updatedAt,
     })
     .eq("id", candidateId);
 
@@ -617,21 +456,13 @@ export async function runCandidateOcr(formData: FormData) {
   }
 
   revalidatePath("/admin/candidates");
-  redirect(getAdminRedirectPath(secret, returnStatus, returnScope, returnPage));
+  redirect(getAdminRedirectPath(secret, returnState));
 }
 
 export async function runCandidateStructuredExtraction(formData: FormData) {
   const secret = getRequiredString(formData, "secret");
   const candidateId = getRequiredString(formData, "candidate_id");
-  const returnStatus = parseCandidateStatusFilter(
-    getOptionalString(formData, "return_status"),
-  );
-  const returnScope = parseCandidateReviewScope(
-    getOptionalString(formData, "return_scope"),
-  );
-  const returnPage = parseCandidatePageParam(
-    getOptionalString(formData, "return_page"),
-  );
+  const returnState = getAdminReturnState(formData);
 
   assertAdmin(secret);
 
@@ -640,7 +471,7 @@ export async function runCandidateStructuredExtraction(formData: FormData) {
   });
 
   revalidatePath("/admin/candidates");
-  redirect(getAdminRedirectPath(secret, returnStatus, returnScope, returnPage));
+  redirect(getAdminRedirectPath(secret, returnState));
 }
 
 export async function runCandidateTextOnlyStructuredExtraction(
@@ -648,15 +479,7 @@ export async function runCandidateTextOnlyStructuredExtraction(
 ) {
   const secret = getRequiredString(formData, "secret");
   const candidateId = getRequiredString(formData, "candidate_id");
-  const returnStatus = parseCandidateStatusFilter(
-    getOptionalString(formData, "return_status"),
-  );
-  const returnScope = parseCandidateReviewScope(
-    getOptionalString(formData, "return_scope"),
-  );
-  const returnPage = parseCandidatePageParam(
-    getOptionalString(formData, "return_page"),
-  );
+  const returnState = getAdminReturnState(formData);
 
   assertAdmin(secret);
 
@@ -665,215 +488,11 @@ export async function runCandidateTextOnlyStructuredExtraction(
   });
 
   revalidatePath("/admin/candidates");
-  redirect(getAdminRedirectPath(secret, returnStatus, returnScope, returnPage));
-}
-
-function assertAdmin(secret: string) {
-  if (!isAdminSecretValid(secret)) {
-    throw new Error("Unauthorized admin action.");
-  }
-}
-
-function getCandidateStatus(formData: FormData): CandidateStatus {
-  const status = getRequiredString(formData, "status");
-
-  if (
-    status === "all" ||
-    !CANDIDATE_STATUS_FILTERS.includes(status as CandidateStatusFilter)
-  ) {
-    throw new Error(`Invalid candidate status: ${status}`);
-  }
-
-  return status as CandidateStatus;
-}
-
-function getRequiredString(formData: FormData, key: string) {
-  const value = formData.get(key);
-
-  if (typeof value !== "string" || !value) {
-    throw new Error(`Missing form value: ${key}`);
-  }
-
-  return value;
-}
-
-function getTrimmedRequiredString(formData: FormData, key: string) {
-  const value = getRequiredString(formData, key).trim();
-
-  if (!value) {
-    throw new Error(`Missing form value: ${key}`);
-  }
-
-  return value;
-}
-
-function getOptionalString(formData: FormData, key: string) {
-  const value = formData.get(key);
-  return typeof value === "string" ? value : undefined;
-}
-
-function getValidRegion(formData: FormData) {
-  const region = getTrimmedRequiredString(formData, "region");
-
-  if (!REGION_SET.has(region)) {
-    throw new Error(`Invalid region: ${region}`);
-  }
-
-  return region;
-}
-
-function getValidIssueTags(formData: FormData) {
-  const tags = formData
-    .getAll("issue_tags")
-    .filter((tag): tag is IssueKey =>
-      typeof tag === "string" && ISSUE_KEY_SET.has(tag as IssueKey),
-    );
-  const uniqueTags = Array.from(new Set(tags));
-
-  if (uniqueTags.length === 0) {
-    throw new Error("공개하려면 의제 태그를 하나 이상 선택해야 합니다.");
-  }
-
-  return uniqueTags;
-}
-
-function getValidPrimaryIssue(formData: FormData, issueTags: IssueKey[]) {
-  const primaryIssue = getTrimmedRequiredString(formData, "primary_issue");
-
-  if (!ISSUE_KEY_SET.has(primaryIssue as IssueKey)) {
-    throw new Error(`Invalid primary issue: ${primaryIssue}`);
-  }
-
-  if (!issueTags.includes(primaryIssue as IssueKey)) {
-    return issueTags[0];
-  }
-
-  return primaryIssue as IssueKey;
-}
-
-function getPublishEventDates(formData: FormData) {
-  const dateValues = formData.getAll("event_date");
-  const timeValues = formData.getAll("start_time");
-  const dates = dateValues
-    .map((dateValue, index): PublishEventDate | null => {
-      if (typeof dateValue !== "string") {
-        return null;
-      }
-
-      const date = dateValue.trim();
-
-      if (!date) {
-        return null;
-      }
-
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-        throw new Error(`Invalid event date: ${date}`);
-      }
-
-      const timeValue = timeValues[index];
-      const startTime =
-        typeof timeValue === "string" && timeValue.trim()
-          ? timeValue.trim()
-          : null;
-
-      if (startTime && !/^\d{2}:\d{2}$/.test(startTime)) {
-        throw new Error(`Invalid event start time: ${startTime}`);
-      }
-
-      return { date, startTime };
-    })
-    .filter((date): date is PublishEventDate => Boolean(date));
-
-  if (dates.length === 0) {
-    throw new Error("공개하려면 날짜를 하나 이상 입력해야 합니다.");
-  }
-
-  return dates;
-}
-
-async function getFirstCandidateImageUrl(mediaKeys: string[]) {
-  const media = await getMediaForOcr(mediaKeys);
-  const firstImage = media.find((item) => item.url || item.preview_image_url);
-  return firstImage?.url ?? firstImage?.preview_image_url ?? "";
-}
-
-async function getMediaForOcr(mediaKeys: string[]) {
-  const supabase = getSupabaseAdminClient();
-
-  if (!supabase || mediaKeys.length === 0) {
-    return [];
-  }
-
-  const { data, error } = await supabase
-    .from("x_media")
-    .select("media_key,url,preview_image_url")
-    .in("media_key", mediaKeys);
-
-  if (error || !data) {
-    throw new Error(error?.message ?? "OCR media not found.");
-  }
-
-  return data as MediaForOcr[];
+  redirect(getAdminRedirectPath(secret, returnState));
 }
 
 function mergeReasons(currentReasons: string[], nextReasons: string[]) {
   return Array.from(new Set([...currentReasons, ...nextReasons]));
-}
-
-async function deletePublicEventIfPresent(
-  supabase: NonNullable<ReturnType<typeof getSupabaseAdminClient>>,
-  eventId: string,
-) {
-  const { data, error } = await supabase
-    .from("public_events")
-    .delete()
-    .eq("id", eventId)
-    .select("id");
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return Boolean(data?.length);
-}
-
-function hasPublishedEventPayload(
-  candidate: Pick<CandidateForPublish, "extraction_payload" | "candidate_reason">,
-) {
-  return Boolean(
-    candidate.extraction_payload?.published_event ||
-      candidate.candidate_reason.includes("published_event"),
-  );
-}
-
-function replacePublicationReasons(
-  currentReasons: string[],
-  nextReasons: string[],
-) {
-  return Array.from(
-    new Set([
-      ...currentReasons.filter(
-        (reason) =>
-          reason !== "published_event" && reason !== "unpublished_event",
-      ),
-      ...nextReasons,
-    ]),
-  );
-}
-
-function getAdminStatusReasons(status: CandidateStatus) {
-  switch (status) {
-    case "ignored":
-      return ["admin_ignored"];
-    case "duplicate":
-      return ["admin_duplicate"];
-    case "canceled":
-      return ["admin_canceled_candidate"];
-    case "needs_review":
-      return ["admin_reopened"];
-    case "published":
-      return [];
-  }
 }
 
 function formatPromotionResultMessage(
@@ -884,33 +503,4 @@ function formatPromotionResultMessage(
     `${label}: ignored ${result.scanned}건 검사, 승격 대상 ${result.eligible}건, 적용 ${result.promoted}건.`,
     `제외: 수동/변경됨 ${result.skipped.alreadyTouched}건, 규칙 미충족 ${result.skipped.noReviewRule}건, 과거 일정 ${result.skipped.pastEventDate}건, 보호된 판단 ${result.skipped.protectedDecision}건, 공개 일정 중복 ${result.skipped.publicEventOverlap}건.`,
   ].join(" ");
-}
-
-function removePublishedEventPayload(payload: Record<string, unknown>) {
-  const nextPayload = { ...payload };
-  delete nextPayload.published_event;
-  return nextPayload;
-}
-
-function revalidateAdminAndPublicPaths(eventId: string) {
-  revalidatePath("/");
-  revalidatePath(`/events/${eventId}`);
-  revalidatePath("/events/[id]", "page");
-  revalidatePath("/api/events");
-  revalidatePath("/api/events/calendar");
-  revalidatePath("/admin/candidates");
-}
-
-function getAdminRedirectPath(
-  secret: string,
-  returnStatus: CandidateStatusFilter,
-  returnScope: CandidateReviewScope,
-  returnPage: number,
-) {
-  return getAdminCandidatesHref({
-    page: returnPage,
-    secret,
-    status: returnStatus,
-    scope: returnScope,
-  });
 }

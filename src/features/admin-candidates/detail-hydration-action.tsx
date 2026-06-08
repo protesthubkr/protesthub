@@ -5,7 +5,7 @@ import type {
 } from "@/lib/admin-candidates";
 import { getCandidateDetailHydrationState } from "@/lib/x-ingest/hydration-state";
 import { hydrateCandidateDetailFromAdmin } from "./actions";
-import { HiddenAdminFields } from "./publish-event-form";
+import { HiddenAdminFields } from "./admin-hidden-fields";
 
 type DetailHydrationActionProps = {
   candidate: ReviewCandidate;
