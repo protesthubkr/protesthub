@@ -115,10 +115,22 @@ export function CalendarMonthView({
         })}
       </div>
 
-      <p className="calendar-contact">
-        정보 제보/수정 요청{" "}
-        <a href="mailto:badplankr@gmail.com">badplankr@gmail.com</a>
-      </p>
+      <div className="calendar-contact">
+        <span className="calendar-contact-line calendar-contact-briefing">
+          <a
+            className="calendar-contact-briefing-link"
+            href="https://t.me/protestcal"
+            rel="noreferrer"
+            target="_blank"
+          >
+            텔레그램 브리핑 채널 입장하기
+          </a>
+        </span>
+        <span className="calendar-contact-line">
+          정보 제보/수정 요청{" "}
+          <a href="mailto:badplankr@gmail.com">badplankr@gmail.com</a>
+        </span>
+      </div>
     </section>
   );
 }
