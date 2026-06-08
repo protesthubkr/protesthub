@@ -110,7 +110,8 @@ git diff --check
 - OCR/구조화 버튼은 실제 API 비용이 발생하므로 필요한 경우에만 누른다.
 - 공개 폼 기본값은 기존 공개 이벤트가 있는 후보와 없는 후보를 각각 확인한다.
 - `/api/ingest/x`는 Bearer secret과 함께 테스트한다. 백필은 `startDate=YYYY-MM-DD` 또는 `startTime=...` query로 실행하되, 실제 조회 시작점은 최대 30일 전으로 제한된다.
-- 구조화 추출은 GPT-5 계열 reasoning token이 출력 예산을 소모할 수 있으므로 `OPENAI_EXTRACTION_REASONING_EFFORT=minimal`, `OPENAI_EXTRACTION_MAX_OUTPUT_TOKENS=6000`을 기본값으로 둔다.
+- 구조화 추출은 상세설명과 evidence를 생성하지 않는다. 기본 출력 예산은 `OPENAI_EXTRACTION_MAX_OUTPUT_TOKENS=2000` 수준으로 두고, GPT-5 계열 reasoning token 비용을 줄이기 위해 `OPENAI_EXTRACTION_REASONING_EFFORT=minimal`을 사용한다.
+- 구조화 프롬프트는 긴 원문과 OCR을 그대로 모두 넣지 않고 앞부분 중심으로 압축하되, 끝부분 일부를 보존한다. 입력 길이 정책을 바꿀 때는 `src/lib/llm/structured-event-prompt.ts`를 먼저 확인한다.
 
 ## 주의해야 할 불변 조건
 

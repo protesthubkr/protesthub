@@ -20,7 +20,6 @@ export const STRUCTURED_EVENT_SCHEMA = {
     "format",
     "status_hint",
     "exclusion_reason",
-    "evidence",
   ],
   properties: {
     is_event: { type: "boolean" },
@@ -76,21 +75,5 @@ export const STRUCTURED_EVENT_SCHEMA = {
       ],
     },
     exclusion_reason: { type: "string" },
-    evidence: {
-      type: "object",
-      additionalProperties: false,
-      required: [
-        "title_source",
-        "date_source",
-        "place_source",
-        "issue_source",
-      ],
-      properties: {
-        title_source: { type: "string" },
-        date_source: { type: "string" },
-        place_source: { type: "string" },
-        issue_source: { type: "string" },
-      },
-    },
   },
 };

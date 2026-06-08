@@ -44,12 +44,6 @@ export type StructuredEventResult = {
     | "canceled"
     | "duplicate_unknown";
   exclusion_reason: string;
-  evidence: {
-    title_source: string;
-    date_source: string;
-    place_source: string;
-    issue_source: string;
-  };
 };
 
 export type StructuredEventExtractionResult = {

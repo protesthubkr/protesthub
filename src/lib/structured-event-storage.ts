@@ -64,12 +64,6 @@ function compactStructuredEventResult(
     format: result.format,
     status_hint: result.status_hint,
     exclusion_reason: compactText(result.exclusion_reason, 180),
-    evidence: {
-      title_source: compactText(result.evidence.title_source, 120),
-      date_source: compactText(result.evidence.date_source, 120),
-      place_source: compactText(result.evidence.place_source, 120),
-      issue_source: compactText(result.evidence.issue_source, 120),
-    },
   };
 }
 
