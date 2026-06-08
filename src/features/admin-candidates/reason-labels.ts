@@ -39,8 +39,38 @@ export function formatCandidateReason(reason: string) {
     return `수동 월 키워드 ${reason.replace("manual_review_month_keyword:", "")}`;
   }
 
+  if (reason.startsWith("review_rule:")) {
+    const ruleLabels: Record<string, string> = {
+      strong_event_keyword: "검수 승격 강한 집회 신호",
+      required_keyword_with_context: "검수 승격 일정 키워드+맥락",
+      weak_keyword_threshold_with_context: "검수 승격 보조 신호+맥락",
+      date_place_context: "검수 승격 날짜+장소",
+      media_or_quote_with_date: "검수 승격 첨부/인용+날짜",
+      date_backed_weak_signal: "검수 승격 날짜+보조 신호",
+    };
+    const rule = reason.replace("review_rule:", "");
+    return ruleLabels[rule] ?? `검수 승격 규칙 ${rule}`;
+  }
+
+  if (reason.startsWith("review_suppressed:")) {
+    const rule = reason.replace("review_suppressed:", "");
+    return rule === "notice_only" ? "검수 억제 공지형" : `검수 억제 ${rule}`;
+  }
+
+  if (reason.startsWith("review_migration_version:")) {
+    return `검수 승격 버전 ${reason.replace("review_migration_version:", "")}`;
+  }
+
+  if (reason.startsWith("review_migration_scope:")) {
+    const scope = reason.replace("review_migration_scope:", "");
+    return scope === "strict_auto_ignored"
+      ? "검수 승격 범위 자동 ignored"
+      : `검수 승격 범위 ${scope}`;
+  }
+
   const exactLabels: Record<string, string> = {
     has_photo_media: "이미지 포함",
+    has_media_attachment: "첨부 미디어 있음",
     has_date_hint: "날짜 신호",
     has_place_hint: "장소 신호",
     has_quote_post: "인용 포스트",
@@ -56,6 +86,11 @@ export function formatCandidateReason(reason: string) {
     unpublished_event: "공개 이벤트 내림",
     manual_single_post: "수동 추가",
     manual_review_requested: "수동 검수 요청",
+    admin_ignored: "관리자 무시",
+    admin_duplicate: "관리자 중복",
+    admin_canceled_candidate: "관리자 취소 후보",
+    admin_reopened: "관리자 재검수",
+    "review_migration:ignored_to_needs_review": "ignored에서 검수 대기로 승격",
     "llm_input:post_text_only": "LLM 입력 본문만",
     "llm_input:post_text_and_ocr": "LLM 입력 본문+OCR",
     llm_event_candidate: "LLM 집회 후보",

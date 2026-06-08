@@ -52,6 +52,12 @@ export function XIngestControlPanel({ secret }: { secret: string }) {
           <IngestSubmitButton name="mode" value="hydrate_pending">
             검수 대기 상세 수집
           </IngestSubmitButton>
+          <IngestSubmitButton name="mode" value="preview_ignored_promotion">
+            ignored 승격 미리보기
+          </IngestSubmitButton>
+          <IngestSubmitButton name="mode" value="promote_ignored">
+            ignored 승격 적용
+          </IngestSubmitButton>
         </div>
         <p
           aria-live="polite"

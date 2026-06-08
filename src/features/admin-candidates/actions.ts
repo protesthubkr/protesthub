@@ -26,6 +26,10 @@ import {
   hydratePendingCandidateDetails,
 } from "@/lib/x-ingest/candidate-detail-hydration";
 import { ingestManualXPost } from "@/lib/x-ingest/manual-post";
+import {
+  previewIgnoredCandidatePromotion,
+  promoteIgnoredCandidatesForReview,
+} from "@/lib/x-ingest/review-promotion";
 import { runXIngest } from "@/lib/x-ingest/run";
 import { getAdminCandidatesHref } from "./navigation";
 
@@ -133,6 +137,26 @@ export async function runXIngestFromAdmin(
       };
     }
 
+    if (mode === "preview_ignored_promotion") {
+      const result = await previewIgnoredCandidatePromotion();
+
+      return {
+        status: "success",
+        message: formatPromotionResultMessage("미리보기", result),
+      };
+    }
+
+    if (mode === "promote_ignored") {
+      const result = await promoteIgnoredCandidatesForReview();
+
+      revalidatePath("/admin/candidates");
+
+      return {
+        status: "success",
+        message: formatPromotionResultMessage("승격 적용", result),
+      };
+    }
+
     const result = await runXIngest({
       refreshFollowing: mode === "refresh_following",
       hydrateMode: "deferred",
@@ -166,7 +190,9 @@ function getXIngestMode(formData: FormData) {
   if (
     mode === "stored_accounts" ||
     mode === "refresh_following" ||
-    mode === "hydrate_pending"
+    mode === "hydrate_pending" ||
+    mode === "preview_ignored_promotion" ||
+    mode === "promote_ignored"
   ) {
     return mode;
   }
@@ -237,6 +263,7 @@ export async function updateCandidateStatus(formData: FormData) {
       : false;
   const shouldClearPublication =
     unpublishedByStatusChange || hasPublishedEventPayload(candidate);
+  const adminStatusReasons = getAdminStatusReasons(status);
 
   const { error } = await supabase
     .from("x_event_candidates")
@@ -249,10 +276,15 @@ export async function updateCandidateStatus(formData: FormData) {
             ),
             candidate_reason: replacePublicationReasons(
               candidate.candidate_reason,
-              ["unpublished_event"],
+              ["unpublished_event", ...adminStatusReasons],
             ),
           }
-        : {}),
+        : {
+            candidate_reason: mergeReasons(
+              candidate.candidate_reason,
+              adminStatusReasons,
+            ),
+          }),
       updated_at: new Date().toISOString(),
     })
     .eq("id", candidateId);
@@ -829,6 +861,31 @@ function replacePublicationReasons(
       ...nextReasons,
     ]),
   );
+}
+
+function getAdminStatusReasons(status: CandidateStatus) {
+  switch (status) {
+    case "ignored":
+      return ["admin_ignored"];
+    case "duplicate":
+      return ["admin_duplicate"];
+    case "canceled":
+      return ["admin_canceled_candidate"];
+    case "needs_review":
+      return ["admin_reopened"];
+    case "published":
+      return [];
+  }
+}
+
+function formatPromotionResultMessage(
+  label: string,
+  result: Awaited<ReturnType<typeof previewIgnoredCandidatePromotion>>,
+) {
+  return [
+    `${label}: ignored ${result.scanned}건 검사, 승격 대상 ${result.eligible}건, 적용 ${result.promoted}건.`,
+    `제외: 수동/변경됨 ${result.skipped.alreadyTouched}건, 규칙 미충족 ${result.skipped.noReviewRule}건, 과거 일정 ${result.skipped.pastEventDate}건, 보호된 판단 ${result.skipped.protectedDecision}건, 공개 일정 중복 ${result.skipped.publicEventOverlap}건.`,
+  ].join(" ");
 }
 
 function removePublishedEventPayload(payload: Record<string, unknown>) {

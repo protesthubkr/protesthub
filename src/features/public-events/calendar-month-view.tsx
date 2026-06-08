@@ -114,6 +114,11 @@ export function CalendarMonthView({
           );
         })}
       </div>
+
+      <p className="calendar-contact">
+        정보 제보/수정 요청{" "}
+        <a href="mailto:badplankr@gmail.com">badplankr@gmail.com</a>
+      </p>
     </section>
   );
 }
