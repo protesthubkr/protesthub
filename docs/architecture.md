@@ -170,6 +170,9 @@ public_event_occurrences
 16. `startDate`/`startTime` 백필 수집은 `since_id`를 우회하지만, 요청 시작 시각이 30일보다 오래됐으면 30일 전으로 잘라서 조회한다.
 17. 계정별 timeline 조회가 끝나면 `x_accounts.last_ingested_at`, `last_ingested_post_id`, `last_ingested_post_created_at`, `last_ingest_run_id`를 갱신한다. 신규 계정에 post가 없어도 `last_ingested_at`은 남겨 다음 수집에서 같은 30일 범위를 반복 조회하지 않는다.
 18. 백필이나 장기 미수집 계정은 `maxPages` 또는 `X_BACKFILL_TIMELINE_PAGES_PER_ACCOUNT`로 계정별 timeline pagination 상한을 둔다.
+19. 리포스트 원문만 한시적으로 보강할 때는 `/api/ingest/x?retweetOriginalsOnly=true&startDate=YYYY-MM-DD`를 사용한다.
+20. `retweetOriginalsOnly=true` 실행은 팔로잉 계정의 일반 포스트를 후보로 만들지 않고, 원문 작성자가 이미 팔로잉 계정인 리포스트도 제외한다.
+21. 같은 실행은 팔로우하지 않는 원문 작성자의 포스트만 추가 후보로 만들며, 계정별 `last_ingested_*` cursor를 갱신하지 않는다.
 
 ## 변경 안전 규칙
 

@@ -91,6 +91,9 @@ function parseRunOptions(searchParams: URLSearchParams): XIngestRunOptions {
     refreshFollowing: parseOptionalBoolean(
       searchParams.get("refreshFollowing") ?? searchParams.get("refreshAccounts"),
     ),
+    retweetOriginalsOnly: parseOptionalBoolean(
+      searchParams.get("retweetOriginalsOnly"),
+    ),
     reviewPastEventNotices: parseOptionalBoolean(
       searchParams.get("reviewPast"),
     ),

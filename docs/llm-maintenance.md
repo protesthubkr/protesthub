@@ -122,6 +122,7 @@ git diff --check
 - timeline 1차 요청에는 `expansions`, `media.fields`, `user.fields`를 붙이지 않는다.
 - 기본 X 수집은 `hydrateMode=deferred`로 동작한다. 검수 후보로 판정되어도 상세 요청을 자동 실행하지 않는다.
 - 예외적으로 공식 계정의 리포스트 wrapper는 후보로 만들지 않고, `referenced_tweets.type=retweeted` 원포스트만 ID 기반 상세 요청으로 가져와 후보화한다. 원포스트 작성자는 `is_following=false` 참조 계정으로만 저장한다.
+- 리포스트 원문만 한시적으로 보강할 때는 `retweetOriginalsOnly=true`를 사용한다. 이 모드는 팔로잉 계정 일반 포스트와 이미 팔로잉 중인 원문 작성자 포스트를 후보화하지 않고, 계정별 수집 cursor도 갱신하지 않는다.
 - X 후보는 텍스트 또는 첨부 media key가 있는 post만 만든다.
 - 첨부나 인용이 있어 상세 수집이 필요한 후보만 `x_detail_deferred` 근거를 가진다.
 - media URL, alt text, referenced tweet, author expansion은 해당 후보 카드의 `X 상세 수집` 또는 수집 패널의 `검수 대기 상세 수집`을 눌렀을 때만 hydrate한다.

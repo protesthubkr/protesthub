@@ -70,9 +70,14 @@ export async function runXIngest(
       ? config.backfillTimelinePagesPerAccount
       : config.timelinePagesPerAccount);
   const shouldRefreshFollowing = options.refreshFollowing ?? false;
+  const retweetOriginalsOnly = options.retweetOriginalsOnly ?? false;
   const reviewPastEventNotices = options.reviewPastEventNotices ?? isBackfill;
   const hydrateMode = options.hydrateMode ?? "deferred";
-  const collectionMode = getCollectionMode({ isBackfill, shouldRefreshFollowing });
+  const collectionMode = getCollectionMode({
+    isBackfill,
+    retweetOriginalsOnly,
+    shouldRefreshFollowing,
+  });
   const runId = await createIngestRun(supabase, {
     postsPerAccount: config.postsPerAccount,
     maxFollowingAccounts: config.maxFollowingAccounts,
@@ -83,6 +88,7 @@ export async function runXIngest(
       : "stored_x_accounts",
     collectionMode,
     hydrateMode,
+    retweetOriginalsOnly,
     maxAccountLookbackDays: MAX_ACCOUNT_LOOKBACK_DAYS,
     oldestAllowedStartTime,
     requestedStartTime,
@@ -104,6 +110,9 @@ export async function runXIngest(
           config.maxFollowingAccounts,
         );
     counters.accountsSeen = collectibleAccounts.length;
+    const followedAccountIds = new Set(
+      collectibleAccounts.map((account) => account.id),
+    );
 
     for (const account of collectibleAccounts) {
       const cursor = isBackfill
@@ -127,9 +136,12 @@ export async function runXIngest(
         timeline.data ?? [],
         requestCursor.startTime,
       );
-      const regularPosts = posts.filter((post) => !isRetweetWrapper(post));
+      const regularPosts = retweetOriginalsOnly
+        ? []
+        : posts.filter((post) => !isRetweetWrapper(post));
       const retweetedOriginals = await fetchRetweetedOriginalPosts({
         bearerToken: config.bearerToken,
+        ignoredAuthorIds: followedAccountIds,
         posts,
         retweetedByAccount: account,
       });
@@ -191,13 +203,15 @@ export async function runXIngest(
           }),
         ],
       );
-      await updateAccountIngestCursor({
-        accountId: account.id,
-        checkedAt: new Date().toISOString(),
-        latestPost: chooseLatestPostCursor(cursor, posts),
-        runId,
-        supabase,
-      });
+      if (!retweetOriginalsOnly) {
+        await updateAccountIngestCursor({
+          accountId: account.id,
+          checkedAt: new Date().toISOString(),
+          latestPost: chooseLatestPostCursor(cursor, posts),
+          runId,
+          supabase,
+        });
+      }
     }
 
     await finishIngestRun(supabase, runId, "succeeded", counters);
@@ -219,10 +233,12 @@ function createEmptyHydratedTimeline() {
 
 async function fetchRetweetedOriginalPosts({
   bearerToken,
+  ignoredAuthorIds,
   posts,
   retweetedByAccount,
 }: {
   bearerToken: string;
+  ignoredAuthorIds?: Set<string>;
   posts: XPost[];
   retweetedByAccount: XUser;
 }) {
@@ -232,7 +248,9 @@ async function fetchRetweetedOriginalPosts({
       wrapperPost: post,
     })),
   );
-  const originalPostIds = retweets.map((retweet) => retweet.originalPostId);
+  const originalPostIds = Array.from(
+    new Set(retweets.map((retweet) => retweet.originalPostId)),
+  );
 
   if (originalPostIds.length === 0) {
     return {
@@ -251,8 +269,19 @@ async function fetchRetweetedOriginalPosts({
     retweets.map((retweet) => [retweet.originalPostId, retweet.wrapperPost]),
   );
   const discoveryByPostId = new Map<string, XPostDiscovery>();
+  const discoveredPosts = (response.data ?? []).filter(
+    (post) => post.author_id && !ignoredAuthorIds?.has(post.author_id),
+  );
+  const discoveredAuthorIds = new Set(
+    discoveredPosts
+      .map((post) => post.author_id)
+      .filter((authorId): authorId is string => Boolean(authorId)),
+  );
+  const discoveredMediaKeys = new Set(
+    discoveredPosts.flatMap((post) => post.attachments?.media_keys ?? []),
+  );
 
-  for (const post of response.data ?? []) {
+  for (const post of discoveredPosts) {
     const wrapperPost = retweetByOriginalPostId.get(post.id);
 
     if (!wrapperPost) {
@@ -270,10 +299,17 @@ async function fetchRetweetedOriginalPosts({
   }
 
   return {
-    authors: response.includes?.users ?? [],
+    authors:
+      response.includes?.users?.filter((author) =>
+        discoveredAuthorIds.has(author.id),
+      ) ?? [],
     discoveryByPostId,
-    media: dedupeMedia(response.includes?.media ?? []),
-    posts: response.data ?? [],
+    media: dedupeMedia(
+      response.includes?.media?.filter((item) =>
+        discoveredMediaKeys.has(item.media_key),
+      ) ?? [],
+    ),
+    posts: discoveredPosts,
   };
 }
 
@@ -378,11 +414,19 @@ async function refreshFollowingAccounts({
 
 function getCollectionMode({
   isBackfill,
+  retweetOriginalsOnly,
   shouldRefreshFollowing,
 }: {
   isBackfill: boolean;
+  retweetOriginalsOnly: boolean;
   shouldRefreshFollowing: boolean;
 }) {
+  if (retweetOriginalsOnly) {
+    return isBackfill
+      ? "retweet_original_backfill_from_start_time"
+      : "retweet_original_cursor_probe";
+  }
+
   if (isBackfill) {
     return "bounded_backfill_from_start_time";
   }

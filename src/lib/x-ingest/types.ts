@@ -88,6 +88,7 @@ export type XIngestRunOptions = {
   hydrateMode?: XHydrateMode;
   maxTimelinePagesPerAccount?: number;
   refreshFollowing?: boolean;
+  retweetOriginalsOnly?: boolean;
   reviewPastEventNotices?: boolean;
   startTime?: string;
 };
