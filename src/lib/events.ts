@@ -15,6 +15,19 @@ import {
 import { PUBLIC_EVENT_WINDOW_DAYS } from "./public-event-date-policy";
 import type { EventCalendarMonth, EventFilters } from "./types";
 
+const UNFILTERED_CALENDAR_MONTH_CACHE_TTL_MS = 5 * 60 * 1000;
+const UNFILTERED_CALENDAR_MONTH_CACHE_MAX_ENTRIES = 24;
+
+type CalendarMonthCacheEntry = {
+  expiresAt: number;
+  promise: Promise<EventCalendarMonth>;
+};
+
+const unfilteredCalendarMonthCache = new Map<
+  string,
+  CalendarMonthCacheEntry
+>();
+
 function getRequiredSupabaseClient() {
   const supabase = getSupabaseClient();
 
@@ -56,6 +69,36 @@ export async function getPublicEventOccurrenceWindow({
 }
 
 export async function getPublicEventCalendarMonth({
+  filters,
+  minDate,
+  month,
+}: {
+  filters: EventFilters;
+  minDate?: string;
+  month: string;
+}): Promise<EventCalendarMonth> {
+  const cacheKey = getUnfilteredCalendarMonthCacheKey({
+    filters,
+    minDate,
+    month,
+  });
+
+  if (cacheKey) {
+    return getCachedUnfilteredCalendarMonth(cacheKey, {
+      filters,
+      minDate,
+      month,
+    });
+  }
+
+  return queryPublicEventCalendarMonth({ filters, minDate, month });
+}
+
+export function clearPublicEventCalendarCache() {
+  unfilteredCalendarMonthCache.clear();
+}
+
+async function queryPublicEventCalendarMonth({
   filters,
   minDate,
   month,
@@ -119,6 +162,83 @@ export async function getPublicEventCalendarMonth({
     monthStartDate,
     nextMonthStartDate,
   };
+}
+
+function getCachedUnfilteredCalendarMonth(
+  cacheKey: string,
+  params: {
+    filters: EventFilters;
+    minDate?: string;
+    month: string;
+  },
+) {
+  const now = Date.now();
+  const cached = unfilteredCalendarMonthCache.get(cacheKey);
+
+  if (cached && cached.expiresAt > now) {
+    return cached.promise;
+  }
+
+  if (cached) {
+    unfilteredCalendarMonthCache.delete(cacheKey);
+  }
+
+  const promise = queryPublicEventCalendarMonth(params);
+
+  unfilteredCalendarMonthCache.set(cacheKey, {
+    expiresAt: now + UNFILTERED_CALENDAR_MONTH_CACHE_TTL_MS,
+    promise,
+  });
+  pruneUnfilteredCalendarMonthCache();
+
+  promise.catch(() => {
+    const current = unfilteredCalendarMonthCache.get(cacheKey);
+
+    if (current?.promise === promise) {
+      unfilteredCalendarMonthCache.delete(cacheKey);
+    }
+  });
+
+  return promise;
+}
+
+function getUnfilteredCalendarMonthCacheKey({
+  filters,
+  minDate,
+  month,
+}: {
+  filters: EventFilters;
+  minDate?: string;
+  month: string;
+}) {
+  if (!hasNoFilters(filters)) {
+    return null;
+  }
+
+  return `${month}:${minDate ?? ""}`;
+}
+
+function hasNoFilters(filters: EventFilters) {
+  return (
+    filters.issues.length === 0 &&
+    filters.regions.length === 0 &&
+    filters.organizers.length === 0
+  );
+}
+
+function pruneUnfilteredCalendarMonthCache() {
+  while (
+    unfilteredCalendarMonthCache.size >
+    UNFILTERED_CALENDAR_MONTH_CACHE_MAX_ENTRIES
+  ) {
+    const oldestKey = unfilteredCalendarMonthCache.keys().next().value;
+
+    if (!oldestKey) {
+      return;
+    }
+
+    unfilteredCalendarMonthCache.delete(oldestKey);
+  }
 }
 
 export async function getPublishedOrganizerOptions() {

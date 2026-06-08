@@ -116,6 +116,14 @@ export function getFilterSignature(filters: EventFilters) {
   ].join("::");
 }
 
+export function hasNoEventFilters(filters: EventFilters) {
+  return (
+    filters.issues.length === 0 &&
+    filters.regions.length === 0 &&
+    filters.organizers.length === 0
+  );
+}
+
 export function getEventQuerySignature(searchState: EventSearchState) {
   return [
     getFilterSignature(searchState.filters),

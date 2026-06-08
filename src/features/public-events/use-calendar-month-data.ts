@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { EventCalendarMonth, EventFilters } from "@/lib/types";
 import { fetchEventCalendarMonth } from "./client-event-cache";
 import {
   appendEventFiltersToSearchParams,
   buildEventHref,
+  hasNoEventFilters,
 } from "./filters";
 
 type UseCalendarMonthDataProps = {
@@ -30,14 +31,39 @@ export function useCalendarMonthData({
   const [calendarData, setCalendarData] = useState(initialCalendar);
   const [calendarError, setCalendarError] = useState<string | null>(null);
   const [isCalendarLoading, setIsCalendarLoading] = useState(false);
+  const isUnfiltered = hasNoEventFilters(filters);
   const requestIdRef = useRef(0);
+
+  const pushCalendarHistory = useCallback(
+    (nextMonth: string) => {
+      window.history.pushState(
+        null,
+        "",
+        buildEventHref({
+          filters,
+          month: nextMonth,
+          organizers,
+          pathname,
+          viewMode: "calendar",
+        }),
+      );
+    },
+    [filters, organizers, pathname],
+  );
 
   const loadCalendarMonth = useCallback(
     async (nextMonth: string) => {
       onShowCalendar();
       setActiveCalendarMonth(nextMonth);
-      setIsCalendarLoading(true);
       setCalendarError(null);
+
+      if (calendarData?.month === nextMonth) {
+        setIsCalendarLoading(false);
+        pushCalendarHistory(nextMonth);
+        return;
+      }
+
+      setIsCalendarLoading(true);
       const requestId = requestIdRef.current + 1;
       requestIdRef.current = requestId;
 
@@ -53,17 +79,7 @@ export function useCalendarMonthData({
 
         setCalendarData(nextCalendar);
         setCalendarError(null);
-        window.history.pushState(
-          null,
-          "",
-          buildEventHref({
-            filters,
-            month: nextMonth,
-            organizers,
-            pathname,
-            viewMode: "calendar",
-          }),
-        );
+        pushCalendarHistory(nextMonth);
       } catch {
         if (requestIdRef.current !== requestId) {
           return;
@@ -79,8 +95,38 @@ export function useCalendarMonthData({
         }
       }
     },
-    [filters, onShowCalendar, organizers, pathname],
+    [calendarData, filters, onShowCalendar, pushCalendarHistory],
   );
+
+  useEffect(() => {
+    if (!isUnfiltered || calendarData?.month === activeCalendarMonth) {
+      return;
+    }
+
+    const params = new URLSearchParams({ month: activeCalendarMonth });
+    let isCanceled = false;
+
+    fetchEventCalendarMonth(params)
+      .then((prefetchedCalendar) => {
+        if (isCanceled) {
+          return;
+        }
+
+        setCalendarData((currentCalendar) =>
+          currentCalendar?.month === activeCalendarMonth
+            ? currentCalendar
+            : prefetchedCalendar,
+        );
+      })
+      .catch(() => {
+        // Background prefetch failures should not replace the explicit
+        // calendar button flow, where the user can see the loading/error state.
+      });
+
+    return () => {
+      isCanceled = true;
+    };
+  }, [activeCalendarMonth, calendarData?.month, isUnfiltered]);
 
   return {
     activeCalendarMonth,

@@ -2,7 +2,13 @@
 
 import dynamic from "next/dynamic";
 import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useMemo, useState, useTransition } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+} from "react";
 import { REGION_OPTIONS } from "@/lib/regions";
 import type {
   EventCalendarMonth,
@@ -20,6 +26,7 @@ import {
   buildEventHref,
   buildConditionChips,
   buildEventFilterHref,
+  hasNoEventFilters,
 } from "./filters";
 import { useCalendarMonthData } from "./use-calendar-month-data";
 import { useEventListWindow } from "./use-event-list-window";
@@ -92,9 +99,16 @@ export function HomePageClient({
     () => buildConditionChips(filters),
     [filters],
   );
+  const isUnfiltered = hasNoEventFilters(filters);
   const isListRouteLoading = activeViewMode === "list" && isRoutePending;
 
   useFilterOverlayLock(state.isFilterOpen);
+
+  useEffect(() => {
+    if (isUnfiltered) {
+      void import("./calendar-month-view");
+    }
+  }, [isUnfiltered]);
 
   function openFilter(step: FilterStep = "issue") {
     dispatch({ type: "open-filter", filters, step });

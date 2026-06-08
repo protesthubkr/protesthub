@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import {
+  hasNoEventFilters,
   parseEventFilters,
   parseMonthParam,
 } from "@/features/public-events/filters";
@@ -11,6 +12,8 @@ import {
 
 const PUBLIC_CALENDAR_CACHE_CONTROL =
   "public, s-maxage=60, stale-while-revalidate=300";
+const PUBLIC_UNFILTERED_CALENDAR_CACHE_CONTROL =
+  "public, s-maxage=300, stale-while-revalidate=1800";
 
 export async function GET(request: NextRequest) {
   const filters = parseEventFilters(request.nextUrl.searchParams);
@@ -31,7 +34,9 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json(calendarMonth, {
     headers: {
-      "Cache-Control": PUBLIC_CALENDAR_CACHE_CONTROL,
+      "Cache-Control": hasNoEventFilters(filters)
+        ? PUBLIC_UNFILTERED_CALENDAR_CACHE_CONTROL
+        : PUBLIC_CALENDAR_CACHE_CONTROL,
     },
   });
 }
