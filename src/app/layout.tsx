@@ -7,9 +7,9 @@ const geistSans = Geist({
   subsets: ["latin"],
 });
 
-const siteName = "집회 모아보기";
+const siteName = "집시캘린더ㅋ";
 const siteDescription =
-  "다가오는 집회 정보를 날짜, 지역, 의제별로 모아봅니다.";
+  "집회시위 정보를 날짜, 지역, 의제별로 보여드립니다.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(getSiteUrl()),

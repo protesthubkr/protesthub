@@ -67,7 +67,7 @@ create index if not exists public_events_published_issue_tags_idx
 create table if not exists telegram_event_broadcasts (
   id uuid primary key default gen_random_uuid(),
   event_id text not null references public_events(id) on delete cascade,
-  occurrence_date date,
+  occurrence_date date not null,
   channel_id text not null,
   status text not null default 'pending'
     check (status in ('pending', 'sent', 'failed')),
@@ -99,6 +99,20 @@ create table if not exists telegram_event_broadcasts (
 
 alter table telegram_event_broadcasts
   add column if not exists occurrence_date date;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'telegram_event_broadcasts_occurrence_date_required'
+  ) then
+    alter table telegram_event_broadcasts
+      add constraint telegram_event_broadcasts_occurrence_date_required
+      check (occurrence_date is not null) not valid;
+  end if;
+end;
+$$;
 
 alter table telegram_event_broadcasts
   drop constraint if exists telegram_event_broadcasts_unique_event_channel;
