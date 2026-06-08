@@ -64,6 +64,135 @@ create index if not exists public_events_published_issue_tags_idx
   on public_events using gin (issue_tags)
   where status = 'published';
 
+create table if not exists telegram_event_broadcasts (
+  id uuid primary key default gen_random_uuid(),
+  event_id text not null references public_events(id) on delete cascade,
+  occurrence_date date,
+  channel_id text not null,
+  status text not null default 'pending'
+    check (status in ('pending', 'sent', 'failed')),
+  telegram_message_id bigint,
+  telegram_method text
+    check (
+      telegram_method is null
+      or telegram_method in ('sendMessage', 'sendPhoto')
+    ),
+  payload_hash text not null,
+  error_message text,
+  attempt_count integer not null default 0 check (attempt_count >= 0),
+  locked_at timestamptz,
+  sent_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint telegram_event_broadcasts_unique_event_channel_occurrence
+    unique (event_id, channel_id, occurrence_date),
+  constraint telegram_event_broadcasts_sent_fields_check
+    check (
+      status <> 'sent'
+      or (
+        telegram_message_id is not null
+        and telegram_method is not null
+        and sent_at is not null
+      )
+    )
+);
+
+alter table telegram_event_broadcasts
+  add column if not exists occurrence_date date;
+
+alter table telegram_event_broadcasts
+  drop constraint if exists telegram_event_broadcasts_unique_event_channel;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'telegram_event_broadcasts_unique_event_channel_occurrence'
+  ) then
+    alter table telegram_event_broadcasts
+      add constraint telegram_event_broadcasts_unique_event_channel_occurrence
+      unique (event_id, channel_id, occurrence_date);
+  end if;
+end;
+$$;
+
+create index if not exists telegram_event_broadcasts_channel_status_created_idx
+  on telegram_event_broadcasts (channel_id, status, created_at desc);
+
+create index if not exists telegram_event_broadcasts_event_id_idx
+  on telegram_event_broadcasts (event_id);
+
+create index if not exists telegram_event_broadcasts_occurrence_date_idx
+  on telegram_event_broadcasts (occurrence_date, channel_id, status);
+
+drop function if exists public.claim_telegram_event_broadcast(text, text, text);
+drop function if exists public.claim_telegram_event_broadcast(text, text, date, text);
+
+create function public.claim_telegram_event_broadcast(
+  p_event_id text,
+  p_channel_id text,
+  p_occurrence_date date,
+  p_payload_hash text
+)
+returns telegram_event_broadcasts
+language plpgsql
+security invoker
+set search_path = public
+as $$
+declare
+  claimed telegram_event_broadcasts;
+begin
+  if p_occurrence_date is null then
+    raise exception 'occurrence_date is required';
+  end if;
+
+  insert into telegram_event_broadcasts (
+    event_id,
+    occurrence_date,
+    channel_id,
+    status,
+    payload_hash,
+    attempt_count,
+    locked_at,
+    updated_at
+  )
+  values (
+    p_event_id,
+    p_occurrence_date,
+    p_channel_id,
+    'pending',
+    p_payload_hash,
+    1,
+    now(),
+    now()
+  )
+  on conflict on constraint telegram_event_broadcasts_unique_event_channel_occurrence
+  do update
+    set status = 'pending',
+        telegram_message_id = null,
+        telegram_method = null,
+        payload_hash = excluded.payload_hash,
+        error_message = null,
+        attempt_count = telegram_event_broadcasts.attempt_count + 1,
+        locked_at = now(),
+        sent_at = null,
+        updated_at = now()
+    where telegram_event_broadcasts.status = 'failed'
+      or (
+        telegram_event_broadcasts.status = 'pending'
+        and coalesce(
+          telegram_event_broadcasts.locked_at,
+          telegram_event_broadcasts.updated_at,
+          telegram_event_broadcasts.created_at
+        ) < now() - interval '15 minutes'
+      )
+  returning * into claimed;
+
+  return claimed;
+end;
+$$;
+
 create table if not exists x_ingest_runs (
   id uuid primary key default gen_random_uuid(),
   status text not null default 'running'

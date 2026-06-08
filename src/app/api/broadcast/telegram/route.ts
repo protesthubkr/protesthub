@@ -1,0 +1,154 @@
+import { NextRequest, NextResponse } from "next/server";
+import {
+  broadcastPendingTelegramEvents,
+  broadcastPublishedEventToTelegram,
+} from "@/lib/telegram/event-broadcasts";
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+export async function GET(request: NextRequest) {
+  return handleTelegramBroadcastRequest(request);
+}
+
+export async function POST(request: NextRequest) {
+  return handleTelegramBroadcastRequest(request);
+}
+
+async function handleTelegramBroadcastRequest(request: NextRequest) {
+  if (!isAuthorized(request)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    const options = await parseBroadcastOptions(request);
+    const result = options.eventId
+      ? await broadcastPublishedEventToTelegram(options.eventId, {
+          dryRun: options.dryRun,
+          targetDate: options.targetDate,
+        })
+      : await broadcastPendingTelegramEvents({
+          dryRun: options.dryRun,
+          limit: options.limit,
+          targetDate: options.targetDate,
+        });
+
+    return NextResponse.json(result);
+  } catch (error) {
+    if (error instanceof TelegramBroadcastRequestError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
+    return NextResponse.json(
+      {
+        error: error instanceof Error ? error.message : String(error),
+      },
+      { status: 500 },
+    );
+  }
+}
+
+function isAuthorized(request: NextRequest) {
+  const secrets = [
+    process.env.CRON_SECRET,
+    process.env.BROADCAST_SECRET,
+    process.env.INGEST_SECRET,
+  ].filter((secret): secret is string => Boolean(secret));
+
+  if (secrets.length === 0 && process.env.NODE_ENV !== "production") {
+    return true;
+  }
+
+  const authorization = request.headers.get("authorization");
+  return secrets.some((secret) => authorization === `Bearer ${secret}`);
+}
+
+class TelegramBroadcastRequestError extends Error {}
+
+async function parseBroadcastOptions(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams;
+  const body = request.method === "POST" ? await parseJsonBody(request) : {};
+  const eventId = getStringOption(body.eventId) ?? searchParams.get("eventId");
+  const limitValue = getStringOption(body.limit) ?? searchParams.get("limit");
+  const targetDateValue =
+    getStringOption(body.targetDate) ?? searchParams.get("targetDate");
+  const dryRunValue =
+    getStringOption(body.dryRun) ?? searchParams.get("dryRun");
+
+  return {
+    dryRun: parseOptionalBoolean(dryRunValue) ?? false,
+    eventId: eventId?.trim() || undefined,
+    limit: parseLimit(limitValue),
+    targetDate: parseTargetDate(targetDateValue),
+  };
+}
+
+async function parseJsonBody(request: NextRequest) {
+  const contentType = request.headers.get("content-type") ?? "";
+
+  if (!contentType.includes("application/json")) {
+    return {} as Record<string, unknown>;
+  }
+
+  const body = (await request.json()) as unknown;
+
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    throw new TelegramBroadcastRequestError("Invalid JSON body.");
+  }
+
+  return body as Record<string, unknown>;
+}
+
+function getStringOption(value: unknown) {
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (typeof value === "number") {
+    return String(value);
+  }
+
+  return undefined;
+}
+
+function parseLimit(value: string | null | undefined) {
+  if (!value) {
+    return undefined;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+
+  if (!Number.isFinite(parsed) || parsed < 1 || parsed > 50) {
+    throw new TelegramBroadcastRequestError("Invalid limit.");
+  }
+
+  return parsed;
+}
+
+function parseTargetDate(value: string | null | undefined) {
+  if (!value) {
+    return undefined;
+  }
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    throw new TelegramBroadcastRequestError("Invalid targetDate.");
+  }
+
+  return value;
+}
+
+function parseOptionalBoolean(value: string | null | undefined) {
+  if (value === null || value === undefined) {
+    return undefined;
+  }
+
+  if (value === "true" || value === "1") {
+    return true;
+  }
+
+  if (value === "false" || value === "0") {
+    return false;
+  }
+
+  throw new TelegramBroadcastRequestError("Invalid boolean option.");
+}
