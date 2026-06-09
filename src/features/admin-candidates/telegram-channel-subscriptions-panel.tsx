@@ -46,10 +46,10 @@ export function TelegramChannelSubscriptionsPanel({
   );
 
   useEffect(() => {
-    if (addState.status === "success" || scanState.status === "success") {
+    if (addState.refreshKey || scanState.refreshKey) {
       router.refresh();
     }
-  }, [addState.status, router, scanState.status]);
+  }, [addState.refreshKey, router, scanState.refreshKey]);
 
   return (
     <section

@@ -1,24 +1,17 @@
 import { getStringParam, isAdminSecretValid } from "@/lib/admin-auth";
 import {
-  CANDIDATE_REVIEW_SCOPE_LABELS,
-  CANDIDATE_REVIEW_SCOPES,
-  CANDIDATE_STATUS_FILTERS,
-  CANDIDATE_STATUS_LABELS,
-  type CandidateReviewScope,
-  type CandidateStatusFilter,
   getReviewCandidates,
   parseCandidatePageParam,
   parseCandidateReviewScope,
   parseCandidateStatusFilter,
 } from "@/lib/admin-candidates";
 import { getTelegramChannelSubscriptions } from "@/lib/telegram/channel-subscription-repository";
+import { AdminControlPanels } from "./admin-control-panels";
+import { AdminUnauthorized } from "./admin-unauthorized";
 import { CandidateCard } from "./candidate-card";
+import { CandidateScopeTabs, CandidateStatusTabs } from "./candidate-filter-tabs";
 import { AdminCandidatesLoadMore } from "./load-more-trigger";
-import { ManualTelegramLinkForm } from "./manual-telegram-link-form";
-import { ManualXPostForm } from "./manual-x-post-form";
 import { getAdminCandidatesHref } from "./navigation";
-import { TelegramChannelSubscriptionsPanel } from "./telegram-channel-subscriptions-panel";
-import { XIngestControlPanel } from "./x-ingest-control-panel";
 
 type AdminCandidatesPageProps = {
   searchParams: Promise<{
@@ -62,18 +55,13 @@ export async function AdminCandidatesPage({
         </p>
       </header>
 
-      <div className="admin-control-panels">
-        <XIngestControlPanel secret={secret} />
-        <TelegramChannelSubscriptionsPanel
-          currentPage={page}
-          currentStatus={status}
-          scope={scope}
-          secret={secret}
-          subscriptions={subscriptions}
-        />
-        <ManualXPostForm secret={secret} />
-        <ManualTelegramLinkForm secret={secret} />
-      </div>
+      <AdminControlPanels
+        currentPage={page}
+        currentStatus={status}
+        scope={scope}
+        secret={secret}
+        subscriptions={subscriptions}
+      />
 
       <CandidateStatusTabs
         counts={counts}
@@ -120,73 +108,5 @@ export async function AdminCandidatesPage({
         </section>
       )}
     </main>
-  );
-}
-
-function AdminUnauthorized() {
-  return (
-    <main className="admin-shell">
-      <section className="admin-empty">
-        <p className="admin-kicker">관리자 접근 필요</p>
-        <h1>검수 화면을 열 수 없습니다</h1>
-        <p>
-          URL에 `?secret=INGEST_SECRET`을 붙여 접근하세요. 로컬 MVP 보호
-          방식이며, 배포 전에는 별도 관리자 인증으로 바꾸는 것을 전제로 합니다.
-        </p>
-      </section>
-    </main>
-  );
-}
-
-function CandidateStatusTabs({
-  counts,
-  scope,
-  secret,
-  status,
-}: {
-  counts: Record<CandidateStatusFilter, number>;
-  scope: CandidateReviewScope;
-  secret: string;
-  status: CandidateStatusFilter;
-}) {
-  return (
-    <nav className="admin-status-tabs" aria-label="후보 상태 필터">
-      {CANDIDATE_STATUS_FILTERS.map((item) => (
-        <a
-          aria-current={item === status ? "page" : undefined}
-          className={item === status ? "is-active" : ""}
-          href={getAdminCandidatesHref({ secret, status: item, scope })}
-          key={item}
-        >
-          <span>{CANDIDATE_STATUS_LABELS[item]}</span>
-          <strong>{counts[item]}</strong>
-        </a>
-      ))}
-    </nav>
-  );
-}
-
-function CandidateScopeTabs({
-  scope,
-  secret,
-  status,
-}: {
-  scope: CandidateReviewScope;
-  secret: string;
-  status: CandidateStatusFilter;
-}) {
-  return (
-    <nav className="admin-scope-tabs" aria-label="검수 범위">
-      {CANDIDATE_REVIEW_SCOPES.map((item) => (
-        <a
-          aria-current={item === scope ? "page" : undefined}
-          className={item === scope ? "is-active" : ""}
-          href={getAdminCandidatesHref({ secret, status, scope: item })}
-          key={item}
-        >
-          {CANDIDATE_REVIEW_SCOPE_LABELS[item]}
-        </a>
-      ))}
-    </nav>
   );
 }

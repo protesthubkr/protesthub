@@ -1,11 +1,35 @@
-import { analyzePastEventNotice } from "@/lib/event-date-filter";
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { buildCandidateRows } from "./candidate-rows";
+import { getCollectionMode } from "./collection-mode";
 import { getXIngestConfig, XIngestConfigError } from "./config";
 import {
-  type AccountIngestCursor,
-  type PostCursor,
+  buildDiscoveredCandidateRows,
+  upsertDiscoveredPostsByAuthor,
+} from "./discovered-posts";
+import { refreshFollowingAccounts } from "./following-accounts";
+import {
+  createEmptyHydratedTimeline,
+  hydrateCandidatePosts,
+} from "./run-hydration";
+import {
+  createMediaMap,
+  createPostMap,
+  dedupeMedia,
+} from "./run-media";
+import {
+  MAX_ACCOUNT_LOOKBACK_DAYS,
+  chooseLatestPostCursor,
+  createRequestCursor,
+  filterPostsAfterStartTime,
+  maxIsoTime,
+  subtractDaysIso,
+} from "./run-cursor";
+import {
+  fetchRetweetedOriginalPosts,
+  isRetweetWrapper,
+} from "./retweet-discovery";
+import {
+  type AccountIngestCursorUpdate,
   createEmptyIngestCounters,
   createIngestRun,
   finishIngestRun,
@@ -13,36 +37,15 @@ import {
   getCollectibleStoredAccounts,
   insertDiscoveredAccounts,
   insertCandidateRows,
-  updateAccountIngestCursor,
-  upsertAccounts,
+  updateAccountIngestCursors,
   upsertMedia,
   upsertPostMedia,
   upsertPosts,
 } from "./repository";
-import type {
-  XIngestResult,
-  XIngestRunOptions,
-  XMedia,
-  XPost,
-  XUser,
-} from "./types";
-import {
-  fetchFollowingAccounts,
-  fetchPostsByIds,
-  fetchUserPosts,
-  XApiError,
-} from "./x-api";
-import {
-  getPostText,
-  getPostUrl,
-  getReferencedPostIds,
-  shouldReviewCandidate,
-} from "./normalize";
-import type { XPostDiscovery } from "./candidate-rows";
+import type { XIngestResult, XIngestRunOptions } from "./types";
+import { fetchUserPosts, XApiError } from "./x-api";
 
 export { XApiError, XIngestConfigError };
-
-const MAX_ACCOUNT_LOOKBACK_DAYS = 30;
 
 export async function runXIngest(
   options: XIngestRunOptions = {},
@@ -96,6 +99,7 @@ export async function runXIngest(
     reviewPastEventNotices,
   });
   const counters = createEmptyIngestCounters();
+  const cursorUpdates: AccountIngestCursorUpdate[] = [];
 
   try {
     const collectibleAccounts = shouldRefreshFollowing
@@ -184,36 +188,40 @@ export async function runXIngest(
         postsForStorage,
         new Set(media.map((item) => item.media_key)),
       );
-      counters.candidatesCreated += await insertCandidateRows(
-        supabase,
-        [
-          ...buildCandidateRows({
-            account,
-            hydrateMode,
-            posts: regularPostsForStorage,
-            mediaByKey,
-            reviewPastEventNotices,
-          }),
-          ...buildDiscoveredCandidateRows({
-            authors: retweetedOriginals.authors,
-            discoveryByPostId: retweetedOriginals.discoveryByPostId,
-            mediaByKey,
-            posts: retweetedOriginals.posts,
-            reviewPastEventNotices,
-          }),
-        ],
-      );
+      const candidateInsertResult = await insertCandidateRows(supabase, [
+        ...buildCandidateRows({
+          account,
+          hydrateMode,
+          posts: regularPostsForStorage,
+          mediaByKey,
+          reviewPastEventNotices,
+        }),
+        ...buildDiscoveredCandidateRows({
+          authors: retweetedOriginals.authors,
+          discoveryByPostId: retweetedOriginals.discoveryByPostId,
+          mediaByKey,
+          posts: retweetedOriginals.posts,
+          reviewPastEventNotices,
+        }),
+      ]);
+
+      counters.candidatesCreated += candidateInsertResult.created;
+      counters.candidatesPromoted += candidateInsertResult.promoted;
+      counters.ignoredCandidatesCreated +=
+        candidateInsertResult.ignoredCreated;
+      counters.needsReviewCandidatesCreated +=
+        candidateInsertResult.needsReviewCreated;
       if (!retweetOriginalsOnly) {
-        await updateAccountIngestCursor({
+        cursorUpdates.push({
           accountId: account.id,
           checkedAt: new Date().toISOString(),
           latestPost: chooseLatestPostCursor(cursor, posts),
           runId,
-          supabase,
         });
       }
     }
 
+    await updateAccountIngestCursors(supabase, cursorUpdates);
     await finishIngestRun(supabase, runId, "succeeded", counters);
 
     return {
@@ -225,255 +233,6 @@ export async function runXIngest(
     await finishIngestRun(supabase, runId, "failed", counters, error);
     throw error;
   }
-}
-
-function createEmptyHydratedTimeline() {
-  return { data: [], includes: { media: [], tweets: [], users: [] } };
-}
-
-async function fetchRetweetedOriginalPosts({
-  bearerToken,
-  ignoredAuthorIds,
-  posts,
-  retweetedByAccount,
-}: {
-  bearerToken: string;
-  ignoredAuthorIds?: Set<string>;
-  posts: XPost[];
-  retweetedByAccount: XUser;
-}) {
-  const retweets = posts.flatMap((post) =>
-    getReferencedPostIds(post, "retweeted").map((originalPostId) => ({
-      originalPostId,
-      wrapperPost: post,
-    })),
-  );
-  const originalPostIds = Array.from(
-    new Set(retweets.map((retweet) => retweet.originalPostId)),
-  );
-
-  if (originalPostIds.length === 0) {
-    return {
-      authors: [],
-      discoveryByPostId: new Map<string, XPostDiscovery>(),
-      media: [],
-      posts: [],
-    };
-  }
-
-  const response = await fetchPostsByIds({
-    bearerToken,
-    postIds: originalPostIds,
-  });
-  const retweetByOriginalPostId = new Map(
-    retweets.map((retweet) => [retweet.originalPostId, retweet.wrapperPost]),
-  );
-  const discoveryByPostId = new Map<string, XPostDiscovery>();
-  const discoveredPosts = (response.data ?? []).filter(
-    (post) => post.author_id && !ignoredAuthorIds?.has(post.author_id),
-  );
-  const discoveredAuthorIds = new Set(
-    discoveredPosts
-      .map((post) => post.author_id)
-      .filter((authorId): authorId is string => Boolean(authorId)),
-  );
-  const discoveredMediaKeys = new Set(
-    discoveredPosts.flatMap((post) => post.attachments?.media_keys ?? []),
-  );
-
-  for (const post of discoveredPosts) {
-    const wrapperPost = retweetByOriginalPostId.get(post.id);
-
-    if (!wrapperPost) {
-      continue;
-    }
-
-    discoveryByPostId.set(post.id, {
-      discoveredAt: wrapperPost.created_at,
-      sourceAccountId: retweetedByAccount.id,
-      sourceAccountName: retweetedByAccount.name,
-      sourcePostId: wrapperPost.id,
-      sourcePostUrl: getPostUrl(retweetedByAccount, wrapperPost),
-      type: "retweet",
-    });
-  }
-
-  return {
-    authors:
-      response.includes?.users?.filter((author) =>
-        discoveredAuthorIds.has(author.id),
-      ) ?? [],
-    discoveryByPostId,
-    media: dedupeMedia(
-      response.includes?.media?.filter((item) =>
-        discoveredMediaKeys.has(item.media_key),
-      ) ?? [],
-    ),
-    posts: discoveredPosts,
-  };
-}
-
-async function upsertDiscoveredPostsByAuthor({
-  authors,
-  posts,
-  runId,
-  supabase,
-}: {
-  authors: XUser[];
-  posts: XPost[];
-  runId: string;
-  supabase: SupabaseClient;
-}) {
-  let written = 0;
-
-  for (const [authorId, authorPosts] of groupPostsByAuthor(posts)) {
-    const author = authors.find((item) => item.id === authorId);
-
-    if (!author) {
-      continue;
-    }
-
-    written += await upsertPosts(supabase, runId, author, authorPosts);
-  }
-
-  return written;
-}
-
-function buildDiscoveredCandidateRows({
-  authors,
-  discoveryByPostId,
-  mediaByKey,
-  posts,
-  reviewPastEventNotices,
-}: {
-  authors: XUser[];
-  discoveryByPostId: Map<string, XPostDiscovery>;
-  mediaByKey: Map<string, XMedia>;
-  posts: XPost[];
-  reviewPastEventNotices: boolean;
-}) {
-  return Array.from(groupPostsByAuthor(posts)).flatMap(
-    ([authorId, authorPosts]) => {
-      const author = authors.find((item) => item.id === authorId);
-
-      if (!author) {
-        return [];
-      }
-
-      return buildCandidateRows({
-        account: author,
-        discoveryByPostId,
-        hydrateMode: "candidate_posts_only",
-        mediaByKey,
-        posts: authorPosts,
-        reviewPastEventNotices,
-      });
-    },
-  );
-}
-
-function groupPostsByAuthor(posts: XPost[]) {
-  const groups = new Map<string, XPost[]>();
-
-  for (const post of posts) {
-    if (!post.author_id) {
-      continue;
-    }
-
-    groups.set(post.author_id, [...(groups.get(post.author_id) ?? []), post]);
-  }
-
-  return groups;
-}
-
-function isRetweetWrapper(post: XPost) {
-  return getReferencedPostIds(post, "retweeted").length > 0;
-}
-
-async function refreshFollowingAccounts({
-  bearerToken,
-  maxAccounts,
-  operatingUserId,
-  supabase,
-}: {
-  bearerToken: string;
-  maxAccounts: number;
-  operatingUserId: string;
-  supabase: SupabaseClient;
-}) {
-  const followingAccounts = await fetchFollowingAccounts({
-    bearerToken,
-    operatingUserId,
-    maxAccounts,
-  });
-
-  await upsertAccounts(supabase, followingAccounts);
-
-  return followingAccounts.filter((account) => !account.protected);
-}
-
-function getCollectionMode({
-  isBackfill,
-  retweetOriginalsOnly,
-  shouldRefreshFollowing,
-}: {
-  isBackfill: boolean;
-  retweetOriginalsOnly: boolean;
-  shouldRefreshFollowing: boolean;
-}) {
-  if (retweetOriginalsOnly) {
-    return isBackfill
-      ? "retweet_original_backfill_from_start_time"
-      : "retweet_original_cursor_probe";
-  }
-
-  if (isBackfill) {
-    return "bounded_backfill_from_start_time";
-  }
-
-  return shouldRefreshFollowing
-    ? "following_refresh_account_cursor_incremental"
-    : "account_cursor_incremental";
-}
-
-async function hydrateCandidatePosts({
-  bearerToken,
-  posts,
-  reviewPastEventNotices,
-}: {
-  bearerToken: string;
-  posts: XPost[];
-  reviewPastEventNotices: boolean;
-}) {
-  const postIds = posts
-    .filter((post) =>
-      shouldHydrateCandidatePost({ post, reviewPastEventNotices }),
-    )
-    .map((post) => post.id);
-
-  if (postIds.length === 0) {
-    return { data: [], includes: { media: [], tweets: [], users: [] } };
-  }
-
-  return fetchPostsByIds({ bearerToken, postIds });
-}
-
-function shouldHydrateCandidatePost({
-  post,
-  reviewPastEventNotices,
-}: {
-  post: XPost;
-  reviewPastEventNotices: boolean;
-}) {
-  if (!shouldReviewCandidate(post, [])) {
-    return false;
-  }
-
-  if (reviewPastEventNotices) {
-    return true;
-  }
-
-  return !analyzePastEventNotice(getPostText(post)).ignoredAsPast;
 }
 
 function getMissingSupabaseEnvKeys() {
@@ -488,132 +247,4 @@ function getMissingSupabaseEnvKeys() {
   }
 
   return missingKeys;
-}
-
-function filterPostsAfterStartTime(posts: XPost[], startTime?: string) {
-  return posts.filter((post) => isPostOnOrAfterStartTime(post, startTime));
-}
-
-function isPostOnOrAfterStartTime(post: XPost, startTime?: string) {
-  if (!startTime) {
-    return true;
-  }
-
-  if (!post.created_at) {
-    return false;
-  }
-
-  return Date.parse(post.created_at) >= Date.parse(startTime);
-}
-
-function createRequestCursor({
-  cursor,
-  effectiveRequestedStartTime,
-  oldestAllowedStartTime,
-}: {
-  cursor: AccountIngestCursor | undefined;
-  effectiveRequestedStartTime: string | undefined;
-  oldestAllowedStartTime: string;
-}) {
-  if (effectiveRequestedStartTime) {
-    return {
-      source: "requested_start_time",
-      startTime: effectiveRequestedStartTime,
-    };
-  }
-
-  if (
-    cursor?.sinceId &&
-    cursor.lastIngestedPostCreatedAt &&
-    cursor.lastIngestedPostCreatedAt >= oldestAllowedStartTime
-  ) {
-    return {
-      sinceId: cursor.sinceId,
-      source: cursor.source,
-    };
-  }
-
-  return {
-    source: cursor?.source ?? "none",
-    startTime: maxIsoTime(
-      cursor?.lastIngestedAt ??
-        cursor?.lastIngestedPostCreatedAt ??
-        oldestAllowedStartTime,
-      oldestAllowedStartTime,
-    ),
-  };
-}
-
-function chooseLatestPostCursor(
-  cursor: AccountIngestCursor | undefined,
-  posts: XPost[],
-) {
-  return pickNewerPostCursor(getCursorPost(cursor), getNewestPostCursor(posts));
-}
-
-function getCursorPost(cursor: AccountIngestCursor | undefined) {
-  if (!cursor?.sinceId || !cursor.lastIngestedPostCreatedAt) {
-    return undefined;
-  }
-
-  return {
-    createdAt: cursor.lastIngestedPostCreatedAt,
-    postId: cursor.sinceId,
-  } satisfies PostCursor;
-}
-
-function getNewestPostCursor(posts: XPost[]) {
-  return posts.reduce<PostCursor | undefined>((newestPost, post) => {
-    if (!post.created_at) {
-      return newestPost;
-    }
-
-    const timestamp = Date.parse(post.created_at);
-
-    if (!Number.isFinite(timestamp)) {
-      return newestPost;
-    }
-
-    const createdAt = new Date(timestamp).toISOString();
-    const currentPost = { createdAt, postId: post.id } satisfies PostCursor;
-
-    return pickNewerPostCursor(newestPost, currentPost);
-  }, undefined);
-}
-
-function pickNewerPostCursor(
-  currentPost: PostCursor | undefined,
-  nextPost: PostCursor | undefined,
-) {
-  if (!currentPost) {
-    return nextPost;
-  }
-
-  if (!nextPost) {
-    return currentPost;
-  }
-
-  return Date.parse(nextPost.createdAt) > Date.parse(currentPost.createdAt)
-    ? nextPost
-    : currentPost;
-}
-
-function subtractDaysIso(value: string, days: number) {
-  return new Date(Date.parse(value) - days * 24 * 60 * 60 * 1000).toISOString();
-}
-
-function maxIsoTime(value: string, minValue: string) {
-  return Date.parse(value) > Date.parse(minValue) ? value : minValue;
-}
-
-function createPostMap(posts: XPost[]) {
-  return new Map(posts.map((post) => [post.id, post]));
-}
-
-function createMediaMap(media: XMedia[]) {
-  return new Map(media.map((item) => [item.media_key, item]));
-}
-
-function dedupeMedia(media: XMedia[]) {
-  return Array.from(createMediaMap(media).values());
 }

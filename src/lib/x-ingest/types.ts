@@ -100,4 +100,7 @@ export type XIngestResult = {
   postsSeen: number;
   postsWritten: number;
   candidatesCreated: number;
+  candidatesPromoted: number;
+  ignoredCandidatesCreated: number;
+  needsReviewCandidatesCreated: number;
 };

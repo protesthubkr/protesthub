@@ -34,6 +34,7 @@ export async function addTelegramChannelSubscriptionFromAdmin(
 
     return {
       status: "success",
+      refreshKey: Date.now(),
       message: `${subscription.channelTitle} 채널을 구독 목록에 추가했습니다.`,
     };
   } catch (error) {
@@ -65,6 +66,7 @@ export async function runTelegramChannelScanFromAdmin(
 
     return {
       status: "success",
+      refreshKey: Date.now(),
       message:
         result.channelsScanned === 0
           ? "수집할 활성 텔레그램 채널이 없습니다."

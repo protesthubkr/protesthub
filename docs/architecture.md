@@ -1,6 +1,7 @@
 ﻿# ProtestHub Architecture
 
 이 문서는 구현자와 LLM 에이전트가 ProtestHub의 책임 경계와 데이터 흐름을 빠르게 파악하기 위한 기준 문서다.
+입장문 피드의 단계별 운영 계획은 `docs/statement-feed-roadmap.md`를 함께 본다.
 
 ## 핵심 원칙
 
@@ -16,11 +17,17 @@
 ```text
 src/app/
   page.tsx                       공개 목록 route. 초기 데이터 조립 결과를 클라이언트 shell에 전달한다.
+  statements/page.tsx            입장문 핵심 원문 문장 공개 피드 route. 행/프로필/날짜 그룹은 같은 폴더의 `statement-*` 파일에 둔다.
   events/[id]/page.tsx           공개 상세 route. id 단건 조회를 수행한다.
   admin/candidates/page.tsx      내부 검수 route.
   api/events/route.ts            공개 목록 추가 로드 API. 다음 1주치 occurrence만 반환한다.
   api/events/calendar/route.ts   월 캘린더 요약 API. 날짜별 count와 최대 4개 샘플만 반환한다.
   api/ingest/x/route.ts          X 수집 API.
+  api/ingest/telegram-statements/route.ts 텔레그램 입장문 피드 자동 수집 API.
+  api/ingest/telegram-statement-extractions/route.ts 입장문 pending 후보 소량 추출 API.
+  api/ingest/telegram-statement-extraction-batches/route.ts 입장문 backfill Batch API.
+  api/ingest/party-statements/route.ts 정당 사이트 입장문 수집/즉시 추출 API.
+  api/ingest/statement-topics/route.ts 텔레그램 confirmed topic 생성과 정당 문서 매칭 API.
 
 src/features/public-events/
   home-page-data.ts              공개 첫 화면 서버 데이터 조립. URL query, 목록 window, 캘린더 초깃값을 묶는다.
@@ -43,6 +50,9 @@ src/features/public-events/
 
 src/features/admin-candidates/
   page.tsx                       검수 화면 조립.
+  admin-control-panels.tsx       X/텔레그램/수동 추가 control panel 조립.
+  candidate-filter-tabs.tsx      검수 상태/범위 tab 렌더링.
+  admin-unauthorized.tsx         관리자 secret 누락/오류 화면.
   candidate-card.tsx             후보 카드 레이아웃 조립.
   candidate-processing-forms.tsx 후보 OCR/구조화/이미지 보강 폼.
   candidate-status-forms.tsx     후보 상태 변경 버튼.
@@ -100,13 +110,101 @@ src/lib/telegram/
   manual-link-types.ts           텔레그램 수동 링크 공통 타입과 strategy 상수.
   message-images.ts              텔레그램 메시지 HTML의 이미지 URL 추출 공용 util.
 
+src/lib/telegram-statements/
+  run.ts                         입장문 피드용 10분 자동 수집 오케스트레이션.
+  channel-scan.ts                채널 단위 lock, 수집, 저장 흐름.
+  message-collection.ts          신규/백필 텔레그램 메시지 페이지 수집.
+  scan-cursor.ts                 메시지 cursor, cutoff, page 중단 조건.
+  run-config.ts                  스캔 page/window/lock TTL 설정.
+  repository.ts                  기존 import 경로 유지를 위한 repository barrel.
+  repository-client.ts           service-role Supabase client guard.
+  repository-scan.ts             스캔 저장소 compatibility barrel.
+  repository-scan-run.ts         텔레그램 입장문 scan run 생성/종료.
+  repository-subscription.ts     요약 피드 대상 채널 조회.
+  repository-scan-state.ts       전용 cursor/lock 상태 저장.
+  repository-message-upsert.ts   원문 메시지와 pending 후보 저장.
+  repository-extraction.ts       추출 저장소 compatibility barrel.
+  repository-extraction-query.ts pending/queued 후보와 원문 본문 조회.
+  repository-extraction-status.ts extracted/skipped/failed/queued 상태 저장.
+  repository-batch.ts            OpenAI Batch row 생성, 제출, 완료 결과 저장.
+  classifier.ts                  텍스트 본문 기준 성명/논평/입장문/보도자료/규탄/환영 후보 판정.
+  rule-extractor.ts              rule 기반 핵심 문장 선택 오케스트레이션.
+  rule-patterns.ts               rule extractor 정규식/threshold.
+  rule-candidates.ts             rule 후보 수집.
+  rule-scoring.ts                rule 후보 점수화.
+  rule-headline.ts / rule-opening.ts 첫머리 우선 추출.
+  extractor.ts                   OpenAI 추출 facade.
+  extraction-request.ts          Responses API 요청 body와 호출.
+  extraction-output.ts           Responses 출력 파싱/sanitize.
+  extraction-result.ts           원문 포함 검증과 결과 변환.
+  sentence-match.ts              exact/whitespace-normalized 원문 위치 매칭.
+  batch.ts                       backfill용 Batch orchestration.
+  batch-openai.ts                OpenAI Batch/File 호출.
+  batch-prepare.ts               Batch row 준비와 queued lock.
+  batch-import.ts                Batch 결과 import.
+  extraction-run.ts              pending 후보 소량 처리와 extracted/skipped/failed 상태 갱신.
+  public-feed.ts                 공개 `/statements` 피드 조회 orchestration.
+  public-feed-sources.ts         텔레그램/정당 공개 row 조회.
+  public-feed-time.ts            시간 미상/정렬 정책.
+  types.ts                       입장문 피드 수집 타입.
+
+src/lib/party-statements/
+  run.ts                         정당 사이트 수집 전체 orchestration.
+  source-runner.ts               source별 목록/상세 fetch와 저장 흐름.
+  summary-extraction.ts          정당 summary 즉시 추출/품질 게이트.
+  sources.ts                     정당 source 목록과 sourceKey 필터.
+  sources/people-power.ts        국민의힘 HTML parser.
+  sources/theminjoo.ts           더불어민주당 HTML parser.
+  sources/reform-party.ts        개혁신당 HTML parser.
+  repository.ts                  정당 저장소 compatibility barrel.
+  source-repository.ts           source scan 상태 저장.
+  document-repository.ts         정당 원문 document 저장/본문 조회.
+  summary-repository.ts          summary 후보와 추출 상태 저장.
+  public-repository.ts           공개 summary 조회.
+  html.ts                        정당 사이트 fetch, HTML 정리, 날짜/category mapping util.
+  types.ts                       정당 사이트 수집 타입.
+
+src/lib/statement-topics/
+  run.ts                         topic gate 실행 순서 오케스트레이션.
+  embedding-prep.ts              텔레그램/정당 row embedding 준비.
+  embedding-cache.ts             topic embedding 재사용/생성과 DB 저장.
+  clustering.ts                  텔레그램 extracted row clustering과 best-match 선택.
+  topic-persistence.ts           confirmed telegram topic 저장.
+  party-matching.ts              정당 row를 confirmed/cross-source topic에 매칭.
+  cross-source-topic.ts          텔레그램-정당 직접 매칭 topic 저장.
+  lexical-support.ts             0.4대 embedding 유사도 보강용 소재 어휘 검증.
+  types.ts                       topic matching 내부 공유 타입.
+  repository.ts                  topic 저장소 compatibility barrel.
+  summary-repository.ts          매칭 대상 텔레그램/정당 summary 조회.
+  embedding-repository.ts        embedding row 조회/저장.
+  topic-repository.ts            topic/link 저장.
+  party-gate-repository.ts       정당 topic gate 상태 저장.
+  embedding.ts                   OpenAI Embeddings API 호출과 cosine similarity 계산.
+  config.ts                      topic window, threshold, embedding model 설정.
+
 src/lib/x-ingest/
   run.ts                         수집 오케스트레이션.
-  repository.ts                  Supabase 읽기/쓰기와 저장된 X post 첨부 키 조회.
+  repository.ts                  X 저장소 compatibility barrel.
+  ingest-run-repository.ts       ingest run 생성/종료와 counters.
+  account-repository.ts          계정 저장소 compatibility barrel.
+  account-storage-repository.ts  계정 저장/조회.
+  account-cursor-repository.ts   계정별 수집 cursor 조회/갱신.
+  post-repository.ts             X post 저장.
+  media-repository.ts            source_media와 post-media link 저장.
+  candidate-repository.ts        review candidate 저장.
   candidate-rows.ts              review_candidates row 생성.
-  candidate-detail-hydration.ts  관리자 요청 기반 X 상세 수집.
+  candidate-detail-hydration.ts  관리자 요청 기반 X 상세 수집 orchestration.
+  candidate-detail-repository.ts 상세 수집 대상 조회와 후보 update.
   hydration-state.ts             상세 수집 전/완료, 첨부 키 병합, hydrate 사유 판정.
-  normalize.ts                   X post 텍스트 클리닝과 후보 기준.
+  normalize.ts                   X normalize compatibility barrel.
+  normalize-rules.ts             후보 생성/검수 heuristic.
+  normalize-signals.ts           텍스트/미디어 신호 계산.
+  normalize-keywords.ts          X 후보 키워드/정규식.
+  normalize-text.ts              X post 본문/URL/media key helper.
+  review-promotion.ts            ignored 후보 승격 orchestration.
+  review-promotion-decision.ts   ignored 후보 승격 판정.
+  review-promotion-repository.ts ignored 후보 조회/승격 update.
+  review-promotion-overlap.ts    공개 일정 중복 추정.
   x-api.ts                       X API 호출.
   config.ts                      환경변수 파싱.
 
@@ -225,6 +323,33 @@ public_event_occurrences
 9. 텔레그램 채널 수집은 OCR이나 LLM 구조화를 자동 실행하지 않는다. 관리자가 검수 카드에서 필요할 때 이미지 불러오기, OCR, 본문 구조화를 실행한다.
 10. 텔레그램 이미지가 자동으로 붙지 않은 후보는 검수 카드의 "텔레그램 이미지 불러오기"로 원본 메시지를 다시 읽고 `source_media`, 후보 `media_keys`를 갱신한다.
 11. 채널 구독을 삭제해도 이미 만들어진 검수 후보는 삭제하지 않는다. 후보의 공개/무시/중복 처리는 기존 검수 흐름에서 별도로 한다.
+
+## Telegram 입장문 피드 자동 수집
+
+1. `/api/ingest/telegram-statements`는 Vercel Cron이 10분마다 `GET`으로 호출한다.
+2. 이 API는 Bearer `CRON_SECRET`을 검증하고, `dryRun=true`, `channel=<username>`, `maxPages=<n>` query를 지원한다.
+3. 채널 목록은 기존 `telegram_channel_subscriptions`를 재사용하되 `statement_feed_enabled = true`인 active 채널만 본다. 기본 제외 채널은 `workers2016`, `platformc`, `leftall`이다.
+4. 기존 수동 텔레그램 후보 수집의 `last_checked_message_id`는 변경하지 않는다. 첫 자동 실행의 시작점으로 읽기만 하고, 이후에는 `telegram_statement_scan_states`의 전용 cursor만 갱신한다.
+5. 원문 텍스트가 있는 새 메시지는 `telegram_statement_messages`에 저장한다. 이미지-only 또는 본문이 없는 메시지는 OCR 없이 제외한다.
+6. `classifier.ts`가 성명, 논평, 입장문, 기자회견문, 보도자료, 규탄/환영 문건 또는 강한 입장 표명을 텍스트 룰로 판정하고, 후보는 `telegram_statement_summaries`에 `status = pending`으로 저장한다.
+7. `/api/ingest/telegram-statement-extractions`는 pending 후보를 읽고 먼저 `rule-extractor.ts`로 명확한 핵심 원문 문장을 찾는다. 성공하면 OpenAI를 호출하지 않고 `model = rule-v1`로 저장한다.
+8. rule 추출이 애매하면 `extractor.ts`가 OpenAI로 핵심 원문 문장 1개를 선택한다. 모델 입력은 `OPENAI_STATEMENT_EXTRACTION_INPUT_CHARS`만큼 앞부분으로 제한할 수 있지만, 선택 문장이 `telegram_statement_messages.text_snapshot` 전체에 실제로 포함되지 않으면 저장하지 않고 실패 처리한다.
+9. backfill처럼 pending이 많은 경우 `/api/ingest/telegram-statement-extraction-batches` `POST`가 OpenAI Batch job을 만들고 대상 row를 `queued`로 잠근다. 완료 후 같은 route의 `GET ?batchId=<id>&importResults=true`가 결과를 가져와 `extracted/skipped/failed`로 마무리한다.
+10. `telegram_statement_summaries`는 공개 조회를 대비해 `status = extracted` row만 anon/authenticated가 읽을 수 있다. 수집 원문과 cursor/run/batch 테이블은 service-role 전용이다.
+11. `/statements`는 `telegram_statement_summaries.status = extracted` row를 최신순으로 보여주며, 각 행은 원본 텔레그램 메시지 링크로 연결한다.
+
+## 정당 사이트 입장문 자동 수집
+
+1. `/api/ingest/party-statements`는 Vercel Cron이 1시간마다 `GET`으로 호출한다.
+2. 이 API는 Bearer `CRON_SECRET`을 검증하고, `dryRun=true`, `source=<key>`, `limit=<n>` query를 지원한다.
+3. 1단계 source는 국민의힘 `people_power_party`, 더불어민주당 `theminjoo`, 개혁신당 `reform_party`다. 조국혁신당은 제외한다.
+4. parser는 category가 `성명`, `성명서`, `논평`, `브리핑`, `서면브리핑`, `기자회견문`인 항목만 저장한다. 일반 `보도자료`는 제외한다.
+5. 상세 HTML 본문 텍스트만 사용하며 OCR은 쓰지 않는다.
+6. 저장된 본문은 기존 입장문 추출 흐름과 같이 rule 우선, OpenAI fallback, 전체 원문 exact-match 검증을 거친다.
+7. `/api/ingest/statement-topics`는 최근 48시간의 텔레그램 `extracted` row를 embedding cluster로 묶고, 서로 다른 텔레그램 출처 2곳 이상이 포함된 cluster를 confirmed topic으로 저장한다.
+8. 텔레그램끼리 confirmed topic이 없어도 정당 사이트 row와 텔레그램 row의 embedding 유사도가 `STATEMENT_TOPIC_CROSS_SOURCE_THRESHOLD` 이상이면 cross-source topic으로 저장하고 정당 사이트 row를 `matched` 처리한다.
+9. 정당 사이트 `extracted` row는 confirmed topic 또는 cross-source topic과 embedding 매칭될 때 `topic_gate_status = matched`가 된다. 매칭되지 않으면 `unmatched`로 남고 공개되지 않는다.
+10. `/statements`는 텔레그램 extracted row와 `topic_gate_status in ('matched', 'manual_matched')`인 정당 사이트 row를 합쳐 최신순으로 보여준다.
 
 ## X 수집
 

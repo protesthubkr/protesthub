@@ -46,6 +46,7 @@ async function handleIngestRequest(request: NextRequest) {
       return NextResponse.json(
         {
           error: "X API request failed",
+          attempts: error.attempts,
           status: error.status,
         },
         { status: 502 },

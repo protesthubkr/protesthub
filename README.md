@@ -52,6 +52,8 @@ X 기반 수집을 실행하려면 `supabase/schema.sql`을 적용하고 `.env.e
 - `X_POSTS_PER_ACCOUNT`: 계정별로 한 번에 가져올 최대 포스트 수, 기본 10
 - `X_MAX_FOLLOWING_ACCOUNTS`: 팔로잉 계정 조회 상한, 기본 100
 - `X_INCLUDE_REPLIES`: replies 수집 여부, 기본 `false`
+- `X_API_MAX_RETRIES`: X API 429/5xx 응답 재시도 횟수, 기본 2
+- `X_API_RETRY_BASE_DELAY_MS`: X API 재시도 기본 대기 시간(ms), 기본 1000
 - `OPENAI_API_KEY`: 검수 화면의 포스터 OCR 실행용
 - `OPENAI_OCR_MODEL`: OCR에 사용할 OpenAI 모델, 기본 `gpt-5-mini`
 - `OPENAI_OCR_IMAGE_DETAIL`: 이미지 입력 세부 수준, 기본 `high`
@@ -73,6 +75,87 @@ curl -X POST http://localhost:3000/api/ingest/x \
 http://localhost:3000/admin/candidates?secret=INGEST_SECRET
 ```
 
+## Telegram statement feed
+
+Run the statement feed collector with `GET /api/ingest/telegram-statements`.
+The route is protected by Bearer `CRON_SECRET`, and `vercel.json` schedules it
+every 10 minutes.
+
+```bash
+curl "http://localhost:3000/api/ingest/telegram-statements?dryRun=true" \
+  -H "Authorization: Bearer $CRON_SECRET"
+```
+
+The collector reads active `telegram_channel_subscriptions` rows with
+`statement_feed_enabled = true`. It keeps a separate cursor in
+`telegram_statement_scan_states`, so it does not mutate the manual Telegram
+candidate scan cursor. OCR is not used; only Telegram message body text can
+create `telegram_statement_summaries.status = pending` rows.
+
+Pending rows are processed by `GET /api/ingest/telegram-statement-extractions`.
+The extractor first tries a conservative local rule extractor. If no clear
+source sentence is found, it calls OpenAI to choose one exact source sentence.
+Only rows where the chosen sentence is found in the full original Telegram text
+are published. Extracted rows are visible at `/statements`.
+
+For large backfills, create a discounted OpenAI Batch job with:
+
+```bash
+curl -X POST "http://localhost:3000/api/ingest/telegram-statement-extraction-batches?limit=200" \
+  -H "Authorization: Bearer $CRON_SECRET"
+```
+
+When the returned `openaiBatchId` is complete, sync and import results with:
+
+```bash
+curl "http://localhost:3000/api/ingest/telegram-statement-extraction-batches?batchId=$OPENAI_BATCH_ID&importResults=true" \
+  -H "Authorization: Bearer $CRON_SECRET"
+```
+
+`OPENAI_STATEMENT_EXTRACTION_INPUT_CHARS` limits the Telegram text sent to the
+model, while exact-match validation still uses the full stored source text.
+`OPENAI_STATEMENT_PROMPT_CACHE_KEY` keeps repeated extraction prompts cache
+friendly.
+
+Party statement pages are collected with `GET /api/ingest/party-statements`.
+This route is also protected by Bearer `CRON_SECRET`, and `vercel.json`
+schedules it hourly. The first implementation includes 국민의힘, 더불어민주당,
+and 개혁신당. 조국혁신당 is excluded, and plain `보도자료` rows are excluded.
+Party rows are only shown publicly after `/api/ingest/statement-topics` matches
+them to a topic signal. A topic can be confirmed either by extracted Telegram
+statements from at least two different channels, or by a direct Telegram-party
+embedding match above `STATEMENT_TOPIC_CROSS_SOURCE_THRESHOLD`.
+
+```bash
+curl "http://localhost:3000/api/ingest/party-statements?dryRun=true&limit=5" \
+  -H "Authorization: Bearer $CRON_SECRET"
+```
+
+```bash
+curl "http://localhost:3000/api/ingest/statement-topics?dryRun=true&limit=100" \
+  -H "Authorization: Bearer $CRON_SECRET"
+```
+
+Recent statement backfills can be orchestrated with one dry-run-first route:
+
+```bash
+curl "http://localhost:3000/api/ingest/statement-backfill?windowHours=48&dryRun=true&maxPages=60&extractionLimit=200&extractionPasses=5&partyLimit=200&topicLimit=500" \
+  -H "Authorization: Bearer $CRON_SECRET"
+```
+
+Use `dryRun=false` to write rows. Telegram backfill scans ignore the statement
+cursor and do not update `telegram_statement_scan_states`, so the 10-minute
+near-realtime scanner keeps its current position.
+
+Recent extracted statement rows can be rechecked with the quality gate. The
+route defaults to `dryRun=true`; use `source=telegram`, `source=party`, or
+`source=all`.
+
+```bash
+curl "http://localhost:3000/api/ingest/statement-quality-review?windowHours=48&source=all&dryRun=true&limit=500" \
+  -H "Authorization: Bearer $CRON_SECRET"
+```
+
 핵심 기획 문서는 상위 `docs/` 디렉터리에 있습니다.
 
 ## Architecture and maintenance
@@ -81,3 +164,4 @@ http://localhost:3000/admin/candidates?secret=INGEST_SECRET
 
 - `docs/architecture.md`: route, feature, lib 계층과 데이터 흐름
 - `docs/llm-maintenance.md`: LLM 에이전트용 작업 절차, 검증 체크리스트, 불변 조건
+- `docs/statement-feed-roadmap.md`: 입장문 피드 2차 이후 운영/기능 로드맵

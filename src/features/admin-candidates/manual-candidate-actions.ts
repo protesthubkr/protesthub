@@ -30,6 +30,7 @@ export async function addManualXPostCandidate(
 
     return {
       status: "success",
+      refreshKey: Date.now(),
       message: result.created
         ? `${result.sourceAccountName} 후보를 검수 대기에 추가했습니다.`
         : `${result.sourceAccountName} 후보를 검수 대기로 되돌렸습니다.`,
@@ -69,6 +70,7 @@ export async function addManualTelegramCandidate(
 
     return {
       status: "success",
+      refreshKey: Date.now(),
       message: result.created
         ? `${result.sourceName} 후보를 검수 대기에 추가했습니다.`
         : `${result.sourceName} 후보를 검수 대기로 되돌렸습니다.`,

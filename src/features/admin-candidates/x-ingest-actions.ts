@@ -8,7 +8,7 @@ import {
   previewIgnoredCandidatePromotion,
   promoteIgnoredCandidatesForReview,
 } from "@/lib/x-ingest/review-promotion";
-import { runXIngest } from "@/lib/x-ingest/run";
+import { runXIngest, XApiError } from "@/lib/x-ingest/run";
 import { assertAdmin, getRequiredString } from "./action-form-data";
 import type { XIngestControlState } from "./action-states";
 
@@ -29,6 +29,7 @@ export async function runXIngestFromAdmin(
 
       return {
         status: "success",
+        refreshKey: Date.now(),
         message:
           result.requested === 0
             ? "상세 수집이 필요한 검수 대기 후보가 없습니다."
@@ -41,6 +42,7 @@ export async function runXIngestFromAdmin(
 
       return {
         status: "success",
+        refreshKey: Date.now(),
         message: formatPromotionResultMessage("미리보기", result),
       };
     }
@@ -52,6 +54,7 @@ export async function runXIngestFromAdmin(
 
       return {
         status: "success",
+        refreshKey: Date.now(),
         message: formatPromotionResultMessage("승격 적용", result),
       };
     }
@@ -65,22 +68,43 @@ export async function runXIngestFromAdmin(
 
     return {
       status: "success",
+      refreshKey: Date.now(),
       message: [
         mode === "refresh_following"
           ? "팔로잉 목록을 갱신한 뒤 수집했습니다."
           : "저장된 계정 목록으로 수집했습니다.",
-        `계정 ${result.accountsSeen}개, 포스트 ${result.postsSeen}개, 신규 후보 ${result.candidatesCreated}건.`,
-      ].join(" "),
+        `계정 ${result.accountsSeen}개, 확인 포스트 ${result.postsSeen}개, 신규 저장 포스트 ${result.postsWritten}건.`,
+        `신규 후보 ${result.candidatesCreated}건(검수 대기 ${result.needsReviewCandidatesCreated}건, 무시 ${result.ignoredCandidatesCreated}건).`,
+        result.candidatesPromoted > 0
+          ? `기존 ignored 재검수 ${result.candidatesPromoted}건.`
+          : "",
+      ]
+        .filter(Boolean)
+        .join(" "),
     };
   } catch (error) {
     return {
       status: "error",
-      message:
-        error instanceof Error
-          ? error.message
-          : "X 수집을 실행하지 못했습니다.",
+      message: formatXIngestErrorMessage(error),
     };
   }
+}
+
+function formatXIngestErrorMessage(error: unknown) {
+  if (error instanceof XApiError) {
+    const retryText =
+      error.attempts > 1 ? `${error.attempts}회 시도 후에도 ` : "";
+
+    if (error.status === 503) {
+      return `X API가 일시적으로 불안정합니다(503). ${retryText}실패했습니다. 잠시 뒤 다시 실행해주세요.`;
+    }
+
+    return `X API 요청이 실패했습니다(${error.status}). ${retryText}수집을 완료하지 못했습니다.`;
+  }
+
+  return error instanceof Error
+    ? error.message
+    : "X 수집을 실행하지 못했습니다.";
 }
 
 function getXIngestMode(formData: FormData) {

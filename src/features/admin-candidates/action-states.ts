@@ -1,6 +1,7 @@
 export type AdminActionState = {
   status: "idle" | "success" | "error";
   message: string;
+  refreshKey?: number;
 };
 
 export type ManualCandidateFormState = AdminActionState & {

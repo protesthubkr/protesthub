@@ -34,11 +34,16 @@
 | 검수 OCR/구조화 실행 | `src/features/admin-candidates/candidate-ocr.ts`, `candidate-processing-actions.ts` |
 | 텔레그램 링크 후보 추가 | `src/features/admin-candidates/manual-telegram-link-form.tsx`, `src/lib/telegram/manual-link.ts`, `src/lib/telegram/manual-link-parser.ts`, `src/lib/telegram/manual-link-preview.ts`, `src/lib/telegram/manual-link-repository.ts` |
 | 텔레그램 채널 구독 수집 | `src/features/admin-candidates/telegram-channel-subscriptions-panel.tsx`, `src/lib/telegram/channel-subscription-scan.ts`, `src/lib/telegram/channel-subscription-repository.ts`, `src/lib/telegram/channel-candidate-ingest.ts`, `src/lib/telegram/channel-page.ts` |
+| 입장문 공개 피드 UI | `src/app/statements/page.tsx`, `statement-feed-list.tsx`, `statement-feed-row.tsx`, `statement-profile.ts`, `statement-date-groups.ts`, `src/lib/telegram-statements/public-feed.ts` |
+| 텔레그램 입장문 피드 수집/추출 | `src/app/api/ingest/telegram-statements/route.ts`, `src/app/api/ingest/telegram-statement-extractions/route.ts`, `src/app/api/ingest/telegram-statement-extraction-batches/route.ts`, `src/lib/telegram-statements/run.ts`, `channel-scan.ts`, `message-collection.ts`, `extraction-run.ts`, `rule-extractor.ts`, `extractor.ts`, `batch.ts`, `classifier.ts`, `repository.ts` |
+| 정당 사이트 입장문 피드 수집/추출 | `src/app/api/ingest/party-statements/route.ts`, `src/lib/party-statements/run.ts`, `source-runner.ts`, `summary-extraction.ts`, `sources.ts`, `sources/people-power.ts`, `sources/theminjoo.ts`, `sources/reform-party.ts`, `repository.ts`, `html.ts` |
+| 입장문 소재 topic gate | `src/app/api/ingest/statement-topics/route.ts`, `src/lib/statement-topics/run.ts`, `embedding-prep.ts`, `topic-persistence.ts`, `party-matching.ts`, `repository.ts`, `embedding.ts`, `embedding-cache.ts`, `clustering.ts`, `cross-source-topic.ts`, `lexical-support.ts`, `config.ts` |
 | 텔레그램 후보 이미지 수동 불러오기 | `src/lib/telegram/candidate-images.ts`, `src/lib/telegram/message-images.ts` |
 | 텔레그램 브리핑 발송 | `src/app/api/broadcast/telegram/route.ts`, `src/lib/telegram/event-broadcasts.ts`, `src/lib/telegram/event-broadcast-targets.ts`, `src/lib/telegram/event-broadcast-repository.ts`, `src/lib/telegram/event-broadcast-payload.ts`, `src/lib/telegram/broadcast.ts` |
 | 후보 출처 공통 라벨 | `src/lib/review-candidate-source.ts` |
-| X 수집 흐름 | `src/lib/x-ingest/run.ts`, `src/lib/x-ingest/candidate-detail-hydration.ts`, `repository.ts` |
-| X 후보 분류 | `src/lib/x-ingest/normalize.ts`, `candidate-rows.ts`, `hydration-state.ts` |
+| X 수집 흐름 | `src/lib/x-ingest/run.ts`, `collection-mode.ts`, `following-accounts.ts`, `run-cursor.ts`, `run-hydration.ts`, `repository.ts`, `candidate-detail-hydration.ts` |
+| X 후보 분류 | `src/lib/x-ingest/normalize.ts`, `normalize-rules.ts`, `normalize-signals.ts`, `normalize-keywords.ts`, `candidate-rows.ts`, `hydration-state.ts` |
+| ignored 후보 승격/복구 | `src/lib/x-ingest/review-promotion.ts`, `review-promotion-decision.ts`, `review-promotion-repository.ts`, `review-promotion-overlap.ts` |
 | LLM 프롬프트 | `src/lib/llm/structured-event-prompt.ts` |
 | LLM JSON schema | `src/lib/llm/structured-event-schema.ts` |
 | LLM 모델/env 설정 | `src/lib/llm/structured-event-config.ts` |
@@ -74,6 +79,7 @@
 - 공개 조회 날짜 정책은 `public-event-date-policy.ts`에 둔다. route, API, hook에 `today` clamp 로직을 직접 복제하지 않는다.
 - 한국 시간대 date key 계산은 `date-key.ts`를 사용한다. 수집 과거 일정 판정과 공개 조회 날짜 보정이 서로 다른 시간대 계산을 갖지 않게 한다.
 - DB row 생성과 DB 저장을 분리한다. row 생성은 순수 함수, 저장은 repository/서버 액션에 둔다.
+- 공개 entrypoint는 유지하고 내부 책임을 먼저 나눈다. orchestration은 실행 순서만, DB 저장은 목적별 repository 파일, heuristic/판정 룰은 별도 pure helper 파일에 둔다.
 - X 상세 수집 가능 여부, 첨부 키 병합, hydrate 사유 판정은 `hydration-state.ts`에 둔다.
 - 검수 후보는 `review_candidates`와 `source_type/source_record_id/source_name/source_url/review_reason`을 기준으로 다룬다. 오래된 `x_event_candidates`, `x_post_id`, `candidate_reason` 후보 모델로 되돌리지 않는다.
 - 공개 조회 row 변환, empty window 생성, 캘린더 요약은 `src/lib/event-query-model.ts`에 둔다.
@@ -84,6 +90,12 @@
 - 서버 액션 공통 FormData 파싱은 `action-form-data.ts`, action state 타입은 `action-states.ts`, 서버 전용 helper는 `action-utils.ts`에 둔다.
 - 공개/비공개 저장 규칙은 `candidate-publication.ts`, OCR update 생성은 `candidate-ocr.ts`에 둔다.
 - 텔레그램 구독 채널 수집은 `channel-subscription-scan.ts`가 순회를, `channel-subscription-repository.ts`가 구독 DB와 커서를, `channel-candidate-ingest.ts`가 후보/media 저장을 맡는다.
+- 텔레그램 입장문 피드 자동 수집은 `telegram-statements/run.ts`가 전체 순서를, `channel-scan.ts`가 채널 단위 lock/save를, `message-collection.ts`와 `scan-cursor.ts`가 페이지 수집/중단 조건을 맡는다. `repository.ts`와 `repository-scan.ts`는 기존 import 경로를 유지하는 barrel이다. 이 경로는 수동 구독 수집 cursor를 변경하지 않는다.
+- 입장문 핵심 문장 추출은 `rule-extractor.ts`가 명확한 원문 문장을 OpenAI 없이 먼저 고르고, 애매한 후보만 `extractor.ts` facade가 `extraction-request.ts`, `extraction-output.ts`, `extraction-result.ts`, `sentence-match.ts`를 통해 OpenAI 호출과 원문 포함 검증으로 처리한다. 모델이 만든 문장이 전체 원문에 없으면 공개하지 않는다.
+- pending backfill은 `batch.ts`와 `/api/ingest/telegram-statement-extraction-batches` route를 쓴다. batch에 실린 row는 `batch-prepare.ts`에서 `queued`로 잠그고, `batch-import.ts`가 결과 import 후에만 `extracted/skipped/failed`로 마무리한다.
+- 정당 사이트 입장문 수집은 `party-statements/sources.ts`의 사이트별 parser를 쓴다. 1단계 source는 국민의힘, 더불어민주당, 개혁신당이며 조국혁신당은 제외한다. 일반 `보도자료` category는 저장하지 않는다.
+- 정당 사이트 입장문은 topic gate를 통과해야 공개한다. `statement-topics/run.ts`는 실행 순서만 조율하고, `embedding-prep.ts`가 embedding 대상 조립을, `embedding-cache.ts`가 embedding 재사용/생성을, `clustering.ts`가 텔레그램 `extracted` row 군집화를, `topic-persistence.ts`가 confirmed topic 저장을, `party-matching.ts`와 `cross-source-topic.ts`가 정당 문서 매칭을, `lexical-support.ts`가 0.4대 embedding 유사도에 대한 소재 어휘 보강 검증을 맡는다.
+- X 수집은 `run.ts`가 순서만 조율한다. 계정 cursor는 `account-cursor-repository.ts`, post/media/candidate 저장은 각각 `post-repository.ts`, `media-repository.ts`, `candidate-repository.ts`, heuristic은 `normalize-*` 파일에 둔다.
 - 텔레그램 수동 링크 추가는 `manual-link.ts`를 진입점으로 두되, 링크 파싱은 `manual-link-parser.ts`, preview 수집은 `manual-link-preview.ts`, 후보/media 저장은 `manual-link-repository.ts`에 둔다.
 - 텔레그램 브리핑 발송은 `event-broadcasts.ts`를 진입점으로 두되, 대상 조회는 `event-broadcast-targets.ts`, claim/상태 저장은 `event-broadcast-repository.ts`, payload hash/dry-run은 `event-broadcast-payload.ts`, 날짜 정책은 `event-broadcast-dates.ts`에 둔다.
 - 사용처 없는 export, 오래된 호환 wrapper, 기본 scaffold asset은 제거한다.
@@ -139,6 +151,7 @@ git diff --check
 - 구독 채널 수집 커서는 `telegram_channel_subscriptions.last_checked_message_id`, `last_checked_message_at`, `last_checked_at`을 기준으로 한다. 신규 구독 채널은 첫 수집 때 최대 60일 전까지만 훑고, 이후에는 마지막 확인 이후 메시지만 후보화한다.
 - 텔레그램 구독 채널에서 온 메시지도 `shouldReviewCandidate()` 기준을 따른다. 구독 채널이라는 이유만으로 `needs_review`에 올리지 말고, 기준 미충족 또는 과거 일정은 `ignored`로 저장한다.
 - 구독 채널 수집은 OCR/LLM 구조화를 자동 실행하지 않는다. 검수 카드에서 관리자가 필요할 때 이미지 불러오기, OCR 또는 구조화를 실행한다.
+- 입장문 피드 수집도 OCR을 실행하지 않는다. 텔레그램 메시지 본문 텍스트에 대상 문건 신호가 있는 경우에만 `telegram_statement_summaries.status = pending`으로 저장한다.
 - 일반 `/api/ingest/x` 수집은 팔로잉 목록 API를 호출하지 않고 `x_accounts`의 캐시된 계정만 사용한다.
 - 팔로잉 목록을 새로 반영할 때는 `/admin/candidates`의 X 수집 실행 패널을 우선 사용하고, API 직접 실행이 필요할 때만 `/api/ingest/x?refreshFollowing=true`를 쓴다.
 - timeline 1차 요청에는 `expansions`, `media.fields`, `user.fields`를 붙이지 않는다.

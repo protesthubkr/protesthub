@@ -19,11 +19,11 @@ export function ManualTelegramLinkForm({ secret }: { secret: string }) {
   );
 
   useEffect(() => {
-    if (state.status === "success" && state.targetHref) {
+    if (state.refreshKey && state.targetHref) {
       router.replace(state.targetHref);
       router.refresh();
     }
-  }, [router, state.status, state.targetHref]);
+  }, [router, state.refreshKey, state.targetHref]);
 
   return (
     <section

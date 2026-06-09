@@ -1,59 +1,43 @@
-﻿import "server-only";
+import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { analyzePastEventNotice } from "@/lib/event-date-filter";
-import { getSupabaseAdminClient } from "@/lib/supabase-admin";
-import { getXIngestConfig, XIngestConfigError } from "./config";
+import {
+  getCandidateById,
+  getDeferredNeedsReviewCandidates,
+  getRequiredCandidateHydrationSupabase,
+  updateHydratedCandidate,
+} from "./candidate-detail-repository";
+import type {
+  CandidateDetailHydrationResult,
+  CandidateHydrationRow,
+} from "./candidate-detail-types";
+import { dedupeCandidates, findAuthor } from "./candidate-detail-utils";
+import { getXIngestConfig } from "./config";
+import { getMediaForPost } from "./normalize";
 import {
   createEmptyIngestCounters,
   createIngestRun,
   finishIngestRun,
-  getAttachmentMediaKeysByPostId,
   insertDiscoveredAccounts,
   upsertMedia,
   upsertPostMedia,
   upsertPosts,
 } from "./repository";
-import {
-  X_DETAIL_DEFERRED_REASON,
-  X_DETAIL_HYDRATED_REASON,
-  X_UNHYDRATED_MEDIA_REASON,
-  X_UNHYDRATED_QUOTE_REASON,
-  mergeCandidateMediaKeys,
-  needsCandidateDetailHydration,
-} from "./hydration-state";
-import {
-  getCandidateReasons,
-  getMediaForPost,
-  getPostText,
-  getPostUrl,
-  getReferencedPostIds,
-} from "./normalize";
-import type { XMedia, XPost, XUser } from "./types";
+import { createMediaMap, createPostMap, dedupeMedia } from "./run-media";
 import { fetchPostsByIds } from "./x-api";
 
 const DETAIL_HYDRATION_STRATEGY = "candidate_detail_hydration";
 const DEFAULT_PENDING_HYDRATION_LIMIT = 50;
 
-type CandidateHydrationRow = {
-  id: string;
-  source_record_id: string;
-  media_keys: string[] | null;
-  extraction_payload: Record<string, unknown> | null;
-  review_reason: string[] | null;
-};
-
-type CandidateDetailHydrationResult = {
-  requested: number;
-  hydrated: number;
-  skipped: number;
-  runId?: string;
-};
+export type {
+  CandidateDetailHydrationResult,
+  CandidateHydrationRow,
+} from "./candidate-detail-types";
 
 export async function hydrateCandidateDetail(
   candidateId: string,
 ): Promise<CandidateDetailHydrationResult> {
-  const supabase = getRequiredSupabase();
+  const supabase = getRequiredCandidateHydrationSupabase();
   const candidate = await getCandidateById(supabase, candidateId);
 
   if (!candidate) {
@@ -75,7 +59,7 @@ export async function hydratePendingCandidateDetails({
 }: {
   limit?: number;
 } = {}): Promise<CandidateDetailHydrationResult> {
-  const supabase = getRequiredSupabase();
+  const supabase = getRequiredCandidateHydrationSupabase();
   const candidates = await getDeferredNeedsReviewCandidates(supabase, limit);
 
   if (candidates.length === 0) {
@@ -174,191 +158,4 @@ async function hydrateCandidateRows({
     await finishIngestRun(supabase, runId, "failed", counters, error);
     throw error;
   }
-}
-
-async function updateHydratedCandidate({
-  account,
-  candidate,
-  media,
-  post,
-  responseErrors,
-  supabase,
-}: {
-  account: XUser;
-  candidate: CandidateHydrationRow;
-  media: XMedia[];
-  post: XPost;
-  responseErrors: unknown[];
-  supabase: SupabaseClient;
-}) {
-  const now = new Date().toISOString();
-  const postText = getPostText(post);
-  const quotedPostIds = getReferencedPostIds(post, "quoted");
-  const repliedToPostIds = getReferencedPostIds(post, "replied_to");
-  const mediaKeys = media.map((item) => item.media_key);
-  const nextPayload = {
-    ...(candidate.extraction_payload ?? {}),
-    needs_ocr: media.length > 0,
-    event_date_filter: analyzePastEventNotice(postText),
-    quoted_post_ids: quotedPostIds,
-    replied_to_post_ids: repliedToPostIds,
-    x_hydration: {
-      status: "hydrated",
-      mode: "admin_requested_detail",
-      hydrated_at: now,
-      media_count: media.length,
-      quoted_post_ids: quotedPostIds,
-      raw_x_payload_includes_errors: responseErrors,
-    },
-  };
-  const nextReasons = mergeHydrationReasons(
-    candidate.review_reason ?? [],
-    getCandidateReasons(post, media),
-  );
-
-  const { error } = await supabase
-    .from("review_candidates")
-    .update({
-      source_name: account.name,
-      source_url: getPostUrl(account, post),
-      text_snapshot: postText,
-      media_keys: mediaKeys,
-      extraction_payload: nextPayload,
-      review_reason: nextReasons,
-      updated_at: now,
-    })
-    .eq("id", candidate.id);
-
-  if (error) {
-    throw new Error(error.message);
-  }
-}
-
-async function getCandidateById(
-  supabase: SupabaseClient,
-  candidateId: string,
-) {
-  const { data, error } = await supabase
-    .from("review_candidates")
-    .select(
-      "id,source_record_id,media_keys,extraction_payload,review_reason",
-    )
-    .eq("id", candidateId)
-    .eq("source_type", "x")
-    .maybeSingle();
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return (data as CandidateHydrationRow | null) ?? null;
-}
-
-async function getDeferredNeedsReviewCandidates(
-  supabase: SupabaseClient,
-  limit: number,
-) {
-  const { data, error } = await supabase
-    .from("review_candidates")
-    .select(
-      "id,source_record_id,media_keys,extraction_payload,review_reason",
-    )
-    .eq("status", "needs_review")
-    .eq("source_type", "x")
-    .order("created_at", { ascending: false })
-    .limit(limit * 5);
-
-  if (error || !data) {
-    throw new Error(error?.message ?? "Failed to load candidates.");
-  }
-
-  const candidates = data as CandidateHydrationRow[];
-  const postMediaKeysByPostId = await getAttachmentMediaKeysByPostId(
-    supabase,
-    candidates.map((candidate) => candidate.source_record_id),
-  );
-
-  return candidates
-    .filter((candidate) =>
-      shouldHydrateCandidate(candidate, postMediaKeysByPostId),
-    )
-    .slice(0, limit);
-}
-
-function shouldHydrateCandidate(
-  candidate: CandidateHydrationRow,
-  postMediaKeysByPostId: Map<string, string[]>,
-) {
-  const mediaKeys = mergeCandidateMediaKeys(
-    candidate.media_keys,
-    postMediaKeysByPostId.get(candidate.source_record_id),
-  );
-
-  return needsCandidateDetailHydration(
-    candidate.extraction_payload,
-    mediaKeys,
-  );
-}
-
-function getRequiredSupabase() {
-  const supabase = getSupabaseAdminClient();
-
-  if (!supabase) {
-    throw new XIngestConfigError(getMissingSupabaseEnvKeys());
-  }
-
-  return supabase;
-}
-
-function getMissingSupabaseEnvKeys() {
-  const missingKeys: string[] = [];
-
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-    missingKeys.push("NEXT_PUBLIC_SUPABASE_URL");
-  }
-
-  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    missingKeys.push("SUPABASE_SERVICE_ROLE_KEY");
-  }
-
-  return missingKeys;
-}
-
-function mergeHydrationReasons(
-  currentReasons: string[],
-  nextReasons: string[],
-) {
-  const staleReasons = new Set([
-    X_DETAIL_DEFERRED_REASON,
-    X_UNHYDRATED_MEDIA_REASON,
-    X_UNHYDRATED_QUOTE_REASON,
-  ]);
-
-  return Array.from(
-    new Set([
-      ...currentReasons.filter((reason) => !staleReasons.has(reason)),
-      ...nextReasons,
-      X_DETAIL_HYDRATED_REASON,
-    ]),
-  );
-}
-
-function findAuthor(users: XUser[], post: XPost) {
-  return users.find((user) => user.id === post.author_id) ?? users[0];
-}
-
-function dedupeCandidates(rows: CandidateHydrationRow[]) {
-  return Array.from(new Map(rows.map((row) => [row.id, row])).values());
-}
-
-function createPostMap(posts: XPost[]) {
-  return new Map(posts.map((post) => [post.id, post]));
-}
-
-function createMediaMap(media: XMedia[]) {
-  return new Map(media.map((item) => [item.media_key, item]));
-}
-
-function dedupeMedia(media: XMedia[]) {
-  return Array.from(createMediaMap(media).values());
 }

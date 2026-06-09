@@ -76,7 +76,7 @@ export function formatKoreanDateTime(dateTime: string) {
 }
 
 export function formatTime(time: string | null) {
-  return time ?? "시간 미정";
+  return time ?? "--:--";
 }
 
 export function compareOccurrences(

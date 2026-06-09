@@ -20,10 +20,10 @@ export function XIngestControlPanel({ secret }: { secret: string }) {
   );
 
   useEffect(() => {
-    if (state.status === "success") {
+    if (state.refreshKey) {
       router.refresh();
     }
-  }, [router, state.status]);
+  }, [router, state.refreshKey]);
 
   return (
     <section
