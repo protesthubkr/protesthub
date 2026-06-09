@@ -22,14 +22,14 @@ type PublishFormDefaults = {
 
 export function getPublishFormDefaults(
   candidate: ReviewCandidate,
-  structuredEvent: StructuredEventResult,
+  structuredEvent: StructuredEventResult | null,
 ): PublishFormDefaults {
   const issueKeys = candidate.publicEvent
     ? candidate.publicEvent.issueTags
     : getPublishIssueKeys(structuredEvent);
 
   return {
-    address: candidate.publicEvent?.address ?? structuredEvent.address ?? "",
+    address: candidate.publicEvent?.address ?? structuredEvent?.address ?? "",
     dateRows: candidate.publicEvent
       ? getPublishPublicDateRows(candidate.publicEvent.dates)
       : getPublishDateRows(structuredEvent),
@@ -40,8 +40,8 @@ export function getPublishFormDefaults(
       ? candidate.publicEvent.primaryIssue
       : getPublishPrimaryIssue(structuredEvent, issueKeys),
     region: getPublishRegion(candidate, structuredEvent),
-    title: candidate.publicEvent?.title ?? structuredEvent.title ?? "",
-    venue: candidate.publicEvent?.venue ?? structuredEvent.venue ?? "",
+    title: candidate.publicEvent?.title ?? structuredEvent?.title ?? "",
+    venue: candidate.publicEvent?.venue ?? structuredEvent?.venue ?? "",
   };
 }
 
@@ -51,23 +51,23 @@ export function normalizeTimeInput(value: string | undefined) {
 
 function getPublishRegion(
   candidate: ReviewCandidate,
-  structuredEvent: StructuredEventResult,
+  structuredEvent: StructuredEventResult | null,
 ) {
   if (REGION_OPTIONS.includes(candidate.publicEvent?.region ?? "")) {
     return candidate.publicEvent?.region ?? "";
   }
 
-  if (REGION_OPTIONS.includes(structuredEvent.region ?? "")) {
-    return structuredEvent.region;
+  if (REGION_OPTIONS.includes(structuredEvent?.region ?? "")) {
+    return structuredEvent?.region ?? "";
   }
 
   return "";
 }
 
 function getPublishDateRows(
-  structuredEvent: StructuredEventResult,
+  structuredEvent: StructuredEventResult | null,
 ): PublishDateRow[] {
-  const dates = (structuredEvent.dates ?? [])
+  const dates = (structuredEvent?.dates ?? [])
     .map((date) => ({
       date: date.date ?? "",
       start_time: date.start_time ?? "",
@@ -95,11 +95,11 @@ function getPublishPublicDateRows(dates: EventDate[]): PublishDateRow[] {
   ];
 }
 
-function getPublishIssueKeys(structuredEvent: StructuredEventResult) {
-  const issueKeys = (structuredEvent.issue_tags ?? [])
+function getPublishIssueKeys(structuredEvent: StructuredEventResult | null) {
+  const issueKeys = (structuredEvent?.issue_tags ?? [])
     .map(getIssueKey)
     .filter((issue): issue is IssueKey => Boolean(issue));
-  const primaryIssue = getIssueKey(structuredEvent.primary_issue);
+  const primaryIssue = getIssueKey(structuredEvent?.primary_issue);
 
   if (primaryIssue) {
     issueKeys.unshift(primaryIssue);
@@ -109,10 +109,10 @@ function getPublishIssueKeys(structuredEvent: StructuredEventResult) {
 }
 
 function getPublishPrimaryIssue(
-  structuredEvent: StructuredEventResult,
+  structuredEvent: StructuredEventResult | null,
   issueKeys: IssueKey[],
 ) {
-  return getIssueKey(structuredEvent.primary_issue) ?? issueKeys[0] ?? "";
+  return getIssueKey(structuredEvent?.primary_issue) ?? issueKeys[0] ?? "";
 }
 
 function getIssueKey(value: string | undefined) {

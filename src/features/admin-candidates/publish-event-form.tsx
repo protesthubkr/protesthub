@@ -19,7 +19,7 @@ type PublishEventFormProps = {
   currentStatus: CandidateStatusFilter;
   scope: CandidateReviewScope;
   secret: string;
-  structuredEvent: StructuredEventResult;
+  structuredEvent: StructuredEventResult | null;
 };
 
 export function PublishEventForm({

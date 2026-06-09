@@ -81,6 +81,23 @@ export async function deletePublicEventIfPresent(
   return Boolean(data?.length);
 }
 
+export async function hasPublicEvent(
+  supabase: AdminSupabaseClient,
+  eventId: string,
+) {
+  const { data, error } = await supabase
+    .from("public_events")
+    .select("id")
+    .eq("id", eventId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return Boolean(data);
+}
+
 export function hasPublishedEventPayload(candidate: CandidatePublicationState) {
   return Boolean(
       candidate.extraction_payload?.published_event ||

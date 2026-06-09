@@ -54,6 +54,7 @@ export function CandidateCard({
     isOcrConfigured && hasMeaningfulPostText(candidate);
   const canRunExtraction =
     isOcrConfigured && hasMeaningfulExtractionText(candidate);
+  const canShowPublishForm = Boolean(structuredEvent || candidate.publicEvent);
 
   return (
     <article className="admin-candidate-card">
@@ -88,7 +89,7 @@ export function CandidateCard({
         />
       ) : null}
 
-      {structuredEvent ? (
+      {canShowPublishForm ? (
         <PublishEventForm
           candidate={candidate}
           currentPage={currentPage}

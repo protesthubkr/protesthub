@@ -46,6 +46,7 @@ import {
   getAdminStatusReasons,
   getCandidateForPublish,
   getCandidatePublicationState,
+  hasPublicEvent,
   hasPublishedEventPayload,
   removePublishedEventPayload,
   replacePublicationReasons,
@@ -418,7 +419,10 @@ export async function publishCandidateEvent(formData: FormData) {
 
   const candidate = await getCandidateForPublish(supabase, candidateId);
 
-  if (!getStoredStructuredEvent(candidate.extraction_payload)) {
+  if (
+    !getStoredStructuredEvent(candidate.extraction_payload) &&
+    !(await hasPublicEvent(supabase, candidateId))
+  ) {
     throw new Error("공개하려면 먼저 구조화 추출을 실행해야 합니다.");
   }
 
