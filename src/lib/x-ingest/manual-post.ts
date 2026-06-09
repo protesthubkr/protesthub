@@ -1,4 +1,4 @@
-import "server-only";
+﻿import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
@@ -26,7 +26,7 @@ const MONTH_REVIEW_TOKENS = ["6월", "7월", "8월", "6.", "06.", "7.", "07."];
 
 type ExistingCandidateRow = {
   id: string;
-  candidate_reason: string[];
+  review_reason: string[];
 };
 
 export type ManualXPostIngestResult = {
@@ -159,7 +159,7 @@ async function upsertManualCandidate({
 }) {
   const postText = getPostText(post);
   const sourcePostUrl = getPostUrl(account, post);
-  const reasons = mergeReasons(existingCandidate?.candidate_reason ?? [], [
+  const reasons = mergeReasons(existingCandidate?.review_reason ?? [], [
     ...getCandidateReasons(post, media),
     "manual_single_post",
     "manual_review_requested",
@@ -167,22 +167,24 @@ async function upsertManualCandidate({
   ]);
   const payload = {
     source: MANUAL_SINGLE_POST_STRATEGY,
+    source_type: "x",
     raw_x_payload_includes_errors: responseErrors,
   };
   const values = {
     status: "needs_review",
-    source_account_name: account.name,
-    source_post_url: sourcePostUrl,
+    source_type: "x",
+    source_name: account.name,
+    source_url: sourcePostUrl,
     text_snapshot: postText,
     media_keys: media.map((item) => item.media_key),
     extraction_payload: payload,
-    candidate_reason: reasons,
+    review_reason: reasons,
     updated_at: new Date().toISOString(),
   };
 
   if (existingCandidate) {
     const { data, error } = await supabase
-      .from("x_event_candidates")
+      .from("review_candidates")
       .update(values)
       .eq("id", existingCandidate.id)
       .select("id")
@@ -201,9 +203,9 @@ async function upsertManualCandidate({
   }
 
   const { data, error } = await supabase
-    .from("x_event_candidates")
+    .from("review_candidates")
     .insert({
-      x_post_id: post.id,
+      source_record_id: post.id,
       ...values,
     })
     .select("id")
@@ -226,9 +228,10 @@ async function getExistingCandidate(
   postId: string,
 ) {
   const { data, error } = await supabase
-    .from("x_event_candidates")
-    .select("id,candidate_reason")
-    .eq("x_post_id", postId)
+    .from("review_candidates")
+    .select("id,review_reason")
+    .eq("source_type", "x")
+    .eq("source_record_id", postId)
     .maybeSingle();
 
   if (error) {

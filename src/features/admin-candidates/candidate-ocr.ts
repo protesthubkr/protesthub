@@ -1,4 +1,4 @@
-import type { CandidateStatus } from "@/lib/admin-candidates";
+﻿import type { CandidateStatus } from "@/lib/admin-candidates";
 import { analyzePastEventNotice } from "@/lib/event-date-filter";
 import { runOpenAiPosterOcr, type OcrImage } from "@/lib/ocr/openai";
 import { getOcrCandidateReasons } from "@/lib/ocr/signals";
@@ -12,7 +12,7 @@ export type CandidateForOcr = {
   text_snapshot: string;
   media_keys: string[];
   extraction_payload: Record<string, unknown> | null;
-  candidate_reason: string[];
+  review_reason: string[];
 };
 
 type MediaForOcr = {
@@ -26,9 +26,9 @@ export async function getCandidateForOcr(
   candidateId: string,
 ) {
   const { data, error } = await supabase
-    .from("x_event_candidates")
+    .from("review_candidates")
     .select(
-      "id,status,text_snapshot,media_keys,extraction_payload,candidate_reason",
+      "id,status,text_snapshot,media_keys,extraction_payload,review_reason",
     )
     .eq("id", candidateId)
     .single();
@@ -59,7 +59,7 @@ export async function createCandidateOcrUpdate(candidate: CandidateForOcr) {
     `${candidate.text_snapshot}\n${ocr.text}`,
   );
   const nextReasons = mergeReasons(
-    candidate.candidate_reason,
+    candidate.review_reason,
     eventDateFilter.ignoredAsPast
       ? [...getOcrCandidateReasons(ocr.text), "past_event_date"]
       : getOcrCandidateReasons(ocr.text),
@@ -99,7 +99,7 @@ async function getMediaForOcr(mediaKeys: string[]) {
   }
 
   const { data, error } = await supabase
-    .from("x_media")
+    .from("source_media")
     .select("media_key,url,preview_image_url")
     .in("media_key", mediaKeys);
 

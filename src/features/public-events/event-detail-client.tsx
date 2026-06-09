@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useState } from "react";
@@ -38,12 +38,12 @@ export function EventDetailClient({ event }: { event: PublicEvent }) {
                 loading="lazy"
               />
             </button>
-            <SourcePostLink href={event.sourcePostUrl} label="트위터에서 보기" />
+            <SourcePostLink href={event.sourcePostUrl} label="원본 보기" />
           </section>
         ) : (
           <section className="detail-section detail-source-section">
             <h2>원본 출처</h2>
-            <SourcePostLink href={event.sourcePostUrl} label="트위터에서 보기" />
+            <SourcePostLink href={event.sourcePostUrl} label="원본 보기" />
           </section>
         )}
 
@@ -78,7 +78,7 @@ export function CanceledEventPage({ event }: { event: PublicEvent }) {
 
         <SourcePostLink
           href={event.cancelSourceUrl ?? event.sourcePostUrl}
-          label="취소 출처 트위터에서 보기"
+          label="취소 출처 보기"
         />
       </article>
     </main>
@@ -146,7 +146,7 @@ function SourcePostLink({ href, label }: { href: string; label: string }) {
   return (
     <a
       aria-label={`${label} 새 창 열기`}
-      className="twitter-source-button"
+      className="source-link-button"
       href={href}
       rel="noreferrer"
       target="_blank"

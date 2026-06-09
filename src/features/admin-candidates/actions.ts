@@ -1,10 +1,17 @@
-"use server";
+﻿"use server";
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { runStructuredExtractionForCandidate } from "@/lib/pipeline/structured-extraction";
 import { getStoredStructuredEvent } from "@/lib/structured-event-storage";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+import {
+  addTelegramChannelSubscription,
+  deleteTelegramChannelSubscription,
+  scanTelegramChannelSubscriptions,
+  updateTelegramChannelSubscriptionStatus,
+} from "@/lib/telegram/channel-subscriptions";
+import { ingestManualTelegramLink } from "@/lib/telegram/manual-link";
 import {
   hydrateCandidateDetail,
   hydratePendingCandidateDetails,
@@ -51,10 +58,14 @@ export type ManualXPostFormState = {
   targetHref?: string;
 };
 
+export type ManualTelegramLinkFormState = ManualXPostFormState;
+
 export type XIngestControlState = {
   status: "idle" | "success" | "error";
   message: string;
 };
+
+export type TelegramChannelControlState = XIngestControlState;
 
 export async function addManualXPostCandidate(
   _previousState: ManualXPostFormState,
@@ -87,6 +98,45 @@ export async function addManualXPostCandidate(
         error instanceof Error
           ? error.message
           : "X 포스트를 후보로 추가하지 못했습니다.",
+    };
+  }
+}
+
+export async function addManualTelegramCandidate(
+  _previousState: ManualTelegramLinkFormState,
+  formData: FormData,
+): Promise<ManualTelegramLinkFormState> {
+  const secret = getRequiredString(formData, "secret");
+  const telegramUrl = getTrimmedRequiredString(formData, "telegram_url");
+  const manualText = getOptionalString(formData, "telegram_message_text");
+
+  assertAdmin(secret);
+
+  try {
+    const result = await ingestManualTelegramLink({
+      manualText,
+      rawUrl: telegramUrl,
+    });
+    revalidatePath("/admin/candidates");
+
+    return {
+      status: "success",
+      message: result.created
+        ? `${result.sourceName} 후보를 검수 대기에 추가했습니다.`
+        : `${result.sourceName} 후보를 검수 대기로 되돌렸습니다.`,
+      targetHref: getAdminCandidatesHref({
+        secret,
+        status: "needs_review",
+        scope: "focused",
+      }),
+    };
+  } catch (error) {
+    return {
+      status: "error",
+      message:
+        error instanceof Error
+          ? error.message
+          : "텔레그램 링크를 후보로 추가하지 못했습니다.",
     };
   }
 }
@@ -162,6 +212,99 @@ export async function runXIngestFromAdmin(
   }
 }
 
+export async function addTelegramChannelSubscriptionFromAdmin(
+  _previousState: TelegramChannelControlState,
+  formData: FormData,
+): Promise<TelegramChannelControlState> {
+  const secret = getRequiredString(formData, "secret");
+  const channelInput = getTrimmedRequiredString(formData, "telegram_channel");
+
+  assertAdmin(secret);
+
+  try {
+    const subscription = await addTelegramChannelSubscription(channelInput);
+
+    revalidatePath("/admin/candidates");
+
+    return {
+      status: "success",
+      message: `${subscription.channelTitle} 채널을 구독 목록에 추가했습니다.`,
+    };
+  } catch (error) {
+    return {
+      status: "error",
+      message:
+        error instanceof Error
+          ? error.message
+          : "텔레그램 채널 구독을 추가하지 못했습니다.",
+    };
+  }
+}
+
+export async function runTelegramChannelScanFromAdmin(
+  _previousState: TelegramChannelControlState,
+  formData: FormData,
+): Promise<TelegramChannelControlState> {
+  const secret = getRequiredString(formData, "secret");
+  const subscriptionId = getOptionalString(formData, "subscription_id");
+
+  assertAdmin(secret);
+
+  try {
+    const result = await scanTelegramChannelSubscriptions({
+      subscriptionId: subscriptionId || undefined,
+    });
+
+    revalidatePath("/admin/candidates");
+
+    return {
+      status: "success",
+      message:
+        result.channelsScanned === 0
+          ? "수집할 활성 텔레그램 채널이 없습니다."
+          : `텔레그램 채널 ${result.channelsScanned}개에서 메시지 ${result.messagesSeen}건을 확인했고 신규 후보 ${result.candidatesCreated}건을 추가했습니다. 검수 대기 ${result.needsReviewCreated}건, 무시 ${result.ignoredCreated}건.`,
+    };
+  } catch (error) {
+    return {
+      status: "error",
+      message:
+        error instanceof Error
+          ? error.message
+          : "텔레그램 채널 수집을 실행하지 못했습니다.",
+    };
+  }
+}
+
+export async function updateTelegramChannelSubscriptionFromAdmin(
+  formData: FormData,
+) {
+  const secret = getRequiredString(formData, "secret");
+  const subscriptionId = getRequiredString(formData, "subscription_id");
+  const action = getRequiredString(formData, "subscription_action");
+  const returnState = getAdminReturnState(formData);
+
+  assertAdmin(secret);
+
+  if (action === "pause") {
+    await updateTelegramChannelSubscriptionStatus({
+      id: subscriptionId,
+      status: "paused",
+    });
+  } else if (action === "resume") {
+    await updateTelegramChannelSubscriptionStatus({
+      id: subscriptionId,
+      status: "active",
+    });
+  } else if (action === "delete") {
+    await deleteTelegramChannelSubscription(subscriptionId);
+  } else {
+    throw new Error("Invalid telegram subscription action.");
+  }
+
+  revalidatePath("/admin/candidates");
+  redirect(getAdminRedirectPath(secret, returnState));
+}
+
 function getXIngestMode(formData: FormData) {
   const mode = getRequiredString(formData, "mode");
 
@@ -215,7 +358,7 @@ export async function updateCandidateStatus(formData: FormData) {
   const adminStatusReasons = getAdminStatusReasons(status);
 
   const { error } = await supabase
-    .from("x_event_candidates")
+    .from("review_candidates")
     .update({
       status,
       ...(shouldClearPublication
@@ -223,14 +366,14 @@ export async function updateCandidateStatus(formData: FormData) {
             extraction_payload: removePublishedEventPayload(
               candidate.extraction_payload ?? {},
             ),
-            candidate_reason: replacePublicationReasons(
-              candidate.candidate_reason,
+            review_reason: replacePublicationReasons(
+              candidate.review_reason,
               ["unpublished_event", ...adminStatusReasons],
             ),
           }
         : {
-            candidate_reason: mergeReasons(
-              candidate.candidate_reason,
+            review_reason: mergeReasons(
+              candidate.review_reason,
               adminStatusReasons,
             ),
           }),
@@ -287,8 +430,8 @@ export async function publishCandidateEvent(formData: FormData) {
         venue,
         address,
         region,
-        source_account_name: candidate.source_account_name,
-        source_post_url: candidate.source_post_url,
+        source_account_name: candidate.source_name,
+        source_post_url: candidate.source_url,
         cancel_source_url: null,
         issue_tags: issueTags,
         primary_issue: primaryIssue,
@@ -333,11 +476,11 @@ export async function publishCandidateEvent(formData: FormData) {
   };
 
   const { error: candidateUpdateError } = await supabase
-    .from("x_event_candidates")
+    .from("review_candidates")
     .update({
       status: "published",
       extraction_payload: nextPayload,
-      candidate_reason: replacePublicationReasons(candidate.candidate_reason, [
+      review_reason: replacePublicationReasons(candidate.review_reason, [
         "published_event",
       ]),
       updated_at: now,
@@ -375,11 +518,11 @@ export async function unpublishCandidateEvent(formData: FormData) {
   );
 
   const { error: candidateUpdateError } = await supabase
-    .from("x_event_candidates")
+    .from("review_candidates")
     .update({
       status: "needs_review",
       extraction_payload: nextPayload,
-      candidate_reason: replacePublicationReasons(candidate.candidate_reason, [
+      review_reason: replacePublicationReasons(candidate.review_reason, [
         "unpublished_event",
       ]),
       updated_at: now,
@@ -409,7 +552,7 @@ export async function updateCandidateOcrText(formData: FormData) {
   }
 
   const { error } = await supabase
-    .from("x_event_candidates")
+    .from("review_candidates")
     .update({
       ocr_text: ocrText.trim() || null,
       updated_at: new Date().toISOString(),
@@ -441,12 +584,12 @@ export async function runCandidateOcr(formData: FormData) {
   const ocrUpdate = await createCandidateOcrUpdate(candidate);
 
   const { error: updateError } = await supabase
-    .from("x_event_candidates")
+    .from("review_candidates")
     .update({
       status: ocrUpdate.status,
       ocr_text: ocrUpdate.ocrText,
       extraction_payload: ocrUpdate.extractionPayload,
-      candidate_reason: ocrUpdate.candidateReason,
+      review_reason: ocrUpdate.candidateReason,
       updated_at: ocrUpdate.updatedAt,
     })
     .eq("id", candidateId);

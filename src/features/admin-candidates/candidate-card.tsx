@@ -5,6 +5,7 @@ import type {
 } from "@/lib/admin-candidates";
 import { CANDIDATE_STATUS_LABELS } from "@/lib/admin-candidates";
 import { formatKoreanDateTime } from "@/lib/format";
+import { getSourceViewLabel } from "@/lib/review-candidate-source";
 import {
   OcrMemoForm,
   RunOcrForm,
@@ -13,6 +14,7 @@ import {
   StatusButtonRow,
 } from "./candidate-action-forms";
 import { DetailHydrationAction } from "./detail-hydration-action";
+import { PublishEventForm } from "./publish-event-form";
 import { formatCandidateReason } from "./reason-labels";
 import {
   getCandidateStructuredEvent,
@@ -23,7 +25,6 @@ import {
   hasMeaningfulExtractionText,
   hasMeaningfulPostText,
 } from "./text-quality";
-import { PublishEventForm } from "./publish-event-form";
 
 type CandidateCardProps = {
   candidate: ReviewCandidate;
@@ -118,6 +119,7 @@ export function CandidateCard({
         scope={scope}
         secret={secret}
         candidateId={candidate.id}
+        sourceType={candidate.sourceType}
       />
       <RunStructuredExtractionForm
         canRun={canRunExtraction}
@@ -152,7 +154,7 @@ function CandidateHeader({
         <span className="admin-status-pill">
           {CANDIDATE_STATUS_LABELS[candidate.status]}
         </span>
-        <h2>{candidate.sourceAccountName}</h2>
+        <h2>{candidate.sourceName}</h2>
         <p>{formatKoreanDateTime(candidate.createdAt)}</p>
       </div>
       <div className="admin-candidate-header-actions">
@@ -167,11 +169,11 @@ function CandidateHeader({
         )}
         <a
           className="admin-source-link"
-          href={candidate.sourcePostUrl}
+          href={candidate.sourceUrl}
           rel="noreferrer"
           target="_blank"
         >
-          X에서 보기
+          {getSourceViewLabel(candidate.sourceType)}
         </a>
       </div>
     </header>
@@ -182,8 +184,10 @@ function CandidateSourceGrid({ candidate }: { candidate: ReviewCandidate }) {
   return (
     <div className="admin-candidate-grid">
       <section className="admin-candidate-section">
-        <h3>원문</h3>
-        <p className="admin-post-text">{candidate.textSnapshot || "본문 없음"}</p>
+        <h3>본문</h3>
+        <p className="admin-post-text">
+          {candidate.textSnapshot || "본문 없음"}
+        </p>
       </section>
 
       <section className="admin-candidate-section">
@@ -192,7 +196,7 @@ function CandidateSourceGrid({ candidate }: { candidate: ReviewCandidate }) {
           <div className="admin-media-grid">
             {candidate.media.map((media) => (
               <a
-                href={media.url ?? media.previewImageUrl ?? candidate.sourcePostUrl}
+                href={media.url ?? media.previewImageUrl ?? candidate.sourceUrl}
                 key={media.mediaKey}
                 rel="noreferrer"
                 target="_blank"
@@ -200,7 +204,7 @@ function CandidateSourceGrid({ candidate }: { candidate: ReviewCandidate }) {
                 {media.url || media.previewImageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    alt={media.altText ?? `${candidate.sourceAccountName} 이미지`}
+                    alt={media.altText ?? `${candidate.sourceName} 이미지`}
                     src={media.url ?? media.previewImageUrl ?? ""}
                   />
                 ) : (
@@ -212,7 +216,7 @@ function CandidateSourceGrid({ candidate }: { candidate: ReviewCandidate }) {
         ) : (
           <p className="admin-muted">
             {candidate.mediaKeys.length > 0
-              ? `상세 수집 전 첨부 ${candidate.mediaKeys.length}개`
+              ? `상세 수집 대기 중인 첨부 ${candidate.mediaKeys.length}개`
               : "첨부 이미지 없음"}
           </p>
         )}

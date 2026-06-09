@@ -151,7 +151,7 @@ export function formatTelegramEventMessage(
 function getTelegramEventButtons(event: PublicEvent): TelegramInlineKeyboardMarkup {
   const sourceUrl = event.cancelSourceUrl ?? event.sourcePostUrl;
   const sourceLabel =
-    event.status === "canceled" ? "취소 출처 트위터에서 보기" : "트위터에서 보기";
+    event.status === "canceled" ? "취소 출처 보기" : "원본 보기";
 
   return {
     inline_keyboard: [

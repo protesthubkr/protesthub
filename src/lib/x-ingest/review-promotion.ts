@@ -1,4 +1,4 @@
-import "server-only";
+﻿import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { analyzePastEventNotice } from "@/lib/event-date-filter";
@@ -9,7 +9,7 @@ import {
 } from "@/lib/x-ingest/normalize";
 import type { XPost } from "@/lib/x-ingest/types";
 
-const DEFAULT_PROMOTION_LIMIT = 1000;
+const IGNORED_CANDIDATE_PAGE_SIZE = 500;
 const REVIEW_PROMOTION_VERSION = "review_promotion_v1";
 const STRUCTURED_EVENT_CUE_PATTERN =
   /(?:일시|일정|일시와\s*장소|장소|집결|개최|시작|심문기일|현장\s*신청)/;
@@ -18,13 +18,14 @@ const MIGRATION_NON_EVENT_PATTERN =
 
 type CandidatePromotionRow = {
   id: string;
-  x_post_id: string;
-  source_account_name: string;
-  source_post_url: string;
+  source_record_id: string;
+  source_type: "x" | "telegram";
+  source_name: string;
+  source_url: string;
   text_snapshot: string;
   media_keys: string[] | null;
   extraction_payload: Record<string, unknown> | null;
-  candidate_reason: string[] | null;
+  review_reason: string[] | null;
   created_at: string;
   updated_at: string;
 };
@@ -88,10 +89,10 @@ async function runIgnoredCandidatePromotion({ apply }: { apply: boolean }) {
 
     if (result.samples.length < 5) {
       result.samples.push({
-        accountName: candidate.source_account_name,
+        accountName: candidate.source_name,
         id: candidate.id,
         reasons: decision.reviewReasons,
-        sourcePostUrl: candidate.source_post_url,
+        sourcePostUrl: candidate.source_url,
         text: compactText(candidate.text_snapshot, 120),
       });
     }
@@ -166,7 +167,7 @@ async function promoteCandidate(
       version: REVIEW_PROMOTION_VERSION,
     },
   };
-  const nextReasons = mergeReasons(candidate.candidate_reason ?? [], [
+  const nextReasons = mergeReasons(candidate.review_reason ?? [], [
     ...getCandidateReasons(createCandidatePost(candidate), []),
     "review_migration:ignored_to_needs_review",
     "review_migration_scope:strict_auto_ignored",
@@ -174,11 +175,11 @@ async function promoteCandidate(
   ]);
 
   const { error } = await supabase
-    .from("x_event_candidates")
+    .from("review_candidates")
     .update({
       status: "needs_review",
       extraction_payload: nextPayload,
-      candidate_reason: nextReasons,
+      review_reason: nextReasons,
       updated_at: now,
     })
     .eq("id", candidate.id);
@@ -189,20 +190,29 @@ async function promoteCandidate(
 }
 
 async function getIgnoredCandidates(supabase: SupabaseClient) {
-  const { data, error } = await supabase
-    .from("x_event_candidates")
-    .select(
-      "id,x_post_id,source_account_name,source_post_url,text_snapshot,media_keys,extraction_payload,candidate_reason,created_at,updated_at",
-    )
-    .eq("status", "ignored")
-    .order("created_at", { ascending: false })
-    .limit(DEFAULT_PROMOTION_LIMIT);
+  const candidates: CandidatePromotionRow[] = [];
 
-  if (error || !data) {
-    throw new Error(error?.message ?? "Failed to load ignored candidates.");
+  for (let from = 0; ; from += IGNORED_CANDIDATE_PAGE_SIZE) {
+    const to = from + IGNORED_CANDIDATE_PAGE_SIZE - 1;
+    const { data, error } = await supabase
+      .from("review_candidates")
+      .select(
+        "id,source_record_id,source_type,source_name,source_url,text_snapshot,media_keys,extraction_payload,review_reason,created_at,updated_at",
+      )
+      .eq("status", "ignored")
+      .order("created_at", { ascending: false })
+      .range(from, to);
+
+    if (error || !data) {
+      throw new Error(error?.message ?? "Failed to load ignored candidates.");
+    }
+
+    candidates.push(...(data as CandidatePromotionRow[]));
+
+    if (data.length < IGNORED_CANDIDATE_PAGE_SIZE) {
+      return candidates;
+    }
   }
-
-  return data as CandidatePromotionRow[];
 }
 
 async function getPublishedEvents(supabase: SupabaseClient) {
@@ -224,7 +234,7 @@ function createCandidatePost(candidate: CandidatePromotionRow): XPost {
   const mediaKeys = candidate.media_keys ?? [];
 
   return {
-    id: candidate.x_post_id,
+    id: candidate.source_record_id,
     text: candidate.text_snapshot,
     attachments: mediaKeys.length > 0 ? { media_keys: mediaKeys } : undefined,
   };
@@ -247,7 +257,7 @@ function isStrictAutoIgnoredCandidate(candidate: CandidatePromotionRow) {
 }
 
 function hasProtectedDecision(candidate: CandidatePromotionRow) {
-  const reasons = candidate.candidate_reason ?? [];
+  const reasons = candidate.review_reason ?? [];
 
   return reasons.some(
     (reason) =>
@@ -279,7 +289,7 @@ function overlapsPublishedEvent(
   const normalizedText = normalizeText(text);
 
   return events.some((event) => {
-    if (candidate.source_post_url === event.source_post_url) {
+    if (candidate.source_url === event.source_post_url) {
       return true;
     }
 

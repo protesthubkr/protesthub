@@ -1,4 +1,4 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+﻿import type { SupabaseClient } from "@supabase/supabase-js";
 import { getPostText, getPostUrl } from "./normalize";
 import type { XMedia, XPost, XUser } from "./types";
 import type { XEventCandidateInsertRow } from "./candidate-rows";
@@ -340,9 +340,10 @@ export async function upsertMedia(
     return;
   }
 
-  const { error } = await supabase.from("x_media").upsert(
+  const { error } = await supabase.from("source_media").upsert(
     media.map((item) => ({
       media_key: item.media_key,
+      source_type: "x",
       media_type: item.type,
       url: item.url ?? null,
       preview_image_url: item.preview_image_url ?? null,
@@ -440,7 +441,9 @@ export async function insertCandidateRows(
   rows: XEventCandidateInsertRow[],
 ) {
   const uniqueRows = Array.from(
-    new Map(rows.map((row) => [row.x_post_id, row])).values(),
+    new Map(
+      rows.map((row) => [`${row.source_type}:${row.source_record_id}`, row]),
+    ).values(),
   );
 
   if (uniqueRows.length === 0) {
@@ -448,9 +451,9 @@ export async function insertCandidateRows(
   }
 
   const { data, error } = await supabase
-    .from("x_event_candidates")
+    .from("review_candidates")
     .upsert(uniqueRows, {
-      onConflict: "x_post_id",
+      onConflict: "source_type,source_record_id",
       ignoreDuplicates: true,
     })
     .select("id");

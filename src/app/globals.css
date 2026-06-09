@@ -1,4 +1,4 @@
-@import "tailwindcss";
+﻿@import "tailwindcss";
 
 :root {
   --page-gutter: 16px;
@@ -735,7 +735,7 @@ button:disabled {
 .choice-button:focus-visible,
 .filter-sheet-header button:focus-visible,
 .step-tab:focus-visible,
-.twitter-source-button:focus-visible,
+.source-link-button:focus-visible,
 .back-link:focus-visible,
 .admin-shell a:focus-visible,
 .admin-shell button:focus-visible,
@@ -910,7 +910,7 @@ button:disabled {
 }
 
 .empty-state button,
-.twitter-source-button {
+.source-link-button {
   min-height: 48px;
   border: 0;
   border-radius: var(--radius-md);
@@ -926,7 +926,7 @@ button:disabled {
 }
 
 .empty-state button:active,
-.twitter-source-button:active {
+.source-link-button:active {
   transform: translateY(1px);
 }
 
@@ -1216,14 +1216,14 @@ button:disabled {
   box-shadow: 0 16px 34px rgb(15 23 42 / 12%);
 }
 
-.twitter-source-button {
+.source-link-button {
   display: grid;
   width: 100%;
   place-items: center;
   margin-top: var(--space-4);
 }
 
-.detail-source-section .twitter-source-button {
+.detail-source-section .source-link-button {
   margin-top: 0;
 }
 
@@ -1437,6 +1437,15 @@ button:disabled {
   line-height: 24px;
 }
 
+.admin-panel-heading-row {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.admin-panel-heading-row form {
+  align-self: start;
+}
+
 .admin-manual-add-panel p,
 .admin-manual-add-form label {
   margin: 0;
@@ -1465,19 +1474,30 @@ button:disabled {
   gap: var(--space-2);
 }
 
-.admin-manual-add-row input {
+.admin-manual-add-row input,
+.admin-manual-add-form textarea {
   width: 100%;
-  min-height: var(--touch-target);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-bg);
   color: var(--color-text);
-  padding: 0 12px;
   font: inherit;
   font-size: var(--font-size-small);
 }
 
-.admin-manual-add-row input:focus {
+.admin-manual-add-row input {
+  min-height: var(--touch-target);
+  padding: 0 12px;
+}
+
+.admin-manual-add-form textarea {
+  min-height: 104px;
+  padding: 10px 12px;
+  resize: vertical;
+}
+
+.admin-manual-add-row input:focus,
+.admin-manual-add-form textarea:focus {
   border-color: var(--color-primary);
 }
 
@@ -1486,6 +1506,17 @@ button:disabled {
   border: 1px solid var(--color-primary);
   border-radius: var(--radius-md);
   background: var(--color-primary);
+  color: var(--color-primary-text);
+  padding: 0 14px;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-bold);
+}
+
+.admin-button-dark {
+  min-height: var(--touch-target);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-text);
   color: var(--color-primary-text);
   padding: 0 14px;
   font-size: var(--font-size-small);
@@ -1509,13 +1540,98 @@ button:disabled {
 }
 
 .admin-manual-add-row button:disabled,
-.admin-ingest-control-actions button:disabled {
+.admin-ingest-control-actions button:disabled,
+.admin-button-dark:disabled {
   opacity: 0.62;
   cursor: wait;
 }
 
 .admin-manual-add-message {
   min-height: 20px;
+}
+
+.admin-telegram-subscription-panel {
+  gap: var(--space-4);
+}
+
+.admin-telegram-subscription-list {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.admin-telegram-subscription-row {
+  display: grid;
+  gap: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  padding: var(--space-3);
+}
+
+.admin-telegram-subscription-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text);
+}
+
+.admin-telegram-subscription-row a {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-small);
+  text-decoration: none;
+}
+
+.admin-telegram-subscription-row p {
+  margin-top: var(--space-1);
+}
+
+.admin-subscription-status {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  color: var(--color-text-muted);
+  padding: 0 8px;
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-bold);
+}
+
+.admin-subscription-status.is-active {
+  border-color: #bbf7d0;
+  background: #ecfdf3;
+  color: #166534;
+}
+
+.admin-subscription-error {
+  color: var(--color-danger) !important;
+}
+
+.admin-telegram-subscription-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.admin-telegram-subscription-actions form {
+  display: contents;
+}
+
+.admin-telegram-subscription-actions button {
+  min-height: 36px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  padding: 0 10px;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+}
+
+.admin-telegram-subscription-actions button:disabled {
+  opacity: 0.52;
+  cursor: not-allowed;
 }
 
 .admin-manual-add-message.is-error {
@@ -2044,6 +2160,12 @@ button:disabled {
   .admin-header {
     grid-template-columns: minmax(0, 1fr) minmax(280px, 420px);
     align-items: end;
+  }
+
+  .admin-panel-heading-row,
+  .admin-telegram-subscription-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
   }
 
   .admin-manual-add-panel {

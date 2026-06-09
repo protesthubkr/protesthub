@@ -15,14 +15,15 @@ import {
 import type { XHydrateMode, XMedia, XPost, XUser } from "./types";
 
 export type XEventCandidateInsertRow = {
-  x_post_id: string;
+  source_record_id: string;
+  source_type: "x";
   status: "needs_review" | "ignored";
-  source_account_name: string;
-  source_post_url: string;
+  source_name: string;
+  source_url: string;
   text_snapshot: string;
   media_keys: string[];
   extraction_payload: Record<string, unknown>;
-  candidate_reason: string[];
+  review_reason: string[];
 };
 
 export type XPostDiscovery = {
@@ -77,14 +78,16 @@ export function buildCandidateRows({
 
     return [
       {
-        x_post_id: post.id,
+        source_record_id: post.id,
+        source_type: "x",
         status,
-        source_account_name: account.name,
-        source_post_url: getPostUrl(account, post),
+        source_name: account.name,
+        source_url: getPostUrl(account, post),
         text_snapshot: postText,
         media_keys: mediaKeys,
         extraction_payload: {
           source: "x_ingest_heuristic_v2",
+          source_type: "x",
           needs_ocr: media.length > 0,
           event_date_filter: eventDateFilter,
           ...(discovery ? { discovery } : {}),
@@ -101,7 +104,7 @@ export function buildCandidateRows({
               hydrateMode === "deferred" ? quotedPostIds : [],
           },
         },
-        candidate_reason:
+        review_reason:
           eventDateFilter.ignoredAsPast || !shouldReview
             ? [
                 ...candidateReasons,

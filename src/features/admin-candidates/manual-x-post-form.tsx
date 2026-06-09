@@ -3,10 +3,7 @@
 import { useActionState, useEffect } from "react";
 import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
-import {
-  addManualXPostCandidate,
-  type ManualXPostFormState,
-} from "./actions";
+import { addManualXPostCandidate, type ManualXPostFormState } from "./actions";
 
 const INITIAL_STATE: ManualXPostFormState = {
   status: "idle",
@@ -35,7 +32,7 @@ export function ManualXPostForm({ secret }: { secret: string }) {
       </div>
       <form action={formAction} className="admin-manual-add-form">
         <input name="secret" type="hidden" value={secret} />
-        <label htmlFor="manual-x-post-url">포스트 URL</label>
+        <label htmlFor="manual-x-post-url">포스트 URL 또는 ID</label>
         <div className="admin-manual-add-row">
           <input
             autoComplete="off"

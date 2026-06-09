@@ -30,6 +30,9 @@
 | 검수 서버 액션 | `src/features/admin-candidates/actions.ts`, `action-form-data.ts` |
 | 공개/비공개 저장 | `src/features/admin-candidates/candidate-publication.ts`, `actions.ts` |
 | 검수 OCR 실행 | `src/features/admin-candidates/candidate-ocr.ts`, `actions.ts` |
+| 텔레그램 링크 후보 추가 | `src/features/admin-candidates/manual-telegram-link-form.tsx`, `src/lib/telegram/manual-link.ts` |
+| 텔레그램 채널 구독 수집 | `src/features/admin-candidates/telegram-channel-subscriptions-panel.tsx`, `src/lib/telegram/channel-subscriptions.ts` |
+| 후보 출처 공통 라벨 | `src/lib/review-candidate-source.ts` |
 | X 수집 흐름 | `src/lib/x-ingest/run.ts`, `src/lib/x-ingest/candidate-detail-hydration.ts`, `repository.ts` |
 | X 후보 분류 | `src/lib/x-ingest/normalize.ts`, `candidate-rows.ts`, `hydration-state.ts` |
 | LLM 프롬프트 | `src/lib/llm/structured-event-prompt.ts` |
@@ -68,6 +71,7 @@
 - 한국 시간대 date key 계산은 `date-key.ts`를 사용한다. 수집 과거 일정 판정과 공개 조회 날짜 보정이 서로 다른 시간대 계산을 갖지 않게 한다.
 - DB row 생성과 DB 저장을 분리한다. row 생성은 순수 함수, 저장은 repository/서버 액션에 둔다.
 - X 상세 수집 가능 여부, 첨부 키 병합, hydrate 사유 판정은 `hydration-state.ts`에 둔다.
+- 검수 후보는 `review_candidates`와 `source_type/source_record_id/source_name/source_url/review_reason`을 기준으로 다룬다. 오래된 `x_event_candidates`, `x_post_id`, `candidate_reason` 후보 모델로 되돌리지 않는다.
 - 공개 조회 row 변환, empty window 생성, 캘린더 요약은 `src/lib/event-query-model.ts`에 둔다.
 - OpenAI 호출, prompt, schema, 모델/env 설정, 응답 파싱, 저장 포맷을 한 파일에 합치지 않는다.
 - `src/app` route는 가능한 한 import와 prop 전달만 남긴다.
@@ -109,6 +113,8 @@ git diff --check
 - `/admin/candidates?secret=...`에서 후보 카드가 렌더링되는지 확인한다.
 - OCR/구조화 버튼은 실제 API 비용이 발생하므로 필요한 경우에만 누른다.
 - 공개 폼 기본값은 기존 공개 이벤트가 있는 후보와 없는 후보를 각각 확인한다.
+- 텔레그램 링크 후보는 공개 `t.me` 링크 1건을 입력해 `needs_review`로 생성되는지 확인한다. 비공개/미리보기 실패 링크는 본문 선택 입력으로 보완한다.
+- 텔레그램 구독 채널은 `/admin/candidates`에서 공개 채널을 추가한 뒤 "이 채널 수집"을 눌러 새 후보가 `source_type = telegram`, `review_reason`에 `telegram_channel_subscription`을 가진 채 생성되는지 확인한다.
 - `/api/ingest/x`는 Bearer secret과 함께 테스트한다. 백필은 `startDate=YYYY-MM-DD` 또는 `startTime=...` query로 실행하되, 실제 조회 시작점은 최대 30일 전으로 제한된다.
 - 구조화 추출은 상세설명과 evidence를 생성하지 않는다. 정확도가 더 중요하므로 기본 출력 예산은 `OPENAI_EXTRACTION_MAX_OUTPUT_TOKENS=6000` 수준으로 두고, GPT-5 계열 reasoning token 비용을 줄이기 위해 `OPENAI_EXTRACTION_REASONING_EFFORT=minimal`을 사용한다.
 - 구조화 프롬프트는 원문과 OCR을 임의로 잘라 넣지 않는다. 입력 길이 제한을 다시 도입하려면 실제 추출 품질 회귀를 먼저 비교한다.
@@ -117,6 +123,12 @@ git diff --check
 
 - 빈 필터 배열은 전체 선택으로 해석한다.
 - `structured_event`는 schema v3 형태만 저장하며, 별도 상세설명 필드는 두지 않는다.
+- 검수 후보 테이블명은 `review_candidates`다. 후보 출처별 원천 데이터는 `source_type`으로 구분한다.
+- 후보 media 저장소는 `source_media`다. X 후보와 Telegram 후보가 함께 사용한다.
+- Telegram 후보는 `source_type = telegram`, `source_record_id = telegram:<channel>:<message_id>` 형식을 쓴다.
+- 구독 채널 수집 커서는 `telegram_channel_subscriptions.last_checked_message_id`, `last_checked_message_at`, `last_checked_at`을 기준으로 한다. 신규 구독 채널은 첫 수집 때 최대 60일 전까지만 훑고, 이후에는 마지막 확인 이후 메시지만 후보화한다.
+- 텔레그램 구독 채널에서 온 메시지도 `shouldReviewCandidate()` 기준을 따른다. 구독 채널이라는 이유만으로 `needs_review`에 올리지 말고, 기준 미충족 또는 과거 일정은 `ignored`로 저장한다.
+- 구독 채널 수집은 OCR/LLM 구조화를 자동 실행하지 않는다. 검수 카드에서 관리자가 필요할 때 OCR 또는 구조화를 실행한다.
 - 일반 `/api/ingest/x` 수집은 팔로잉 목록 API를 호출하지 않고 `x_accounts`의 캐시된 계정만 사용한다.
 - 팔로잉 목록을 새로 반영할 때는 `/admin/candidates`의 X 수집 실행 패널을 우선 사용하고, API 직접 실행이 필요할 때만 `/api/ingest/x?refreshFollowing=true`를 쓴다.
 - timeline 1차 요청에는 `expansions`, `media.fields`, `user.fields`를 붙이지 않는다.

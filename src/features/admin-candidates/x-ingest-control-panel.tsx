@@ -4,10 +4,7 @@ import type { ReactNode } from "react";
 import { useActionState, useEffect } from "react";
 import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
-import {
-  runXIngestFromAdmin,
-  type XIngestControlState,
-} from "./actions";
+import { runXIngestFromAdmin, type XIngestControlState } from "./actions";
 
 const INITIAL_STATE: XIngestControlState = {
   status: "idle",
@@ -35,9 +32,8 @@ export function XIngestControlPanel({ secret }: { secret: string }) {
       <div>
         <h2 id="x-ingest-control">X 수집 제어</h2>
         <p>
-          기본 수집은 원문과 첨부 키만 저장합니다. 이미지 URL, 인용
-          포스트, 작성자 상세 정보는 검토 후 상세 수집을 눌렀을 때만
-          가져옵니다.
+          기본 수집은 저장된 계정 목록만 사용합니다. 이미지 URL, 인용 포스트,
+          작성자 상세 정보는 검수 후보가 된 뒤 필요한 경우에만 수집합니다.
         </p>
       </div>
       <form action={formAction} className="admin-ingest-control-form">

@@ -1,4 +1,4 @@
-import "server-only";
+﻿import "server-only";
 
 import {
   analyzePastEventNotice,
@@ -24,12 +24,12 @@ type CandidateStatus =
 type CandidateForStructuredExtraction = {
   id: string;
   status: CandidateStatus;
-  source_account_name: string;
-  source_post_url: string;
+  source_name: string;
+  source_url: string;
   text_snapshot: string;
   ocr_text: string | null;
   extraction_payload: Record<string, unknown> | null;
-  candidate_reason: string[];
+  review_reason: string[];
 };
 
 export async function runStructuredExtractionForCandidate(
@@ -46,17 +46,17 @@ export async function runStructuredExtractionForCandidate(
   }
 
   const { data, error } = await supabase
-    .from("x_event_candidates")
+    .from("review_candidates")
     .select(
       [
         "id",
         "status",
-        "source_account_name",
-        "source_post_url",
+        "source_name",
+        "source_url",
         "text_snapshot",
         "ocr_text",
         "extraction_payload",
-        "candidate_reason",
+        "review_reason",
       ].join(","),
     )
     .eq("id", candidateId)
@@ -71,8 +71,8 @@ export async function runStructuredExtractionForCandidate(
   const textForDateFilter = [candidate.text_snapshot, ocrText].join("\n");
   const textDateFilter = analyzePastEventNotice(textForDateFilter);
   const extraction = await extractStructuredEvent({
-    sourceAccountName: candidate.source_account_name,
-    sourcePostUrl: candidate.source_post_url,
+    sourceAccountName: candidate.source_name,
+    sourcePostUrl: candidate.source_url,
     textSnapshot: candidate.text_snapshot,
     ocrText,
     today: textDateFilter.today,
@@ -110,7 +110,7 @@ export async function runStructuredExtractionForCandidate(
       },
     }),
   };
-  const nextReasons = replaceStructuredEventReasons(candidate.candidate_reason, [
+  const nextReasons = replaceStructuredEventReasons(candidate.review_reason, [
     ...getStructuredEventReasons(structuredEvent, inputMode, extraction),
     ...(textDateFilter.ignoredAsPast || structuredDatesPast
       ? ["past_event_date"]
@@ -118,11 +118,11 @@ export async function runStructuredExtractionForCandidate(
   ]);
 
   const { error: updateError } = await supabase
-    .from("x_event_candidates")
+    .from("review_candidates")
     .update({
       status: nextStatus,
       extraction_payload: nextPayload,
-      candidate_reason: nextReasons,
+      review_reason: nextReasons,
       updated_at: now,
     })
     .eq("id", candidateId);

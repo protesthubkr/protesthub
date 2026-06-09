@@ -4,6 +4,10 @@ import type {
   CandidateStatusFilter,
   ReviewCandidate,
 } from "@/lib/admin-candidates";
+import {
+  getSourceTextOnlyExtractionHint,
+  type ReviewCandidateSourceType,
+} from "@/lib/review-candidate-source";
 import { HiddenAdminFields } from "./admin-hidden-fields";
 import {
   runCandidateOcr,
@@ -45,7 +49,7 @@ export function OcrMemoForm({
         defaultValue={candidate.ocrText}
         id={`ocr-${candidate.id}`}
         name="ocr_text"
-        placeholder="OCR 결과나 검수 중 확인한 텍스트를 임시로 남깁니다."
+        placeholder="OCR 결과나 검수 중 확인한 텍스트를 임시로 저장합니다."
         rows={4}
       />
       <button type="submit">메모 저장</button>
@@ -91,10 +95,12 @@ export function RunTextOnlyExtractionForm({
   isOcrConfigured,
   scope,
   secret,
+  sourceType,
 }: ActionContext & {
   canRun: boolean;
   candidateId: string;
   isOcrConfigured: boolean;
+  sourceType: ReviewCandidateSourceType;
 }) {
   return (
     <form
@@ -115,7 +121,7 @@ export function RunTextOnlyExtractionForm({
         {!isOcrConfigured
           ? "OPENAI_API_KEY 설정 필요"
           : canRun
-            ? "X 본문만 사용"
+            ? getSourceTextOnlyExtractionHint(sourceType)
             : "본문 부족"}
       </span>
     </form>
@@ -156,7 +162,7 @@ export function RunStructuredExtractionForm({
             ? hasStructuredEvent
               ? "추출 결과 갱신"
               : "본문/OCR 기반 추출"
-            : "이미지 후보는 OCR 먼저 권장"}
+            : "이미지 후보는 OCR을 먼저 권장"}
       </span>
     </form>
   );
@@ -251,7 +257,7 @@ function getOcrActionHint(
 
   if (candidate.media.length === 0) {
     return candidate.mediaKeys.length > 0
-      ? "X 상세 수집 후 OCR 가능"
+      ? "이미지 상세 수집 후 OCR 가능"
       : "이미지 없음";
   }
 

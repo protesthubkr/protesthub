@@ -1,4 +1,4 @@
-import { revalidatePath } from "next/cache";
+﻿import { revalidatePath } from "next/cache";
 import type { CandidateStatus } from "@/lib/admin-candidates";
 import { clearPublicEventCalendarCache } from "@/lib/events";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
@@ -8,16 +8,16 @@ type AdminSupabaseClient = NonNullable<ReturnType<typeof getSupabaseAdminClient>
 export type CandidateForPublish = {
   id: string;
   status: CandidateStatus;
-  source_account_name: string;
-  source_post_url: string;
+  source_name: string;
+  source_url: string;
   media_keys: string[];
   extraction_payload: Record<string, unknown> | null;
-  candidate_reason: string[];
+  review_reason: string[];
 };
 
 export type CandidatePublicationState = Pick<
   CandidateForPublish,
-  "id" | "extraction_payload" | "candidate_reason"
+  "id" | "extraction_payload" | "review_reason"
 >;
 
 export async function getCandidateForPublish(
@@ -25,16 +25,16 @@ export async function getCandidateForPublish(
   candidateId: string,
 ) {
   const { data, error } = await supabase
-    .from("x_event_candidates")
+    .from("review_candidates")
     .select(
       [
         "id",
         "status",
-        "source_account_name",
-        "source_post_url",
+        "source_name",
+        "source_url",
         "media_keys",
         "extraction_payload",
-        "candidate_reason",
+        "review_reason",
       ].join(","),
     )
     .eq("id", candidateId)
@@ -52,8 +52,8 @@ export async function getCandidatePublicationState(
   candidateId: string,
 ) {
   const { data, error } = await supabase
-    .from("x_event_candidates")
-    .select("id,extraction_payload,candidate_reason")
+    .from("review_candidates")
+    .select("id,extraction_payload,review_reason")
     .eq("id", candidateId)
     .single();
 
@@ -83,8 +83,8 @@ export async function deletePublicEventIfPresent(
 
 export function hasPublishedEventPayload(candidate: CandidatePublicationState) {
   return Boolean(
-    candidate.extraction_payload?.published_event ||
-      candidate.candidate_reason.includes("published_event"),
+      candidate.extraction_payload?.published_event ||
+      candidate.review_reason.includes("published_event"),
   );
 }
 

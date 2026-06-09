@@ -1,4 +1,4 @@
-create table if not exists source_accounts (
+﻿create table if not exists source_accounts (
   id uuid primary key default gen_random_uuid(),
   account_name text not null,
   handle text not null unique,
@@ -139,6 +139,34 @@ create index if not exists telegram_event_broadcasts_event_id_idx
 create index if not exists telegram_event_broadcasts_occurrence_date_idx
   on telegram_event_broadcasts (occurrence_date, channel_id, status);
 
+create table if not exists telegram_channel_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  channel_username text not null unique,
+  channel_title text,
+  source_url text not null,
+  status text not null default 'active'
+    check (status in ('active', 'paused')),
+  last_checked_at timestamptz,
+  last_checked_message_id bigint,
+  last_checked_message_at timestamptz,
+  last_scan_started_at timestamptz,
+  last_scan_finished_at timestamptz,
+  last_scan_error text,
+  raw_payload jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists telegram_channel_subscriptions_status_checked_idx
+  on telegram_channel_subscriptions (
+    status,
+    last_checked_at asc nulls first,
+    channel_username
+  );
+
+create index if not exists telegram_channel_subscriptions_last_message_idx
+  on telegram_channel_subscriptions (last_checked_message_id desc);
+
 drop function if exists public.claim_telegram_event_broadcast(text, text, text);
 drop function if exists public.claim_telegram_event_broadcast(text, text, date, text);
 
@@ -277,8 +305,10 @@ create index if not exists x_posts_author_created_at_idx
 create index if not exists x_posts_created_at_idx
   on x_posts (created_at desc);
 
-create table if not exists x_media (
+create table if not exists source_media (
   media_key text primary key,
+  source_type text not null default 'x'
+    check (source_type in ('x', 'telegram')),
   media_type text not null,
   url text,
   preview_image_url text,
@@ -290,37 +320,42 @@ create table if not exists x_media (
   last_seen_at timestamptz not null default now()
 );
 
-create index if not exists x_media_type_idx
-  on x_media (media_type);
+create index if not exists source_media_type_idx
+  on source_media (media_type);
 
 create table if not exists x_post_media (
   x_post_id text not null references x_posts(x_post_id) on delete cascade,
-  media_key text not null references x_media(media_key) on delete cascade,
+  media_key text not null references source_media(media_key) on delete cascade,
   media_order integer not null default 0,
   primary key (x_post_id, media_key)
 );
 
-create table if not exists x_event_candidates (
+create table if not exists review_candidates (
   id uuid primary key default gen_random_uuid(),
-  x_post_id text not null unique references x_posts(x_post_id) on delete cascade,
+  source_type text not null default 'x'
+    check (source_type in ('x', 'telegram')),
+  source_record_id text not null,
   status text not null default 'needs_review'
     check (status in ('needs_review', 'ignored', 'published', 'canceled', 'duplicate')),
-  source_account_name text not null,
-  source_post_url text not null,
+  source_name text not null,
+  source_url text not null,
   text_snapshot text not null default '',
   media_keys text[] not null default '{}',
   ocr_text text,
   extraction_payload jsonb not null default '{}'::jsonb,
-  candidate_reason text[] not null default '{}',
+  review_reason text[] not null default '{}',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
-create index if not exists x_event_candidates_status_created_idx
-  on x_event_candidates (status, created_at desc);
+create unique index if not exists review_candidates_source_unique_idx
+  on review_candidates (source_type, source_record_id);
 
-create index if not exists x_event_candidates_media_keys_idx
-  on x_event_candidates using gin (media_keys);
+create index if not exists review_candidates_status_created_idx
+  on review_candidates (status, created_at desc);
+
+create index if not exists review_candidates_media_keys_idx
+  on review_candidates using gin (media_keys);
 
 drop view if exists public_event_cards;
 
@@ -477,35 +512,38 @@ alter table source_accounts enable row level security;
 alter table public_events enable row level security;
 alter table event_dates enable row level security;
 alter table telegram_event_broadcasts enable row level security;
+alter table telegram_channel_subscriptions enable row level security;
 alter table x_ingest_runs enable row level security;
 alter table x_accounts enable row level security;
 alter table x_posts enable row level security;
-alter table x_media enable row level security;
+alter table source_media enable row level security;
 alter table x_post_media enable row level security;
-alter table x_event_candidates enable row level security;
+alter table review_candidates enable row level security;
 
 alter table source_accounts force row level security;
 alter table public_events force row level security;
 alter table event_dates force row level security;
 alter table telegram_event_broadcasts force row level security;
+alter table telegram_channel_subscriptions force row level security;
 alter table x_ingest_runs force row level security;
 alter table x_accounts force row level security;
 alter table x_posts force row level security;
-alter table x_media force row level security;
+alter table source_media force row level security;
 alter table x_post_media force row level security;
-alter table x_event_candidates force row level security;
+alter table review_candidates force row level security;
 
 revoke all on table
   source_accounts,
   public_events,
   event_dates,
   telegram_event_broadcasts,
+  telegram_channel_subscriptions,
   x_ingest_runs,
   x_accounts,
   x_posts,
-  x_media,
+  source_media,
   x_post_media,
-  x_event_candidates
+  review_candidates
 from public, anon, authenticated;
 
 revoke all on all sequences in schema public from public, anon, authenticated;

@@ -22,6 +22,10 @@ export function DetailHydrationAction({
   scope,
   secret,
 }: DetailHydrationActionProps) {
+  if (candidate.sourceType !== "x") {
+    return null;
+  }
+
   const hydrationState = getCandidateDetailHydrationState(
     candidate.extractionPayload,
     candidate.mediaKeys,

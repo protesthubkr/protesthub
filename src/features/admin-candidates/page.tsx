@@ -11,10 +11,13 @@ import {
   parseCandidateReviewScope,
   parseCandidateStatusFilter,
 } from "@/lib/admin-candidates";
+import { getTelegramChannelSubscriptions } from "@/lib/telegram/channel-subscriptions";
 import { CandidateCard } from "./candidate-card";
 import { AdminCandidatesLoadMore } from "./load-more-trigger";
+import { ManualTelegramLinkForm } from "./manual-telegram-link-form";
 import { ManualXPostForm } from "./manual-x-post-form";
 import { getAdminCandidatesHref } from "./navigation";
+import { TelegramChannelSubscriptionsPanel } from "./telegram-channel-subscriptions-panel";
 import { XIngestControlPanel } from "./x-ingest-control-panel";
 
 type AdminCandidatesPageProps = {
@@ -39,26 +42,37 @@ export async function AdminCandidatesPage({
     return <AdminUnauthorized />;
   }
 
-  const { candidates, counts, error, hasMoreCandidates } =
-    await getReviewCandidates(status, scope, page);
+  const [{ candidates, counts, error, hasMoreCandidates }, subscriptions] =
+    await Promise.all([
+      getReviewCandidates(status, scope, page),
+      getTelegramChannelSubscriptions(),
+    ]);
   const isOcrConfigured = Boolean(process.env.OPENAI_API_KEY);
 
   return (
     <main className="admin-shell">
       <header className="admin-header">
         <div>
-          <p className="admin-kicker">X 수집 후보</p>
-          <h1>내부 검수</h1>
+          <p className="admin-kicker">수집 후보</p>
+          <h1>관리자 검수</h1>
         </div>
         <p>
-          원본 포스트와 이미지를 확인한 뒤 후보 상태를 정리합니다. 공개 이벤트
-          승격은 다음 단계에서 별도 폼으로 처리합니다.
+          원본 링크와 이미지를 확인하고 후보 상태를 정리합니다. 공개 일정 저장은
+          구조화 추출 후 별도 폼에서 처리합니다.
         </p>
       </header>
 
       <div className="admin-control-panels">
         <XIngestControlPanel secret={secret} />
+        <TelegramChannelSubscriptionsPanel
+          currentPage={page}
+          currentStatus={status}
+          scope={scope}
+          secret={secret}
+          subscriptions={subscriptions}
+        />
         <ManualXPostForm secret={secret} />
+        <ManualTelegramLinkForm secret={secret} />
       </div>
 
       <CandidateStatusTabs
@@ -73,8 +87,8 @@ export async function AdminCandidatesPage({
 
       {candidates.length === 0 ? (
         <section className="admin-empty">
-          <h2>검수할 후보가 없습니다</h2>
-          <p>다른 상태 탭을 보거나 X 수집을 먼저 실행하세요.</p>
+          <h2>검토할 후보가 없습니다</h2>
+          <p>다른 상태 탭을 보거나 수집/수동 추가를 먼저 실행하세요.</p>
         </section>
       ) : (
         <section className="admin-candidate-list" aria-label="검수 후보 목록">
@@ -116,7 +130,7 @@ function AdminUnauthorized() {
         <p className="admin-kicker">관리자 접근 필요</p>
         <h1>검수 화면을 열 수 없습니다</h1>
         <p>
-          URL에 `?secret=INGEST_SECRET`을 붙여 접근하세요. 로컬 MVP용 보호
+          URL에 `?secret=INGEST_SECRET`을 붙여 접근하세요. 로컬 MVP 보호
           방식이며, 배포 전에는 별도 관리자 인증으로 바꾸는 것을 전제로 합니다.
         </p>
       </section>

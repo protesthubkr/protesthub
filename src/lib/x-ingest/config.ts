@@ -42,7 +42,6 @@ export function getXIngestConfig(): XIngestConfig {
       process.env.X_MAX_FOLLOWING_ACCOUNTS,
       DEFAULT_MAX_FOLLOWING_ACCOUNTS,
       1,
-      1000,
     ),
     timelinePagesPerAccount: parseBoundedInteger(
       process.env.X_TIMELINE_PAGES_PER_ACCOUNT,
@@ -67,7 +66,7 @@ function parseBoundedInteger(
   rawValue: string | undefined,
   defaultValue: number,
   min: number,
-  max: number,
+  max?: number,
 ) {
   if (!rawValue) {
     return defaultValue;
@@ -79,7 +78,8 @@ function parseBoundedInteger(
     return defaultValue;
   }
 
-  return Math.min(Math.max(parsed, min), max);
+  const value = Math.max(parsed, min);
+  return max === undefined ? value : Math.min(value, max);
 }
 
 function parseBoolean(rawValue: string | undefined, defaultValue: boolean) {

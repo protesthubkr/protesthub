@@ -1,4 +1,4 @@
-import "server-only";
+﻿import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { analyzePastEventNotice } from "@/lib/event-date-filter";
@@ -37,10 +37,10 @@ const DEFAULT_PENDING_HYDRATION_LIMIT = 50;
 
 type CandidateHydrationRow = {
   id: string;
-  x_post_id: string;
+  source_record_id: string;
   media_keys: string[] | null;
   extraction_payload: Record<string, unknown> | null;
-  candidate_reason: string[] | null;
+  review_reason: string[] | null;
 };
 
 type CandidateDetailHydrationResult = {
@@ -122,7 +122,7 @@ async function hydrateCandidateRows({
   try {
     const response = await fetchPostsByIds({
       bearerToken: config.bearerToken,
-      postIds: uniqueRows.map((candidate) => candidate.x_post_id),
+      postIds: uniqueRows.map((candidate) => candidate.source_record_id),
     });
     const postsById = createPostMap(response.data ?? []);
     const media = dedupeMedia(response.includes?.media ?? []);
@@ -138,7 +138,7 @@ async function hydrateCandidateRows({
     await upsertMedia(supabase, media);
 
     for (const candidate of uniqueRows) {
-      const post = postsById.get(candidate.x_post_id);
+      const post = postsById.get(candidate.source_record_id);
       const account = post ? findAuthor(users, post) : undefined;
 
       if (!post || !account) {
@@ -212,19 +212,19 @@ async function updateHydratedCandidate({
     },
   };
   const nextReasons = mergeHydrationReasons(
-    candidate.candidate_reason ?? [],
+    candidate.review_reason ?? [],
     getCandidateReasons(post, media),
   );
 
   const { error } = await supabase
-    .from("x_event_candidates")
+    .from("review_candidates")
     .update({
-      source_account_name: account.name,
-      source_post_url: getPostUrl(account, post),
+      source_name: account.name,
+      source_url: getPostUrl(account, post),
       text_snapshot: postText,
       media_keys: mediaKeys,
       extraction_payload: nextPayload,
-      candidate_reason: nextReasons,
+      review_reason: nextReasons,
       updated_at: now,
     })
     .eq("id", candidate.id);
@@ -239,11 +239,12 @@ async function getCandidateById(
   candidateId: string,
 ) {
   const { data, error } = await supabase
-    .from("x_event_candidates")
+    .from("review_candidates")
     .select(
-      "id,x_post_id,media_keys,extraction_payload,candidate_reason",
+      "id,source_record_id,media_keys,extraction_payload,review_reason",
     )
     .eq("id", candidateId)
+    .eq("source_type", "x")
     .maybeSingle();
 
   if (error) {
@@ -258,11 +259,12 @@ async function getDeferredNeedsReviewCandidates(
   limit: number,
 ) {
   const { data, error } = await supabase
-    .from("x_event_candidates")
+    .from("review_candidates")
     .select(
-      "id,x_post_id,media_keys,extraction_payload,candidate_reason",
+      "id,source_record_id,media_keys,extraction_payload,review_reason",
     )
     .eq("status", "needs_review")
+    .eq("source_type", "x")
     .order("created_at", { ascending: false })
     .limit(limit * 5);
 
@@ -273,7 +275,7 @@ async function getDeferredNeedsReviewCandidates(
   const candidates = data as CandidateHydrationRow[];
   const postMediaKeysByPostId = await getAttachmentMediaKeysByPostId(
     supabase,
-    candidates.map((candidate) => candidate.x_post_id),
+    candidates.map((candidate) => candidate.source_record_id),
   );
 
   return candidates
@@ -289,7 +291,7 @@ function shouldHydrateCandidate(
 ) {
   const mediaKeys = mergeCandidateMediaKeys(
     candidate.media_keys,
-    postMediaKeysByPostId.get(candidate.x_post_id),
+    postMediaKeysByPostId.get(candidate.source_record_id),
   );
 
   return needsCandidateDetailHydration(

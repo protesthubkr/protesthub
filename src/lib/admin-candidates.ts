@@ -1,9 +1,13 @@
-import "server-only";
+﻿import "server-only";
 
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import type { IssueKey, PublicEvent } from "@/lib/types";
 import { mergeCandidateMediaKeys } from "@/lib/x-ingest/hydration-state";
 import { getAttachmentMediaKeysByPostId } from "@/lib/x-ingest/repository";
+import {
+  getReviewCandidateSourceType,
+  type ReviewCandidateSourceType,
+} from "./review-candidate-source";
 
 export type CandidateStatus =
   | "needs_review"
@@ -30,10 +34,11 @@ export type CandidateMedia = {
 
 export type ReviewCandidate = {
   id: string;
-  xPostId: string;
+  sourceRecordId: string;
+  sourceType: ReviewCandidateSourceType;
   status: CandidateStatus;
-  sourceAccountName: string;
-  sourcePostUrl: string;
+  sourceName: string;
+  sourceUrl: string;
   textSnapshot: string;
   mediaKeys: string[];
   ocrText: string;
@@ -47,15 +52,16 @@ export type ReviewCandidate = {
 
 type CandidateRow = {
   id: string;
-  x_post_id: string;
+  source_record_id: string;
+  source_type: ReviewCandidateSourceType;
   status: CandidateStatus;
-  source_account_name: string;
-  source_post_url: string;
+  source_name: string;
+  source_url: string;
   text_snapshot: string;
   media_keys: string[];
   ocr_text: string | null;
   extraction_payload: Record<string, unknown>;
-  candidate_reason: string[];
+  review_reason: string[];
   created_at: string;
   updated_at: string;
 };
@@ -66,8 +72,9 @@ type CandidateSignalFields = {
 };
 
 type CandidateScopeCountRow = {
-  x_post_id: string;
-  candidate_reason: string[] | null;
+  source_record_id: string;
+  source_type: ReviewCandidateSourceType | null;
+  review_reason: string[] | null;
   media_keys: string[] | null;
 };
 
@@ -170,19 +177,20 @@ export async function getReviewCandidates(
   }
 
   let query = supabase
-    .from("x_event_candidates")
+    .from("review_candidates")
     .select(
       [
         "id",
-        "x_post_id",
+        "source_record_id",
+        "source_type",
         "status",
-        "source_account_name",
-        "source_post_url",
+        "source_name",
+        "source_url",
         "text_snapshot",
         "media_keys",
         "ocr_text",
         "extraction_payload",
-        "candidate_reason",
+        "review_reason",
         "created_at",
         "updated_at",
       ].join(","),
@@ -211,7 +219,9 @@ export async function getReviewCandidates(
   const rows = data as unknown as CandidateRow[];
   const postMediaKeysByPostId = await getAttachmentMediaKeysByPostId(
     supabase,
-    rows.map((row) => row.x_post_id),
+    rows
+      .filter((row) => row.source_type === "x")
+      .map((row) => row.source_record_id),
   );
   const mergedMediaKeys = rows.flatMap((row) =>
     getMergedCandidateMediaKeys(row, postMediaKeysByPostId),
@@ -250,7 +260,7 @@ export async function getCandidateCounts(scope: CandidateReviewScope = "all") {
     CANDIDATE_STATUS_FILTERS.filter((status) => status !== "all").map(
       async (status) => {
         const { count } = await supabase
-          .from("x_event_candidates")
+          .from("review_candidates")
           .select("id", { count: "exact", head: true })
           .eq("status", status);
 
@@ -277,8 +287,8 @@ async function getScopedNeedsReviewCount(
   scope: CandidateReviewScope,
 ) {
   const { data, error } = await supabase
-    .from("x_event_candidates")
-    .select("x_post_id,candidate_reason,media_keys")
+    .from("review_candidates")
+    .select("source_record_id,source_type,review_reason,media_keys")
     .eq("status", "needs_review");
 
   if (error || !data) {
@@ -288,7 +298,9 @@ async function getScopedNeedsReviewCount(
   const rows = data as unknown as CandidateScopeCountRow[];
   const postMediaKeysByPostId = await getAttachmentMediaKeysByPostId(
     supabase,
-    rows.map((row) => row.x_post_id),
+    rows
+      .filter((row) => row.source_type === "x")
+      .map((row) => row.source_record_id),
   );
 
   return rows.filter((row) =>
@@ -308,7 +320,7 @@ async function getCandidateMedia(mediaKeys: string[]) {
   }
 
   const { data, error } = await supabase
-    .from("x_media")
+    .from("source_media")
     .select(
       "media_key,media_type,url,preview_image_url,alt_text,width,height",
     )
@@ -391,15 +403,19 @@ function mapCandidateRow(
 
   return {
     id: row.id,
-    xPostId: row.x_post_id,
+    sourceRecordId: row.source_record_id,
+    sourceType: getReviewCandidateSourceType({
+      ...(row.extraction_payload ?? {}),
+      source_type: row.source_type,
+    }),
     status: row.status,
-    sourceAccountName: row.source_account_name,
-    sourcePostUrl: row.source_post_url,
+    sourceName: row.source_name,
+    sourceUrl: row.source_url,
     textSnapshot: row.text_snapshot,
     mediaKeys,
     ocrText: row.ocr_text ?? "",
     extractionPayload: row.extraction_payload ?? {},
-    candidateReason: row.candidate_reason ?? [],
+    candidateReason: row.review_reason ?? [],
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     media: mediaKeys
@@ -425,7 +441,7 @@ function mapCandidateSignalFields(
   postMediaKeysByPostId: Map<string, string[]> = new Map(),
 ): CandidateSignalFields {
   return {
-    candidateReason: row.candidate_reason ?? [],
+    candidateReason: row.review_reason ?? [],
     mediaKeys: getMergedCandidateMediaKeys(row, postMediaKeysByPostId),
   };
 }
@@ -433,13 +449,16 @@ function mapCandidateSignalFields(
 function getMergedCandidateMediaKeys(
   row: {
     media_keys: string[] | null;
-    x_post_id: string;
+    source_record_id: string;
+    source_type?: ReviewCandidateSourceType | null;
   },
   postMediaKeysByPostId: Map<string, string[]>,
 ) {
   return mergeCandidateMediaKeys(
     row.media_keys,
-    postMediaKeysByPostId.get(row.x_post_id),
+    row.source_type === "x"
+      ? postMediaKeysByPostId.get(row.source_record_id)
+      : undefined,
   );
 }
 
