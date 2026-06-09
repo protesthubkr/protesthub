@@ -3,10 +3,8 @@
 import { useActionState, useEffect } from "react";
 import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
-import {
-  addManualTelegramCandidate,
-  type ManualTelegramLinkFormState,
-} from "./actions";
+import type { ManualTelegramLinkFormState } from "./action-states";
+import { addManualTelegramCandidate } from "./manual-candidate-actions";
 
 const INITIAL_STATE: ManualTelegramLinkFormState = {
   status: "idle",

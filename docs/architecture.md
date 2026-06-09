@@ -44,14 +44,22 @@ src/features/public-events/
 src/features/admin-candidates/
   page.tsx                       검수 화면 조립.
   candidate-card.tsx             후보 카드 레이아웃 조립.
-  candidate-action-forms.tsx     후보 상태/OCR/구조화 실행 폼.
+  candidate-processing-forms.tsx 후보 OCR/구조화/이미지 보강 폼.
+  candidate-status-forms.tsx     후보 상태 변경 버튼.
   admin-hidden-fields.tsx        검수 액션 공통 hidden field.
   detail-hydration-action.tsx    X 상세 수집 버튼과 상태 문구.
   manual-telegram-link-form.tsx  텔레그램 채널 메시지 공유 링크 수동 추가.
   structured-event-summary.tsx   후보 카드 안 구조화 결과 요약.
   publish-event-form.tsx         공개/수정 폼.
   publish-defaults.ts            공개 폼 기본값 생성 규칙.
-  actions.ts                     검수 서버 액션 orchestration.
+  manual-candidate-actions.ts    X/텔레그램 수동 후보 추가 서버 액션.
+  x-ingest-actions.ts            X 수집 패널 서버 액션.
+  telegram-channel-actions.ts    텔레그램 구독 채널 관리/수집 서버 액션.
+  candidate-processing-actions.ts 후보 보강, OCR, 구조화 서버 액션.
+  candidate-status-actions.ts    후보 상태 변경 서버 액션.
+  publication-actions.ts         공개 저장/공개 내리기 서버 액션.
+  action-states.ts               클라이언트 폼 action state 타입.
+  action-utils.ts                서버 액션 공통 helper.
   action-form-data.ts            FormData 파싱, 관리자 검증, 복귀 URL 생성.
   candidate-publication.ts       공개/비공개 후보 조회, reason 정리, revalidate 범위.
   candidate-ocr.ts               OCR 대상 조회, 이미지 URL 준비, OCR update 생성.
@@ -72,10 +80,24 @@ src/lib/
   review-candidate-source.ts     후보 출처 타입과 UI 라벨.
 
 src/lib/telegram/
-  channel-subscriptions.ts       텔레그램 공개 채널 구독 목록, 커서, 후보 수집.
+  channel-page.ts                텔레그램 공개 채널 HTML fetch와 메시지 파싱.
+  channel-subscription-types.ts  텔레그램 구독/스캔 공통 타입과 DB row mapper.
+  channel-subscription-repository.ts 텔레그램 구독 목록 조회, 추가, 상태 변경, 커서 갱신.
+  channel-subscription-scan.ts   텔레그램 구독 채널 페이지 순회와 스캔 오케스트레이션.
+  channel-candidate-ingest.ts    텔레그램 메시지를 review_candidates/source_media row로 저장.
   candidate-images.ts            검수 카드에서 텔레그램 메시지 이미지를 수동 재수집.
+  event-broadcasts.ts            텔레그램 브리핑 발송 공개 진입점.
+  event-broadcast-targets.ts     브리핑 대상 occurrence/event 조회.
+  event-broadcast-repository.ts  브리핑 claim, sent/failed 상태 저장, channel id 확인.
+  event-broadcast-payload.ts     브리핑 payload hash와 dry-run 결과 생성.
+  event-broadcast-dates.ts       브리핑 기본 대상 날짜와 occurrence 날짜 선택.
+  event-broadcast-types.ts       브리핑 batch/outcome/DB row 타입.
   html.ts                        텔레그램 공개 페이지 HTML fetch/파싱 공용 util.
-  manual-link.ts                  텔레그램 공유 링크 파싱, 공개 페이지 preview 수집, 후보 생성.
+  manual-link.ts                 텔레그램 수동 링크 후보 생성 오케스트레이션.
+  manual-link-parser.ts          텔레그램 메시지 공유 링크 파싱.
+  manual-link-preview.ts         텔레그램 메시지 공개 preview 수집.
+  manual-link-repository.ts      텔레그램 수동 링크 후보/media 저장.
+  manual-link-types.ts           텔레그램 수동 링크 공통 타입과 strategy 상수.
   message-images.ts              텔레그램 메시지 HTML의 이미지 URL 추출 공용 util.
 
 src/lib/x-ingest/
@@ -151,7 +173,7 @@ public_event_occurrences
 ## 검수와 공개
 
 1. `/admin/candidates?secret=...`가 후보 목록을 보여준다.
-2. OCR, 본문 구조화, 본문+OCR 구조화는 모두 `features/admin-candidates/actions.ts` 서버 액션을 통하되, OCR update 조립은 `candidate-ocr.ts`에 둔다.
+2. OCR, 본문 구조화, 본문+OCR 구조화는 `candidate-processing-actions.ts` 서버 액션을 통하되, OCR update 조립은 `candidate-ocr.ts`에 둔다.
 3. 구조화 결과는 상세설명 없이 `extraction_payload.structured_event` schema v3 형태로 저장한다.
 4. 공개 기본값은 기존 공개 이벤트가 있으면 그 값을 우선하고, 없으면 구조화 결과를 사용한다.
 5. 공개/비공개 후보 조회, 공개 payload marker 제거, 공개 reason 교체, revalidate 범위는 `candidate-publication.ts`에 둔다.
@@ -174,23 +196,35 @@ public_event_occurrences
 
 1. `/admin/candidates`의 "텔레그램 링크 추가" 패널에서 `https://t.me/<channel>/<message_id>` 링크를 입력한다.
 2. 서버 액션은 `src/lib/telegram/manual-link.ts`의 `ingestManualTelegramLink()`를 호출한다.
-3. 공개 `t.me` 페이지에서 본문, title, OG image를 가능한 범위에서 수집한다.
-4. 공개 페이지에서 본문을 읽지 못할 수 있으므로 관리자가 메시지 본문을 선택 입력으로 붙여넣을 수 있다.
-5. 생성된 후보는 `source_type = telegram`, `status = needs_review`, `review_reason`에 `manual_telegram_link`, `manual_review_requested`를 가진다.
-6. 이후 OCR, 본문 구조화, 본문+OCR 구조화, 공개 저장은 기존 검수 파이프라인을 그대로 탄다.
+3. 링크 파싱은 `manual-link-parser.ts`, 공개 preview 수집은 `manual-link-preview.ts`, 후보/media 저장은 `manual-link-repository.ts`가 맡는다.
+4. 공개 `t.me` 페이지에서 본문, title, OG image를 가능한 범위에서 수집한다.
+5. 공개 페이지에서 본문을 읽지 못할 수 있으므로 관리자가 메시지 본문을 선택 입력으로 붙여넣을 수 있다.
+6. 생성된 후보는 `source_type = telegram`, `status = needs_review`, `review_reason`에 `manual_telegram_link`, `manual_review_requested`를 가진다.
+7. 이후 OCR, 본문 구조화, 본문+OCR 구조화, 공개 저장은 기존 검수 파이프라인을 그대로 탄다.
+
+## Telegram 브리핑 발송
+
+1. `/api/broadcast/telegram`은 `event-broadcasts.ts`의 `broadcastPendingTelegramEvents()` 또는 `broadcastPublishedEventToTelegram()`만 호출한다.
+2. 기본 대상 날짜는 `event-broadcast-dates.ts`에서 한국 날짜 기준 내일로 계산한다.
+3. 발송 대상 조회는 `event-broadcast-targets.ts`에서 `public_event_occurrences`, `public_event_cards`, `telegram_event_broadcasts`를 함께 확인한다.
+4. 발송 dedupe는 `event-broadcast-repository.ts`의 `claim_telegram_event_broadcast` RPC 호출로 처리한다.
+5. payload hash와 dry-run 결과는 `event-broadcast-payload.ts`가 생성한다.
+6. 실제 Telegram API 호출과 메시지/버튼 포맷은 `broadcast.ts`가 담당한다.
+7. 메시지 본문은 제목, 날짜/시간, 장소만 유지한다. 상세 정보는 상세페이지/원본 버튼으로 보낸다.
 
 ## Telegram 채널 구독 수집
 
 1. `/admin/candidates`의 "텔레그램 채널 구독" 패널에서 공개 채널 username 또는 `https://t.me/<channel>` 링크를 추가한다.
 2. 구독 목록은 `telegram_channel_subscriptions`에 저장한다. `channel_username`, `channel_title`, `source_url`, `status`, `last_checked_message_id`, `last_checked_message_at`, `last_checked_at`이 핵심 커서다.
-3. 수집기는 `src/lib/telegram/channel-subscriptions.ts`에 둔다. 공개 웹 페이지 `https://t.me/s/<channel>`을 읽고, 오래된 페이지는 `?before=<message_id>`로 이동한다.
-4. 신규 채널처럼 탐색 기록이 없으면 첫 수집에서 최대 60일 전까지 확인한다. 이미 수집한 채널은 `last_checked_message_id` 이후 메시지만 후보화한다.
-5. 구독 채널 메시지는 텍스트 또는 이미지가 있으면 `review_candidates`에 `source_type = telegram`으로 저장한다. 단, `needs_review` 승격 여부는 X 후보와 같은 `shouldReviewCandidate()` 기준을 따른다.
-6. 승격 기준을 만족하지 못하거나 오늘 이전 일정으로 판정된 메시지는 `ignored`로 저장한다. 기존 후보가 있으면 덮어쓰지 않는다.
-7. 후보 `review_reason`에는 `telegram_channel_subscription`, `telegram_auto_scan`과 함께 기존 후보 기준의 `review_rule:*`, 날짜/장소/미디어 신호, `past_event_date` 등을 남긴다.
-8. 텔레그램 채널 수집은 OCR이나 LLM 구조화를 자동 실행하지 않는다. 관리자가 검수 카드에서 필요할 때 이미지 불러오기, OCR, 본문 구조화를 실행한다.
-9. 텔레그램 이미지가 자동으로 붙지 않은 후보는 검수 카드의 "텔레그램 이미지 불러오기"로 원본 메시지를 다시 읽고 `source_media`, 후보 `media_keys`를 갱신한다.
-10. 채널 구독을 삭제해도 이미 만들어진 검수 후보는 삭제하지 않는다. 후보의 공개/무시/중복 처리는 기존 검수 흐름에서 별도로 한다.
+3. 구독 저장/커서 갱신은 `channel-subscription-repository.ts`, 공개 웹 페이지 순회는 `channel-subscription-scan.ts`, 후보 저장은 `channel-candidate-ingest.ts`에 둔다.
+4. 공개 웹 페이지 `https://t.me/s/<channel>`을 읽고, 오래된 페이지는 `?before=<message_id>`로 이동한다.
+5. 신규 채널처럼 탐색 기록이 없으면 첫 수집에서 최대 60일 전까지 확인한다. 이미 수집한 채널은 `last_checked_message_id` 이후 메시지만 후보화한다.
+6. 구독 채널 메시지는 텍스트 또는 이미지가 있으면 `review_candidates`에 `source_type = telegram`으로 저장한다. 단, `needs_review` 승격 여부는 X 후보와 같은 `shouldReviewCandidate()` 기준을 따른다.
+7. 승격 기준을 만족하지 못하거나 오늘 이전 일정으로 판정된 메시지는 `ignored`로 저장한다. 기존 후보가 있으면 덮어쓰지 않는다.
+8. 후보 `review_reason`에는 `telegram_channel_subscription`, `telegram_auto_scan`과 함께 기존 후보 기준의 `review_rule:*`, 날짜/장소/미디어 신호, `past_event_date` 등을 남긴다.
+9. 텔레그램 채널 수집은 OCR이나 LLM 구조화를 자동 실행하지 않는다. 관리자가 검수 카드에서 필요할 때 이미지 불러오기, OCR, 본문 구조화를 실행한다.
+10. 텔레그램 이미지가 자동으로 붙지 않은 후보는 검수 카드의 "텔레그램 이미지 불러오기"로 원본 메시지를 다시 읽고 `source_media`, 후보 `media_keys`를 갱신한다.
+11. 채널 구독을 삭제해도 이미 만들어진 검수 후보는 삭제하지 않는다. 후보의 공개/무시/중복 처리는 기존 검수 흐름에서 별도로 한다.
 
 ## X 수집
 

@@ -4,7 +4,8 @@ import type { ReactNode } from "react";
 import { useActionState, useEffect } from "react";
 import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
-import { runXIngestFromAdmin, type XIngestControlState } from "./actions";
+import type { XIngestControlState } from "./action-states";
+import { runXIngestFromAdmin } from "./x-ingest-actions";
 
 const INITIAL_STATE: XIngestControlState = {
   status: "idle",

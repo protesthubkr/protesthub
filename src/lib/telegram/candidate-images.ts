@@ -3,7 +3,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { mergeCandidateMediaKeys } from "@/lib/x-ingest/hydration-state";
-import { parseTelegramMessageLink } from "./manual-link";
+import { parseTelegramMessageLink } from "./manual-link-parser";
 import {
   fetchTelegramMessageImageUrls,
   type TelegramMessageLocator,

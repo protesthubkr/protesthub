@@ -11,7 +11,7 @@ import {
 } from "./publish-defaults";
 import type { StructuredEventResult } from "./structured-event-view";
 import { HiddenAdminFields } from "./admin-hidden-fields";
-import { publishCandidateEvent, unpublishCandidateEvent } from "./actions";
+import { publishCandidateEvent, unpublishCandidateEvent } from "./publication-actions";
 
 type PublishEventFormProps = {
   candidate: ReviewCandidate;

@@ -11,7 +11,7 @@ import {
   parseCandidateReviewScope,
   parseCandidateStatusFilter,
 } from "@/lib/admin-candidates";
-import { getTelegramChannelSubscriptions } from "@/lib/telegram/channel-subscriptions";
+import { getTelegramChannelSubscriptions } from "@/lib/telegram/channel-subscription-repository";
 import { CandidateCard } from "./candidate-card";
 import { AdminCandidatesLoadMore } from "./load-more-trigger";
 import { ManualTelegramLinkForm } from "./manual-telegram-link-form";

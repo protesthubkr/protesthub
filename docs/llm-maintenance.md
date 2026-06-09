@@ -25,14 +25,17 @@
 | 목록 카드 | `src/features/public-events/event-card.tsx` |
 | 상세 페이지 | `src/app/events/[id]/page.tsx`, `event-detail-client.tsx` |
 | UI 원칙/시각 위계 | `docs/ui-principles.md`, `src/app/globals.css` |
-| 검수 카드 | `src/features/admin-candidates/candidate-card.tsx`, `candidate-action-forms.tsx`, `structured-event-summary.tsx`, `detail-hydration-action.tsx` |
+| 검수 카드 | `src/features/admin-candidates/candidate-card.tsx`, `candidate-processing-forms.tsx`, `candidate-status-forms.tsx`, `structured-event-summary.tsx`, `detail-hydration-action.tsx` |
 | 공개 폼 기본값 | `src/features/admin-candidates/publish-defaults.ts` |
-| 검수 서버 액션 | `src/features/admin-candidates/actions.ts`, `action-form-data.ts` |
-| 공개/비공개 저장 | `src/features/admin-candidates/candidate-publication.ts`, `actions.ts` |
-| 검수 OCR 실행 | `src/features/admin-candidates/candidate-ocr.ts`, `actions.ts` |
-| 텔레그램 링크 후보 추가 | `src/features/admin-candidates/manual-telegram-link-form.tsx`, `src/lib/telegram/manual-link.ts` |
-| 텔레그램 채널 구독 수집 | `src/features/admin-candidates/telegram-channel-subscriptions-panel.tsx`, `src/lib/telegram/channel-subscriptions.ts` |
+| 검수 서버 액션 공통 | `src/features/admin-candidates/action-form-data.ts`, `action-states.ts`, `action-utils.ts` |
+| 수동 후보 추가 | `src/features/admin-candidates/manual-candidate-actions.ts` |
+| 수집 제어 | `src/features/admin-candidates/x-ingest-actions.ts`, `telegram-channel-actions.ts` |
+| 공개/비공개 저장 | `src/features/admin-candidates/candidate-publication.ts`, `publication-actions.ts` |
+| 검수 OCR/구조화 실행 | `src/features/admin-candidates/candidate-ocr.ts`, `candidate-processing-actions.ts` |
+| 텔레그램 링크 후보 추가 | `src/features/admin-candidates/manual-telegram-link-form.tsx`, `src/lib/telegram/manual-link.ts`, `src/lib/telegram/manual-link-parser.ts`, `src/lib/telegram/manual-link-preview.ts`, `src/lib/telegram/manual-link-repository.ts` |
+| 텔레그램 채널 구독 수집 | `src/features/admin-candidates/telegram-channel-subscriptions-panel.tsx`, `src/lib/telegram/channel-subscription-scan.ts`, `src/lib/telegram/channel-subscription-repository.ts`, `src/lib/telegram/channel-candidate-ingest.ts`, `src/lib/telegram/channel-page.ts` |
 | 텔레그램 후보 이미지 수동 불러오기 | `src/lib/telegram/candidate-images.ts`, `src/lib/telegram/message-images.ts` |
+| 텔레그램 브리핑 발송 | `src/app/api/broadcast/telegram/route.ts`, `src/lib/telegram/event-broadcasts.ts`, `src/lib/telegram/event-broadcast-targets.ts`, `src/lib/telegram/event-broadcast-repository.ts`, `src/lib/telegram/event-broadcast-payload.ts`, `src/lib/telegram/broadcast.ts` |
 | 후보 출처 공통 라벨 | `src/lib/review-candidate-source.ts` |
 | X 수집 흐름 | `src/lib/x-ingest/run.ts`, `src/lib/x-ingest/candidate-detail-hydration.ts`, `repository.ts` |
 | X 후보 분류 | `src/lib/x-ingest/normalize.ts`, `candidate-rows.ts`, `hydration-state.ts` |
@@ -77,7 +80,12 @@
 - OpenAI 호출, prompt, schema, 모델/env 설정, 응답 파싱, 저장 포맷을 한 파일에 합치지 않는다.
 - `src/app` route는 가능한 한 import와 prop 전달만 남긴다.
 - `server-only` 성격의 모듈은 클라이언트 컴포넌트에서 import하지 않는다.
-- 검수 화면 서버 액션은 흐름 orchestration만 맡기고, FormData 파싱은 `action-form-data.ts`, 공개/비공개 저장 규칙은 `candidate-publication.ts`, OCR update 생성은 `candidate-ocr.ts`에 둔다.
+- 검수 화면 서버 액션은 기능별 파일로 나눈다. 수동 추가는 `manual-candidate-actions.ts`, 수집 제어는 `x-ingest-actions.ts`/`telegram-channel-actions.ts`, 후보 보강/OCR/구조화는 `candidate-processing-actions.ts`, 상태 변경은 `candidate-status-actions.ts`, 공개 저장은 `publication-actions.ts`에 둔다.
+- 서버 액션 공통 FormData 파싱은 `action-form-data.ts`, action state 타입은 `action-states.ts`, 서버 전용 helper는 `action-utils.ts`에 둔다.
+- 공개/비공개 저장 규칙은 `candidate-publication.ts`, OCR update 생성은 `candidate-ocr.ts`에 둔다.
+- 텔레그램 구독 채널 수집은 `channel-subscription-scan.ts`가 순회를, `channel-subscription-repository.ts`가 구독 DB와 커서를, `channel-candidate-ingest.ts`가 후보/media 저장을 맡는다.
+- 텔레그램 수동 링크 추가는 `manual-link.ts`를 진입점으로 두되, 링크 파싱은 `manual-link-parser.ts`, preview 수집은 `manual-link-preview.ts`, 후보/media 저장은 `manual-link-repository.ts`에 둔다.
+- 텔레그램 브리핑 발송은 `event-broadcasts.ts`를 진입점으로 두되, 대상 조회는 `event-broadcast-targets.ts`, claim/상태 저장은 `event-broadcast-repository.ts`, payload hash/dry-run은 `event-broadcast-payload.ts`, 날짜 정책은 `event-broadcast-dates.ts`에 둔다.
 - 사용처 없는 export, 오래된 호환 wrapper, 기본 scaffold asset은 제거한다.
 
 ## 변경 절차

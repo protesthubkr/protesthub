@@ -3,7 +3,8 @@
 import { useActionState, useEffect } from "react";
 import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
-import { addManualXPostCandidate, type ManualXPostFormState } from "./actions";
+import type { ManualXPostFormState } from "./action-states";
+import { addManualXPostCandidate } from "./manual-candidate-actions";
 
 const INITIAL_STATE: ManualXPostFormState = {
   status: "idle",
