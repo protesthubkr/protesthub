@@ -11,6 +11,7 @@ import {
   scanTelegramChannelSubscriptions,
   updateTelegramChannelSubscriptionStatus,
 } from "@/lib/telegram/channel-subscriptions";
+import { loadTelegramCandidateImages } from "@/lib/telegram/candidate-images";
 import { ingestManualTelegramLink } from "@/lib/telegram/manual-link";
 import {
   hydrateCandidateDetail,
@@ -329,6 +330,19 @@ export async function hydrateCandidateDetailFromAdmin(formData: FormData) {
   assertAdmin(secret);
 
   await hydrateCandidateDetail(candidateId);
+
+  revalidatePath("/admin/candidates");
+  redirect(getAdminRedirectPath(secret, returnState));
+}
+
+export async function loadTelegramCandidateImagesFromAdmin(formData: FormData) {
+  const secret = getRequiredString(formData, "secret");
+  const candidateId = getRequiredString(formData, "candidate_id");
+  const returnState = getAdminReturnState(formData);
+
+  assertAdmin(secret);
+
+  await loadTelegramCandidateImages(candidateId);
 
   revalidatePath("/admin/candidates");
   redirect(getAdminRedirectPath(secret, returnState));

@@ -73,8 +73,10 @@ src/lib/
 
 src/lib/telegram/
   channel-subscriptions.ts       텔레그램 공개 채널 구독 목록, 커서, 후보 수집.
+  candidate-images.ts            검수 카드에서 텔레그램 메시지 이미지를 수동 재수집.
   html.ts                        텔레그램 공개 페이지 HTML fetch/파싱 공용 util.
   manual-link.ts                  텔레그램 공유 링크 파싱, 공개 페이지 preview 수집, 후보 생성.
+  message-images.ts              텔레그램 메시지 HTML의 이미지 URL 추출 공용 util.
 
 src/lib/x-ingest/
   run.ts                         수집 오케스트레이션.
@@ -186,8 +188,9 @@ public_event_occurrences
 5. 구독 채널 메시지는 텍스트 또는 이미지가 있으면 `review_candidates`에 `source_type = telegram`으로 저장한다. 단, `needs_review` 승격 여부는 X 후보와 같은 `shouldReviewCandidate()` 기준을 따른다.
 6. 승격 기준을 만족하지 못하거나 오늘 이전 일정으로 판정된 메시지는 `ignored`로 저장한다. 기존 후보가 있으면 덮어쓰지 않는다.
 7. 후보 `review_reason`에는 `telegram_channel_subscription`, `telegram_auto_scan`과 함께 기존 후보 기준의 `review_rule:*`, 날짜/장소/미디어 신호, `past_event_date` 등을 남긴다.
-8. 텔레그램 채널 수집은 OCR이나 LLM 구조화를 자동 실행하지 않는다. 관리자가 검수 카드에서 필요할 때 OCR/본문 구조화를 실행한다.
-9. 채널 구독을 삭제해도 이미 만들어진 검수 후보는 삭제하지 않는다. 후보의 공개/무시/중복 처리는 기존 검수 흐름에서 별도로 한다.
+8. 텔레그램 채널 수집은 OCR이나 LLM 구조화를 자동 실행하지 않는다. 관리자가 검수 카드에서 필요할 때 이미지 불러오기, OCR, 본문 구조화를 실행한다.
+9. 텔레그램 이미지가 자동으로 붙지 않은 후보는 검수 카드의 "텔레그램 이미지 불러오기"로 원본 메시지를 다시 읽고 `source_media`, 후보 `media_keys`를 갱신한다.
+10. 채널 구독을 삭제해도 이미 만들어진 검수 후보는 삭제하지 않는다. 후보의 공개/무시/중복 처리는 기존 검수 흐름에서 별도로 한다.
 
 ## X 수집
 

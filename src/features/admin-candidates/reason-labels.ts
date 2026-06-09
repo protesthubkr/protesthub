@@ -120,6 +120,7 @@ export function formatCandidateReason(reason: string) {
     "review_migration:ignored_to_needs_review": "ignored에서 검수 대기로 승격",
     telegram_auto_scan: "텔레그램 자동 수집",
     telegram_channel_subscription: "텔레그램 구독 채널",
+    telegram_image_loaded: "텔레그램 이미지 수동 불러오기",
     unpublished_event: "공개 일정 내림",
     "llm_input:post_text_and_ocr": "LLM 입력 본문+OCR",
     "llm_input:post_text_only": "LLM 입력 본문만",

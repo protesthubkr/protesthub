@@ -7,13 +7,11 @@ import {
   createIngestRun,
   finishIngestRun,
 } from "@/lib/x-ingest/repository";
+import { fetchTelegramHtml, getMetaContent, normalizeText, stripHtml } from "./html";
 import {
-  extractBackgroundImageUrl,
-  fetchTelegramHtml,
-  getMetaContent,
-  normalizeText,
-  stripHtml,
-} from "./html";
+  createTelegramMessageFetchUrls,
+  extractTelegramMessageImageUrls,
+} from "./message-images";
 
 const TELEGRAM_MANUAL_LINK_STRATEGY = "manual_telegram_message_link";
 
@@ -177,15 +175,7 @@ async function fetchTelegramPreview(
 }
 
 function createTelegramPreviewUrls(link: TelegramMessageLink) {
-  if (link.channel.startsWith("c/")) {
-    return [link.sourceUrl];
-  }
-
-  return [
-    `${link.sourceUrl}?embed=1&mode=tme`,
-    `https://t.me/s/${link.channel}/${link.messageId}`,
-    link.sourceUrl,
-  ];
+  return createTelegramMessageFetchUrls(link);
 }
 
 function parseTelegramPreviewHtml(
@@ -195,8 +185,7 @@ function parseTelegramPreviewHtml(
   const widgetText = extractWidgetMessageText(html);
   const ogDescription = getMetaContent(html, "og:description");
   const title = normalizeText(getMetaContent(html, "og:title"));
-  const imageUrl =
-    extractWidgetImageUrl(html) || normalizeText(getMetaContent(html, "og:image"));
+  const imageUrl = extractTelegramMessageImageUrls(html)[0] ?? "";
 
   return {
     description: widgetText || normalizeText(ogDescription),
@@ -216,14 +205,6 @@ function extractWidgetMessageText(html: string) {
   }
 
   return normalizeText(stripHtml(match[1]));
-}
-
-function extractWidgetImageUrl(html: string) {
-  const match = html.match(
-    /tgme_widget_message_photo_wrap[^>]+style=["']([^"']+)["']/,
-  );
-
-  return extractBackgroundImageUrl(match?.[1] ?? "");
 }
 
 function getSourceName(link: TelegramMessageLink, title: string) {

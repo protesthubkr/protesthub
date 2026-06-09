@@ -28,11 +28,6 @@ export function getMetaContent(html: string, property: string) {
   return regex.exec(html)?.[1] ?? "";
 }
 
-export function extractBackgroundImageUrl(value: string) {
-  const match = value.match(/background-image:url\(['"]?([^'")]+)['"]?\)/);
-  return normalizeText(match?.[1] ?? "");
-}
-
 export function normalizeText(value: string) {
   return decodeHtmlEntities(value).replace(/\r\n/g, "\n").trim();
 }

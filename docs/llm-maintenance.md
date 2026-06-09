@@ -32,6 +32,7 @@
 | 검수 OCR 실행 | `src/features/admin-candidates/candidate-ocr.ts`, `actions.ts` |
 | 텔레그램 링크 후보 추가 | `src/features/admin-candidates/manual-telegram-link-form.tsx`, `src/lib/telegram/manual-link.ts` |
 | 텔레그램 채널 구독 수집 | `src/features/admin-candidates/telegram-channel-subscriptions-panel.tsx`, `src/lib/telegram/channel-subscriptions.ts` |
+| 텔레그램 후보 이미지 수동 불러오기 | `src/lib/telegram/candidate-images.ts`, `src/lib/telegram/message-images.ts` |
 | 후보 출처 공통 라벨 | `src/lib/review-candidate-source.ts` |
 | X 수집 흐름 | `src/lib/x-ingest/run.ts`, `src/lib/x-ingest/candidate-detail-hydration.ts`, `repository.ts` |
 | X 후보 분류 | `src/lib/x-ingest/normalize.ts`, `candidate-rows.ts`, `hydration-state.ts` |
@@ -115,6 +116,7 @@ git diff --check
 - 공개 폼 기본값은 기존 공개 이벤트가 있는 후보와 없는 후보를 각각 확인한다.
 - 텔레그램 링크 후보는 공개 `t.me` 링크 1건을 입력해 `needs_review`로 생성되는지 확인한다. 비공개/미리보기 실패 링크는 본문 선택 입력으로 보완한다.
 - 텔레그램 구독 채널은 `/admin/candidates`에서 공개 채널을 추가한 뒤 "이 채널 수집"을 눌러 새 후보가 `source_type = telegram`, `review_reason`에 `telegram_channel_subscription`을 가진 채 생성되는지 확인한다.
+- 텔레그램 후보 이미지가 빠졌다면 후보 카드의 "텔레그램 이미지 불러오기"를 눌러 `source_media`와 후보 `media_keys`가 채워지는지 확인한다. 이 버튼은 OCR/LLM을 자동 실행하지 않는다.
 - `/api/ingest/x`는 Bearer secret과 함께 테스트한다. 백필은 `startDate=YYYY-MM-DD` 또는 `startTime=...` query로 실행하되, 실제 조회 시작점은 최대 30일 전으로 제한된다.
 - 구조화 추출은 상세설명과 evidence를 생성하지 않는다. 정확도가 더 중요하므로 기본 출력 예산은 `OPENAI_EXTRACTION_MAX_OUTPUT_TOKENS=6000` 수준으로 두고, GPT-5 계열 reasoning token 비용을 줄이기 위해 `OPENAI_EXTRACTION_REASONING_EFFORT=minimal`을 사용한다.
 - 구조화 프롬프트는 원문과 OCR을 임의로 잘라 넣지 않는다. 입력 길이 제한을 다시 도입하려면 실제 추출 품질 회귀를 먼저 비교한다.
@@ -128,7 +130,7 @@ git diff --check
 - Telegram 후보는 `source_type = telegram`, `source_record_id = telegram:<channel>:<message_id>` 형식을 쓴다.
 - 구독 채널 수집 커서는 `telegram_channel_subscriptions.last_checked_message_id`, `last_checked_message_at`, `last_checked_at`을 기준으로 한다. 신규 구독 채널은 첫 수집 때 최대 60일 전까지만 훑고, 이후에는 마지막 확인 이후 메시지만 후보화한다.
 - 텔레그램 구독 채널에서 온 메시지도 `shouldReviewCandidate()` 기준을 따른다. 구독 채널이라는 이유만으로 `needs_review`에 올리지 말고, 기준 미충족 또는 과거 일정은 `ignored`로 저장한다.
-- 구독 채널 수집은 OCR/LLM 구조화를 자동 실행하지 않는다. 검수 카드에서 관리자가 필요할 때 OCR 또는 구조화를 실행한다.
+- 구독 채널 수집은 OCR/LLM 구조화를 자동 실행하지 않는다. 검수 카드에서 관리자가 필요할 때 이미지 불러오기, OCR 또는 구조화를 실행한다.
 - 일반 `/api/ingest/x` 수집은 팔로잉 목록 API를 호출하지 않고 `x_accounts`의 캐시된 계정만 사용한다.
 - 팔로잉 목록을 새로 반영할 때는 `/admin/candidates`의 X 수집 실행 패널을 우선 사용하고, API 직접 실행이 필요할 때만 `/api/ingest/x?refreshFollowing=true`를 쓴다.
 - timeline 1차 요청에는 `expansions`, `media.fields`, `user.fields`를 붙이지 않는다.

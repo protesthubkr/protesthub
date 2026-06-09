@@ -10,6 +10,7 @@ import {
 } from "@/lib/review-candidate-source";
 import { HiddenAdminFields } from "./admin-hidden-fields";
 import {
+  loadTelegramCandidateImagesFromAdmin,
   runCandidateOcr,
   runCandidateStructuredExtraction,
   runCandidateTextOnlyStructuredExtraction,
@@ -83,6 +84,39 @@ export function RunOcrForm({
         OCR 실행
       </button>
       <span>{getOcrActionHint(candidate, isOcrConfigured)}</span>
+    </form>
+  );
+}
+
+export function LoadTelegramImagesForm({
+  candidate,
+  currentPage,
+  currentStatus,
+  scope,
+  secret,
+}: CandidateActionProps) {
+  if (candidate.sourceType !== "telegram") {
+    return null;
+  }
+
+  return (
+    <form
+      action={loadTelegramCandidateImagesFromAdmin}
+      className="admin-ocr-run-form"
+    >
+      <HiddenAdminFields
+        candidateId={candidate.id}
+        currentPage={currentPage}
+        currentStatus={currentStatus}
+        scope={scope}
+        secret={secret}
+      />
+      <button type="submit">텔레그램 이미지 불러오기</button>
+      <span>
+        {candidate.media.length > 0
+          ? "원본 메시지에서 이미지 URL 갱신"
+          : "원본 메시지에서 이미지 URL 탐색"}
+      </span>
     </form>
   );
 }

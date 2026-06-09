@@ -10,12 +10,12 @@ import {
 } from "@/lib/x-ingest/normalize";
 import type { XMedia, XPost } from "@/lib/x-ingest/types";
 import {
-  extractBackgroundImageUrl,
   fetchTelegramHtml,
   getMetaContent,
   normalizeText,
   stripHtml,
 } from "./html";
+import { extractTelegramMessageImageUrls } from "./message-images";
 
 const TELEGRAM_CHANNEL_SCAN_SOURCE = "telegram_channel_subscription_scan";
 const NEW_CHANNEL_LOOKBACK_DAYS = 60;
@@ -496,19 +496,7 @@ function extractMessageText(rawHtml: string) {
 }
 
 function extractMessageImageUrls(rawHtml: string) {
-  const classNames = [
-    "tgme_widget_message_photo_wrap",
-    "tgme_widget_message_video_thumb",
-  ];
-  const urls = classNames.flatMap((className) => {
-    const regex = new RegExp(`${className}[^>]+style=["']([^"']+)["']`, "g");
-
-    return Array.from(rawHtml.matchAll(regex))
-      .map((match) => extractBackgroundImageUrl(match[1] ?? ""))
-      .filter(Boolean);
-  });
-
-  return Array.from(new Set(urls));
+  return extractTelegramMessageImageUrls(rawHtml);
 }
 
 function shouldCollectMessage(

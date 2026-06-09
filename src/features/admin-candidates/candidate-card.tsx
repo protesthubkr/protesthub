@@ -7,6 +7,7 @@ import { CANDIDATE_STATUS_LABELS } from "@/lib/admin-candidates";
 import { formatKoreanDateTime } from "@/lib/format";
 import { getSourceViewLabel } from "@/lib/review-candidate-source";
 import {
+  LoadTelegramImagesForm,
   OcrMemoForm,
   RunOcrForm,
   RunStructuredExtractionForm,
@@ -66,6 +67,13 @@ export function CandidateCard({
       <CandidateSourceGrid candidate={candidate} />
       <CandidateReasonList reasons={candidate.candidateReason} />
       <DetailHydrationAction
+        candidate={candidate}
+        currentPage={currentPage}
+        currentStatus={currentStatus}
+        scope={scope}
+        secret={secret}
+      />
+      <LoadTelegramImagesForm
         candidate={candidate}
         currentPage={currentPage}
         currentStatus={currentStatus}
