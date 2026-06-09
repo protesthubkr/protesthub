@@ -39,7 +39,7 @@
    - 화면 형식은 `{단체명} - {핵심 문장} {시각}`을 유지한다.
 
 4. Vercel cron 동작을 확인한다.
-   - 텔레그램 수집: 10분 주기
+   - 텔레그램 수집: 매시 정각
    - 텔레그램 추출: 10분 주기 offset
    - 정당 사이트 수집: 1시간 주기
    - `CRON_SECRET`, `OPENAI_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_SUPABASE_URL` 설정을 확인한다.

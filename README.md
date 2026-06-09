@@ -79,7 +79,7 @@ http://localhost:3000/admin/candidates?secret=INGEST_SECRET
 
 Run the statement feed collector with `GET /api/ingest/telegram-statements`.
 The route is protected by Bearer `CRON_SECRET`, and `vercel.json` schedules it
-every 10 minutes.
+hourly on the hour.
 
 ```bash
 curl "http://localhost:3000/api/ingest/telegram-statements?dryRun=true" \

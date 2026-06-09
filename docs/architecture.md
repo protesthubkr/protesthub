@@ -111,7 +111,7 @@ src/lib/telegram/
   message-images.ts              텔레그램 메시지 HTML의 이미지 URL 추출 공용 util.
 
 src/lib/telegram-statements/
-  run.ts                         입장문 피드용 10분 자동 수집 오케스트레이션.
+  run.ts                         입장문 피드용 매시 정각 자동 수집 오케스트레이션.
   channel-scan.ts                채널 단위 lock, 수집, 저장 흐름.
   message-collection.ts          신규/백필 텔레그램 메시지 페이지 수집.
   scan-cursor.ts                 메시지 cursor, cutoff, page 중단 조건.
@@ -326,7 +326,7 @@ public_event_occurrences
 
 ## Telegram 입장문 피드 자동 수집
 
-1. `/api/ingest/telegram-statements`는 Vercel Cron이 10분마다 `GET`으로 호출한다.
+1. `/api/ingest/telegram-statements`는 Vercel Cron이 매시 정각마다 `GET`으로 호출한다.
 2. 이 API는 Bearer `CRON_SECRET`을 검증하고, `dryRun=true`, `channel=<username>`, `maxPages=<n>` query를 지원한다.
 3. 채널 목록은 기존 `telegram_channel_subscriptions`를 재사용하되 `statement_feed_enabled = true`인 active 채널만 본다. 기본 제외 채널은 `workers2016`, `platformc`, `leftall`이다.
 4. 기존 수동 텔레그램 후보 수집의 `last_checked_message_id`는 변경하지 않는다. 첫 자동 실행의 시작점으로 읽기만 하고, 이후에는 `telegram_statement_scan_states`의 전용 cursor만 갱신한다.
