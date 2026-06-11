@@ -10,21 +10,19 @@ import {
 } from "./filters";
 
 type UseCalendarMonthDataProps = {
+  enabled: boolean;
   filters: EventFilters;
   initialCalendar: EventCalendarMonth | null;
   initialMonth: string;
   organizers: string[];
-  pathname: string;
-  onShowCalendar: () => void;
 };
 
 export function useCalendarMonthData({
+  enabled,
   filters,
   initialCalendar,
   initialMonth,
   organizers,
-  pathname,
-  onShowCalendar,
 }: UseCalendarMonthDataProps) {
   const [activeCalendarMonth, setActiveCalendarMonth] =
     useState(initialMonth);
@@ -43,17 +41,15 @@ export function useCalendarMonthData({
           filters,
           month: nextMonth,
           organizers,
-          pathname,
           viewMode: "calendar",
         }),
       );
     },
-    [filters, organizers, pathname],
+    [filters, organizers],
   );
 
   const loadCalendarMonth = useCallback(
     async (nextMonth: string) => {
-      onShowCalendar();
       setActiveCalendarMonth(nextMonth);
       setCalendarError(null);
 
@@ -95,11 +91,15 @@ export function useCalendarMonthData({
         }
       }
     },
-    [calendarData, filters, onShowCalendar, pushCalendarHistory],
+    [calendarData, filters, pushCalendarHistory],
   );
 
   useEffect(() => {
-    if (!isUnfiltered || calendarData?.month === activeCalendarMonth) {
+    if (
+      !enabled ||
+      !isUnfiltered ||
+      calendarData?.month === activeCalendarMonth
+    ) {
       return;
     }
 
@@ -126,7 +126,7 @@ export function useCalendarMonthData({
     return () => {
       isCanceled = true;
     };
-  }, [activeCalendarMonth, calendarData?.month, isUnfiltered]);
+  }, [activeCalendarMonth, calendarData?.month, enabled, isUnfiltered]);
 
   return {
     activeCalendarMonth,

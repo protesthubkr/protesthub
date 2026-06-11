@@ -2,6 +2,7 @@ import {
   getEventQuerySignature,
   parseEventSearchState,
 } from "@/features/public-events/filters";
+import type { EventViewMode } from "@/lib/types";
 import {
   getPublishedOrganizerOptions,
   getPublicEventCalendarMonth,
@@ -16,11 +17,17 @@ import {
 
 export type HomeSearchParams = Record<string, string | string[] | undefined>;
 
-export async function getPublicEventsHomePageData(params: HomeSearchParams) {
-  const searchState = parseEventSearchState(toURLSearchParams(params));
+export async function getPublicEventsHomePageData(
+  params: HomeSearchParams,
+  viewMode: EventViewMode,
+) {
+  const searchState = parseEventSearchState(
+    toURLSearchParams(params),
+    viewMode,
+  );
   const { todayDate } = getPublicEventDatePolicy();
   const requestedListStartDate =
-    searchState.viewMode === "list" ? searchState.date : null;
+    viewMode === "list" ? searchState.date : null;
   const listStartDate = requestedListStartDate
     ? resolvePublicEventListFromDate({
         requestedDate: requestedListStartDate,
@@ -39,14 +46,14 @@ export async function getPublicEventsHomePageData(params: HomeSearchParams) {
   };
 
   const listWindowPromise =
-    searchState.viewMode === "list"
+    viewMode === "list"
       ? getPublicEventOccurrenceWindow({
           filters: searchState.filters,
           fromDate: listFromDate,
         })
       : Promise.resolve(createEmptyOccurrenceWindow(todayDate));
   const calendarPromise =
-    searchState.viewMode === "calendar"
+    viewMode === "calendar"
       ? getPublicEventCalendarMonth({
           filters: searchState.filters,
           minDate: todayDate,
@@ -69,7 +76,7 @@ export async function getPublicEventsHomePageData(params: HomeSearchParams) {
     organizers,
     searchSignature: getEventQuerySignature(normalizedSearchState),
     todayDate,
-    viewMode: searchState.viewMode,
+    viewMode,
   };
 }
 

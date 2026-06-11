@@ -144,6 +144,7 @@ export function removePublishedEventPayload(payload: Record<string, unknown>) {
 export function revalidateAdminAndPublicPaths(eventId: string) {
   clearPublicEventCalendarCache();
   revalidatePath("/");
+  revalidatePath("/list");
   revalidatePath(`/events/${eventId}`);
   revalidatePath("/events/[id]", "page");
   revalidatePath("/api/events");

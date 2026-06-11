@@ -21,12 +21,13 @@ export type EventSearchState = {
 
 export function parseEventSearchState(
   searchParams: URLSearchParams,
+  viewMode: EventViewMode,
 ): EventSearchState {
   return {
     date: parseDateParam(searchParams.get("date")),
     filters: parseEventFilters(searchParams),
     month: parseMonthParam(searchParams.get("month")),
-    viewMode: parseViewMode(searchParams.get("view")),
+    viewMode,
   };
 }
 
@@ -43,44 +44,40 @@ export function buildEventHref({
   filters,
   month = null,
   organizers,
-  pathname,
   viewMode = "list",
 }: {
   date?: string | null;
   filters: EventFilters;
   month?: string | null;
   organizers: string[];
-  pathname: string;
   viewMode?: EventViewMode;
 }) {
   const params = buildEventFilterSearchParams({ filters, organizers });
+  const path = getEventPathForViewMode(viewMode);
 
   if (viewMode === "calendar") {
-    params.set("view", "calendar");
-
     if (month) {
       params.set("month", month);
     }
   } else if (date) {
-    params.set("view", "list");
     params.set("date", date);
   }
 
   const nextQuery = params.toString();
 
-  return nextQuery ? `${pathname}?${nextQuery}` : pathname;
+  return nextQuery ? `${path}?${nextQuery}` : path;
 }
 
 export function buildEventFilterHref({
   filters,
   organizers,
-  pathname,
+  viewMode = "list",
 }: {
   filters: EventFilters;
   organizers: string[];
-  pathname: string;
+  viewMode?: EventViewMode;
 }) {
-  return buildEventHref({ filters, organizers, pathname });
+  return buildEventHref({ filters, organizers, viewMode });
 }
 
 export function buildEventFilterSearchParams({
@@ -242,6 +239,6 @@ function getIssueKeys() {
   return ISSUE_OPTIONS.map((issue) => issue.key);
 }
 
-function parseViewMode(value: string | null): EventViewMode {
-  return value === "calendar" ? "calendar" : "list";
+function getEventPathForViewMode(viewMode: EventViewMode) {
+  return viewMode === "calendar" ? "/" : "/list";
 }

@@ -8,15 +8,15 @@ import { LoadingState } from "@/features/public-events/loading-state";
 
 export const revalidate = 60;
 
-type HomeSearchParamsPromise = Promise<HomeSearchParams>;
+type ListSearchParamsPromise = Promise<HomeSearchParams>;
 
-export default async function Home({
+export default async function ListPage({
   searchParams,
 }: {
-  searchParams: HomeSearchParamsPromise;
+  searchParams: ListSearchParamsPromise;
 }) {
   const { searchSignature, ...clientProps } =
-    await getPublicEventsHomePageData(await searchParams, "calendar");
+    await getPublicEventsHomePageData(await searchParams, "list");
 
   return (
     <Suspense

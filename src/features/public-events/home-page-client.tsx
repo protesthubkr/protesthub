@@ -1,14 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { usePathname, useRouter } from "next/navigation";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  useTransition,
-} from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useTransition } from "react";
 import { REGION_OPTIONS } from "@/lib/regions";
 import type {
   EventCalendarMonth,
@@ -60,11 +54,8 @@ export function HomePageClient({
   viewMode,
 }: HomePageClientProps) {
   const router = useRouter();
-  const pathname = usePathname();
   const [state, dispatch] = useHomeFilterState(filters);
-  const [activeViewMode, setActiveViewMode] = useState(viewMode);
   const [isRoutePending, startRouteTransition] = useTransition();
-  const showCalendar = useCallback(() => setActiveViewMode("calendar"), []);
   const {
     activeCalendarMonth,
     calendarError,
@@ -73,11 +64,10 @@ export function HomePageClient({
     loadCalendarMonth,
   } = useCalendarMonthData({
     filters,
+    enabled: viewMode === "calendar",
     initialCalendar,
     initialMonth: calendarMonth,
     organizers,
-    pathname,
-    onShowCalendar: showCalendar,
   });
   const {
     dateGroups,
@@ -89,7 +79,7 @@ export function HomePageClient({
     loadedEvents,
     pullLoadState,
   } = useEventListWindow({
-    activeViewMode,
+    activeViewMode: viewMode,
     filters,
     initialWindow,
     isFilterOpen: state.isFilterOpen,
@@ -100,15 +90,15 @@ export function HomePageClient({
     [filters],
   );
   const isUnfiltered = hasNoEventFilters(filters);
-  const isListRouteLoading = activeViewMode === "list" && isRoutePending;
+  const isListRouteLoading = viewMode === "list" && isRoutePending;
 
   useFilterOverlayLock(state.isFilterOpen);
 
   useEffect(() => {
-    if (isUnfiltered) {
+    if (isUnfiltered && viewMode === "calendar") {
       void import("./calendar-month-view");
     }
-  }, [isUnfiltered]);
+  }, [isUnfiltered, viewMode]);
 
   function openFilter(step: FilterStep = "issue") {
     dispatch({ type: "open-filter", filters, step });
@@ -116,12 +106,11 @@ export function HomePageClient({
 
   function applyFilters() {
     const href = buildEventHref({
-      date: activeViewMode === "list" ? listStartDate : null,
+      date: viewMode === "list" ? listStartDate : null,
       filters: state.draft,
-      month: activeViewMode === "calendar" ? activeCalendarMonth : null,
+      month: viewMode === "calendar" ? activeCalendarMonth : null,
       organizers,
-      pathname,
-      viewMode: activeViewMode,
+      viewMode,
     });
 
     startRouteTransition(() => {
@@ -132,15 +121,24 @@ export function HomePageClient({
   }
 
   function switchToCalendar() {
-    void loadCalendarMonth(activeCalendarMonth);
+    const href = buildEventHref({
+      filters,
+      month: calendarMonth,
+      organizers,
+      viewMode: "calendar",
+    });
+
+    startRouteTransition(() => {
+      router.push(href);
+    });
+    window.scrollTo({ top: 0 });
   }
 
   function switchToList() {
-    setActiveViewMode("list");
     const href = buildEventFilterHref({
       filters,
       organizers,
-      pathname,
+      viewMode: "list",
     });
 
     startRouteTransition(() => {
@@ -150,12 +148,10 @@ export function HomePageClient({
   }
 
   function selectCalendarDate(date: string) {
-    setActiveViewMode("list");
     const href = buildEventHref({
       date,
       filters,
       organizers,
-      pathname,
       viewMode: "list",
     });
 
@@ -177,13 +173,13 @@ export function HomePageClient({
         <div className="results-top">
           <ConditionChips chips={conditionChips} onOpenFilter={openFilter} />
           <ViewModeSwitch
-            viewMode={activeViewMode}
+            viewMode={viewMode}
             onCalendarClick={switchToCalendar}
             onListClick={switchToList}
           />
         </div>
 
-        {activeViewMode === "calendar" ? (
+        {viewMode === "calendar" ? (
           <CalendarMonthView
             calendar={calendarData}
             errorMessage={calendarError}

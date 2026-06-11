@@ -15,7 +15,8 @@
 
 ```text
 src/app/
-  page.tsx                       공개 목록 route. 초기 데이터 조립 결과를 클라이언트 shell에 전달한다.
+  page.tsx                       공개 캘린더 route. 월 요약 초깃값을 클라이언트 shell에 전달한다.
+  list/page.tsx                  공개 목록 route. 1주 window 초깃값을 클라이언트 shell에 전달한다.
   events/[id]/page.tsx           공개 상세 route. id 단건 조회를 수행한다.
   admin/candidates/page.tsx      내부 검수 route.
   api/events/route.ts            공개 목록 추가 로드 API. 다음 1주치 occurrence만 반환한다.
@@ -23,14 +24,14 @@ src/app/
   api/ingest/x/route.ts          X 수집 API.
 
 src/features/public-events/
-  home-page-data.ts              공개 첫 화면 서버 데이터 조립. URL query, 목록 window, 캘린더 초깃값을 묶는다.
+  home-page-data.ts              공개 화면 서버 데이터 조립. route view, URL query, 목록 window, 캘린더 초깃값을 묶는다.
   home-page-client.tsx           공개 목록 클라이언트 shell. 필터, 목록, 캘린더 hook을 조립한다.
   use-event-list-window.ts       목록 추가 로드, sentinel observer, occurrence 누적 상태.
   use-previous-week-pull.ts      미래 날짜 리스트에서 오늘까지 되돌아가는 모바일 pull 보강.
   use-calendar-month-data.ts     캘린더 월 변경 fetch와 calendar URL 반영.
   use-filter-overlay-lock.ts     필터 패널 오픈 시 문서 scroll lock class 관리.
   use-home-filter-state.ts       필터 패널 draft/reducer.
-  filters.ts                     URL query 파싱, 조건 칩, 필터 query 생성.
+  filters.ts                     URL query 파싱, 조건 칩, `/`와 `/list` 이동 URL 생성.
   event-list-model.ts            occurrence 병합과 날짜/시간별 그룹핑 순수 함수.
   calendar-month-model.ts        월 캘린더 6주 그리드, 요일, 날짜 cell label 순수 함수.
   calendar-month-view.tsx        월 캘린더 렌더링. 날짜 클릭 시 리스트 진입.
@@ -147,15 +148,15 @@ src/lib/llm/
 
 ## 공개 목록 데이터 흐름
 
-1. `src/app/page.tsx`는 `getPublicEventsHomePageData()`를 호출해 route를 얇게 유지한다.
-2. `home-page-data.ts`가 `searchParams`를 `parseEventSearchState()`로 변환한다.
+1. `src/app/page.tsx`는 캘린더 뷰(`/`)를, `src/app/list/page.tsx`는 리스트 뷰(`/list`)를 담당하고 둘 다 `getPublicEventsHomePageData()`를 호출해 route를 얇게 유지한다.
+2. `home-page-data.ts`가 route view mode와 `searchParams`를 `parseEventSearchState()`로 변환한다.
 3. `public-event-date-policy.ts`가 오늘 이전 날짜/월 query를 오늘 기준으로 보정한다.
-4. 리스트 뷰는 기준 날짜부터 1주일 window만, 캘린더 뷰는 해당 월 요약만 조회한다.
+4. `/list`는 기준 날짜부터 1주일 window만, `/`는 해당 월 요약만 조회한다.
 5. `getPublicEventOccurrenceWindow()`, `getPublicEventCalendarMonth()`, `getPublishedOrganizerOptions()`는 가능한 범위에서 `Promise.all`로 병렬 조회한다.
 6. `HomePageClient`는 서버에서 받은 초기값을 각 hook에 넘기고, 직접 fetch/observer 세부 구현을 갖지 않는다.
 7. 목록 하단 sentinel이 보이면 `use-event-list-window.ts`가 `/api/events?from=YYYY-MM-DD&...filters`를 호출해 다음 1주일을 붙인다.
 8. 미래 날짜 리스트에서 화면 상단을 아래로 당기면 이전 1주일을 붙이되 오늘 이전으로는 내려가지 않는다.
-9. 캘린더 월 이동은 `use-calendar-month-data.ts`가 `/api/events/calendar?month=YYYY-MM&...filters`를 호출한다.
+9. 캘린더 월 이동은 `use-calendar-month-data.ts`가 `/api/events/calendar?month=YYYY-MM&...filters`를 호출하고 `/`의 `month` query를 갱신한다.
 10. 공개 목록 API들은 `Cache-Control: public, s-maxage=60, stale-while-revalidate=300`을 붙인다.
 
 ## Supabase 공개 조회 구조
@@ -205,7 +206,7 @@ public_event_occurrences
 5. 공개/비공개 후보 조회, 공개 payload marker 제거, 공개 reason 교체, revalidate 범위는 `candidate-publication.ts`에 둔다.
 6. 공개 적용은 `public_events` upsert, 기존 `event_dates` 삭제, 새 `event_dates` insert, 후보 `published` 갱신 순서다.
 7. 공개 내리기는 `public_events` row를 삭제해 `event_dates`를 cascade 삭제하고 후보를 `needs_review`로 되돌린다.
-8. 공개 후 `/`, `/events/[id]`, `/admin/candidates`를 revalidate한다. `/api/events`는 짧은 CDN TTL로 최대 60초 안에 갱신된다.
+8. 공개 후 `/`, `/list`, `/events/[id]`, `/admin/candidates`를 revalidate한다. `/api/events`는 짧은 CDN TTL로 최대 60초 안에 갱신된다.
 
 ## 검수 후보 출처 모델
 

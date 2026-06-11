@@ -14,7 +14,8 @@
 
 | 작업 | 먼저 볼 파일 |
 | --- | --- |
-| 공개 목록 초기 로드 | `src/app/page.tsx`, `src/features/public-events/home-page-data.ts`, `src/lib/events.ts` |
+| 공개 캘린더 초기 로드 | `src/app/page.tsx`, `src/features/public-events/home-page-data.ts`, `src/lib/events.ts` |
+| 공개 리스트 route | `src/app/list/page.tsx`, `src/features/public-events/home-page-data.ts`, `src/features/public-events/home-page-client.tsx` |
 | 공개 조회 날짜 정책 | `src/lib/public-event-date-policy.ts`, `src/lib/date-key.ts`, `src/features/public-events/home-page-data.ts` |
 | 공개 목록 추가 로드 | `src/features/public-events/use-event-list-window.ts`, `src/features/public-events/use-previous-week-pull.ts`, `src/app/api/events/route.ts`, `src/lib/events.ts`, `src/lib/event-query-model.ts` |
 | 캘린더 월 조회 | `src/features/public-events/use-calendar-month-data.ts`, `src/app/api/events/calendar/route.ts`, `src/lib/events.ts`, `src/lib/event-query-model.ts`, `src/lib/public-event-date-policy.ts` |
@@ -50,6 +51,7 @@
 
 - 공개 목록은 `EventListOccurrence`만 사용한다. `PublicEvent`를 목록 카드나 목록 API에 넘기지 않는다.
 - 첫 화면은 오늘부터 1주일만 조회한다.
+- 공개 캘린더 뷰는 `/`, 공개 리스트 뷰는 `/list`를 쓴다. `view=list|calendar` query로 화면을 전환하지 않는다.
 - 바닥 도달 시 `/api/events`로 다음 1주일만 조회한다.
 - 미래 날짜에서 시작한 리스트는 pull-to-load로 이전 1주일을 붙일 수 있지만, 오늘 이전 데이터는 공개 조회하지 않는다.
 - 캘린더 뷰는 `/api/events/calendar`로 월별 요약만 조회한다. 장소 상세, 출처 URL, 포스터는 싣지 않는다.
@@ -64,7 +66,7 @@
 
 - `/`와 `/events/[id]`는 `revalidate = 60`을 사용한다.
 - `/api/events`는 `Cache-Control: public, s-maxage=60, stale-while-revalidate=300`을 사용한다.
-- 공개 처리 서버 액션은 `/`, `/events/[id]`, `/admin/candidates`를 revalidate한다.
+- 공개 처리 서버 액션은 `/`, `/list`, `/events/[id]`, `/admin/candidates`를 revalidate한다.
 - 관리자/수집 경로는 신선도가 중요하므로 공개 목록처럼 CDN 캐시하지 않는다.
 - DB client와 외부 SDK client는 module scope에서 즉시 만들지 않는다. 반드시 lazy getter 안에서 만든다.
 
@@ -125,7 +127,7 @@ git diff --check
 프론트엔드 변경:
 
 - 모바일 `390x844`에서 `/`를 연다.
-- 조건 칩, 필터 버튼, 필터 패널, 전체 선택/해제, 적용 후 query 반영을 확인한다.
+- 조건 칩, 필터 버튼, 필터 패널, 전체 선택/해제, 적용 후 `/` 또는 `/list` query 반영을 확인한다.
 - 목록 하단에서 다음 1주일이 추가 로드되는지 확인한다.
 - 필터 버튼이 목록을 가리지 않는지 확인한다.
 - `/events/[id]`에서 상세 정보, 포스터, 원본 링크를 확인한다.
