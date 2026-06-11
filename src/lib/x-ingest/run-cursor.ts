@@ -1,4 +1,4 @@
-import type { AccountIngestCursor, PostCursor } from "./repository";
+import type { AccountIngestCursor, PostCursor } from "./account-types";
 import type { XPost } from "./types";
 
 export const MAX_ACCOUNT_LOOKBACK_DAYS = 30;
@@ -114,7 +114,37 @@ function pickNewerPostCursor(
     return currentPost;
   }
 
-  return Date.parse(nextPost.createdAt) > Date.parse(currentPost.createdAt)
+  const currentTimestamp = Date.parse(currentPost.createdAt);
+  const nextTimestamp = Date.parse(nextPost.createdAt);
+
+  if (nextTimestamp > currentTimestamp) {
+    return nextPost;
+  }
+
+  if (nextTimestamp < currentTimestamp) {
+    return currentPost;
+  }
+
+  return comparePostIds(nextPost.postId, currentPost.postId) > 0
     ? nextPost
     : currentPost;
+}
+
+function comparePostIds(left: string, right: string) {
+  try {
+    const leftId = BigInt(left);
+    const rightId = BigInt(right);
+
+    if (leftId > rightId) {
+      return 1;
+    }
+
+    if (leftId < rightId) {
+      return -1;
+    }
+
+    return 0;
+  } catch {
+    return left.localeCompare(right);
+  }
 }

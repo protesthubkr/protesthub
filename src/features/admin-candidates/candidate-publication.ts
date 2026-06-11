@@ -1,5 +1,5 @@
-﻿import { revalidatePath } from "next/cache";
-import type { CandidateStatus } from "@/lib/admin-candidates";
+import { revalidatePath } from "next/cache";
+import type { CandidateStatus } from "@/lib/admin-candidates/types";
 import { clearPublicEventCalendarCache } from "@/lib/events";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 

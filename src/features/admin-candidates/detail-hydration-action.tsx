@@ -2,7 +2,7 @@ import type {
   CandidateReviewScope,
   CandidateStatusFilter,
   ReviewCandidate,
-} from "@/lib/admin-candidates";
+} from "@/lib/admin-candidates/types";
 import { getCandidateDetailHydrationState } from "@/lib/x-ingest/hydration-state";
 import { HiddenAdminFields } from "./admin-hidden-fields";
 import { hydrateCandidateDetailFromAdmin } from "./candidate-processing-actions";

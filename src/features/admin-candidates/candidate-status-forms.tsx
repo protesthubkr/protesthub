@@ -2,7 +2,7 @@ import type {
   CandidateReviewScope,
   CandidateStatus,
   CandidateStatusFilter,
-} from "@/lib/admin-candidates";
+} from "@/lib/admin-candidates/types";
 import { HiddenAdminFields } from "./admin-hidden-fields";
 import { updateCandidateStatus } from "./candidate-status-actions";
 

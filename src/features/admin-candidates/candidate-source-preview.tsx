@@ -1,4 +1,4 @@
-import type { ReviewCandidate } from "@/lib/admin-candidates";
+import type { ReviewCandidate } from "@/lib/admin-candidates/types";
 
 export function CandidateSourcePreview({
   candidate,

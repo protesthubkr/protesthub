@@ -7,19 +7,18 @@ import {
   createEmptyIngestCounters,
   createIngestRun,
   finishIngestRun,
-  upsertAccounts,
-  upsertMedia,
-  upsertPostMedia,
-  upsertPosts,
-} from "./repository";
-import type { XMedia, XPost, XUser } from "./types";
-import { fetchPostById } from "./x-api";
+} from "./ingest-run-repository";
+import { upsertAccounts } from "./account-storage-repository";
+import { upsertMedia, upsertPostMedia } from "./media-repository";
+import { getCandidateReasons } from "./normalize-rules";
 import {
-  getCandidateReasons,
   getMediaForPost,
   getPostText,
   getPostUrl,
-} from "./normalize";
+} from "./normalize-text";
+import { upsertPosts } from "./post-repository";
+import type { XMedia, XPost, XUser } from "./types";
+import { fetchPostById } from "./x-api-tweets";
 
 const MANUAL_SINGLE_POST_STRATEGY = "manual_single_post";
 const MONTH_REVIEW_TOKENS = ["6월", "7월", "8월", "6.", "06.", "7.", "07."];

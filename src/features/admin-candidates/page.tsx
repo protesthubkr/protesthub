@@ -1,10 +1,10 @@
 import { getStringParam, isAdminSecretValid } from "@/lib/admin-auth";
+import { getReviewCandidates } from "@/lib/admin-candidates/repository";
 import {
-  getReviewCandidates,
   parseCandidatePageParam,
   parseCandidateReviewScope,
   parseCandidateStatusFilter,
-} from "@/lib/admin-candidates";
+} from "@/lib/admin-candidates/filters";
 import { getTelegramChannelSubscriptions } from "@/lib/telegram/channel-subscription-repository";
 import { AdminControlPanels } from "./admin-control-panels";
 import { AdminUnauthorized } from "./admin-unauthorized";

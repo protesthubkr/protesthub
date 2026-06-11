@@ -2,7 +2,7 @@ import type {
   CandidateReviewScope,
   CandidateStatusFilter,
   ReviewCandidate,
-} from "@/lib/admin-candidates";
+} from "@/lib/admin-candidates/types";
 import { ISSUE_OPTIONS } from "@/lib/issues";
 import { REGION_OPTIONS } from "@/lib/regions";
 import {

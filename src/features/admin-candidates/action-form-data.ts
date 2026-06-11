@@ -1,13 +1,15 @@
 import { isAdminSecretValid } from "@/lib/admin-auth";
 import {
   CANDIDATE_STATUS_FILTERS,
-  type CandidateReviewScope,
-  type CandidateStatus,
-  type CandidateStatusFilter,
   parseCandidatePageParam,
   parseCandidateReviewScope,
   parseCandidateStatusFilter,
-} from "@/lib/admin-candidates";
+} from "@/lib/admin-candidates/filters";
+import type {
+  CandidateReviewScope,
+  CandidateStatus,
+  CandidateStatusFilter,
+} from "@/lib/admin-candidates/types";
 import { ISSUE_OPTIONS } from "@/lib/issues";
 import { REGION_OPTIONS } from "@/lib/regions";
 import type { IssueKey } from "@/lib/types";

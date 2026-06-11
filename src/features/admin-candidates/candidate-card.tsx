@@ -2,7 +2,7 @@ import type {
   CandidateReviewScope,
   CandidateStatusFilter,
   ReviewCandidate,
-} from "@/lib/admin-candidates";
+} from "@/lib/admin-candidates/types";
 import { CandidateCardHeader } from "./candidate-card-header";
 import {
   LoadTelegramImagesForm,

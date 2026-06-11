@@ -1,6 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { upsertAccounts } from "./repository";
-import { fetchFollowingAccounts } from "./x-api";
+import {
+  markUnfollowedAccounts,
+  upsertAccounts,
+} from "./account-storage-repository";
+import { fetchFollowingAccounts } from "./x-api-following";
 
 export async function refreshFollowingAccounts({
   bearerToken,
@@ -13,13 +16,21 @@ export async function refreshFollowingAccounts({
   operatingUserId: string;
   supabase: SupabaseClient;
 }) {
-  const followingAccounts = await fetchFollowingAccounts({
+  const followingFetch = await fetchFollowingAccounts({
     bearerToken,
     operatingUserId,
     maxAccounts,
   });
+  const followingAccounts = followingFetch.accounts;
 
   await upsertAccounts(supabase, followingAccounts);
+
+  if (followingFetch.fullyFetched) {
+    await markUnfollowedAccounts(
+      supabase,
+      followingAccounts.map((account) => account.id),
+    );
+  }
 
   return followingAccounts.filter((account) => !account.protected);
 }

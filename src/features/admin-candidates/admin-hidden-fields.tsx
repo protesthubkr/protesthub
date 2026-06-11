@@ -1,7 +1,7 @@
 import type {
   CandidateReviewScope,
   CandidateStatusFilter,
-} from "@/lib/admin-candidates";
+} from "@/lib/admin-candidates/types";
 
 type HiddenAdminFieldsProps = {
   candidateId: string;

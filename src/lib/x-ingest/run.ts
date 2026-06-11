@@ -29,21 +29,25 @@ import {
   isRetweetWrapper,
 } from "./retweet-discovery";
 import {
-  type AccountIngestCursorUpdate,
+  getAccountIngestCursor,
+  updateAccountIngestCursor,
+} from "./account-cursor-repository";
+import {
+  getCollectibleStoredAccounts,
+  getStoredFollowingAccountIds,
+  insertDiscoveredAccounts,
+} from "./account-storage-repository";
+import { insertCandidateRows } from "./candidate-repository";
+import {
   createEmptyIngestCounters,
   createIngestRun,
   finishIngestRun,
-  getAccountIngestCursor,
-  getCollectibleStoredAccounts,
-  insertDiscoveredAccounts,
-  insertCandidateRows,
-  updateAccountIngestCursors,
-  upsertMedia,
-  upsertPostMedia,
-  upsertPosts,
-} from "./repository";
+} from "./ingest-run-repository";
+import { upsertMedia, upsertPostMedia } from "./media-repository";
+import { upsertPosts } from "./post-repository";
 import type { XIngestResult, XIngestRunOptions } from "./types";
-import { fetchUserPosts, XApiError } from "./x-api";
+import { XApiError } from "./x-api-client";
+import { fetchUserPosts } from "./x-api-tweets";
 
 export { XApiError, XIngestConfigError };
 
@@ -99,7 +103,6 @@ export async function runXIngest(
     reviewPastEventNotices,
   });
   const counters = createEmptyIngestCounters();
-  const cursorUpdates: AccountIngestCursorUpdate[] = [];
 
   try {
     const collectibleAccounts = shouldRefreshFollowing
@@ -115,7 +118,7 @@ export async function runXIngest(
         );
     counters.accountsSeen = collectibleAccounts.length;
     const followedAccountIds = new Set(
-      collectibleAccounts.map((account) => account.id),
+      await getStoredFollowingAccountIds(supabase),
     );
 
     for (const account of collectibleAccounts) {
@@ -212,16 +215,16 @@ export async function runXIngest(
       counters.needsReviewCandidatesCreated +=
         candidateInsertResult.needsReviewCreated;
       if (!retweetOriginalsOnly) {
-        cursorUpdates.push({
+        await updateAccountIngestCursor({
           accountId: account.id,
           checkedAt: new Date().toISOString(),
           latestPost: chooseLatestPostCursor(cursor, posts),
           runId,
+          supabase,
         });
       }
     }
 
-    await updateAccountIngestCursors(supabase, cursorUpdates);
     await finishIngestRun(supabase, runId, "succeeded", counters);
 
     return {

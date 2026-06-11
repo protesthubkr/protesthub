@@ -3,7 +3,7 @@
 import type {
   CandidateReviewScope,
   CandidateStatusFilter,
-} from "@/lib/admin-candidates";
+} from "@/lib/admin-candidates/types";
 import { formatKoreanDateTime } from "@/lib/format";
 import type { TelegramChannelSubscription } from "@/lib/telegram/channel-subscription-types";
 import { AdminSubmitButton } from "./admin-form-controls";

@@ -1,7 +1,8 @@
 import { analyzePastEventNotice } from "@/lib/event-date-filter";
-import { getPostText, shouldReviewCandidate } from "./normalize";
+import { shouldReviewCandidate } from "./normalize-rules";
+import { getPostText } from "./normalize-text";
 import type { XPost } from "./types";
-import { fetchPostsByIds } from "./x-api";
+import { fetchPostsByIds } from "./x-api-tweets";
 
 export function createEmptyHydratedTimeline() {
   return { data: [], includes: { media: [], tweets: [], users: [] } };

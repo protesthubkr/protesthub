@@ -1,13 +1,15 @@
 import { analyzePastEventNotice } from "@/lib/event-date-filter";
 import {
   getCandidateReasons,
+  shouldCreateCandidate,
+  shouldReviewCandidate,
+} from "./normalize-rules";
+import {
   getMediaForPost,
   getPostText,
   getPostUrl,
   getReferencedPostIds,
-  shouldCreateCandidate,
-  shouldReviewCandidate,
-} from "./normalize";
+} from "./normalize-text";
 import {
   getCandidateDetailHydrationReasons,
   mergeCandidateMediaKeys,

@@ -72,6 +72,12 @@ export type XFollowingResponse = {
   errors?: unknown[];
 };
 
+export type XFollowingAccountsFetchResult = {
+  accounts: XUser[];
+  fullyFetched: boolean;
+  truncatedByLimit: boolean;
+};
+
 export type XIngestConfig = {
   bearerToken: string;
   operatingUserId: string;

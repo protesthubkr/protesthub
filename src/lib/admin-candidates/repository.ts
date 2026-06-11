@@ -2,7 +2,7 @@ import "server-only";
 
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import type { PublicEvent } from "@/lib/types";
-import { getAttachmentMediaKeysByPostId } from "@/lib/x-ingest/repository";
+import { getAttachmentMediaKeysByPostId } from "@/lib/x-ingest/media-repository";
 import { CANDIDATE_STATUS_FILTERS } from "./filters";
 import {
   createEmptyCounts,

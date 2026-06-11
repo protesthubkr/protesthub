@@ -12,11 +12,13 @@ import {
 } from "./hydration-state";
 import {
   getCandidateReasons,
+} from "./normalize-rules";
+import {
   getPostText,
   getPostUrl,
   getReferencedPostIds,
-} from "./normalize";
-import { getAttachmentMediaKeysByPostId } from "./repository";
+} from "./normalize-text";
+import { getAttachmentMediaKeysByPostId } from "./media-repository";
 import type { XMedia, XPost, XUser } from "./types";
 
 export function getRequiredCandidateHydrationSupabase() {

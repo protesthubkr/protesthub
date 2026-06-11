@@ -2,7 +2,6 @@ export const TELEGRAM_CHANNEL_SCAN_SOURCE =
   "telegram_channel_subscription_scan";
 
 export const NEW_CHANNEL_LOOKBACK_DAYS = 60;
-export const DEFAULT_MAX_PAGES_PER_CHANNEL = 60;
 
 export const TELEGRAM_CHANNEL_SUBSCRIPTION_SELECT = [
   "id",
@@ -40,6 +39,8 @@ export type TelegramChannelSubscription = {
 
 export type TelegramChannelScanResult = {
   candidatesCreated: number;
+  candidatesPromoted: number;
+  candidatesRefreshed: number;
   channelsScanned: number;
   ignoredCreated: number;
   messagesSeen: number;
@@ -48,6 +49,8 @@ export type TelegramChannelScanResult = {
 
 export type TelegramChannelCandidateInsertResult = {
   candidatesCreated: number;
+  candidatesPromoted: number;
+  candidatesRefreshed: number;
   ignoredCreated: number;
   needsReviewCreated: number;
 };

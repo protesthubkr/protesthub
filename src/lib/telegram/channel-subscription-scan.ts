@@ -15,7 +15,6 @@ import {
   markTelegramSubscriptionScanSucceeded,
 } from "./channel-subscription-repository";
 import {
-  DEFAULT_MAX_PAGES_PER_CHANNEL,
   NEW_CHANNEL_LOOKBACK_DAYS,
   type TelegramChannelCursorMessage,
   type TelegramChannelScanResult,
@@ -34,6 +33,8 @@ export async function scanTelegramChannelSubscriptions({
   );
   const result: TelegramChannelScanResult = {
     candidatesCreated: 0,
+    candidatesPromoted: 0,
+    candidatesRefreshed: 0,
     channelsScanned: 0,
     ignoredCreated: 0,
     messagesSeen: 0,
@@ -56,6 +57,8 @@ export async function scanTelegramChannelSubscriptions({
         subscription,
       );
       result.candidatesCreated += scan.candidatesCreated;
+      result.candidatesPromoted += scan.candidatesPromoted;
+      result.candidatesRefreshed += scan.candidatesRefreshed;
       result.ignoredCreated += scan.ignoredCreated;
       result.messagesSeen += scan.messagesSeen;
       result.needsReviewCreated += scan.needsReviewCreated;
@@ -77,13 +80,19 @@ async function scanSingleTelegramChannelSubscription(
   const maxPages = getMaxPagesPerChannel();
   let beforeMessageId: number | null = null;
   let candidatesCreated = 0;
+  let candidatesPromoted = 0;
+  let candidatesRefreshed = 0;
   let ignoredCreated = 0;
   let messagesSeen = 0;
   let needsReviewCreated = 0;
   let newestMessage = getCursorMessage(subscription);
   let latestChannelTitle = subscription.channelTitle;
 
-  for (let pageIndex = 0; pageIndex < maxPages; pageIndex += 1) {
+  for (
+    let pageIndex = 0;
+    maxPages === null || pageIndex < maxPages;
+    pageIndex += 1
+  ) {
     const page = await fetchTelegramChannelPage(
       subscription.channelUsername,
       beforeMessageId,
@@ -109,6 +118,8 @@ async function scanSingleTelegramChannelSubscription(
       supabase,
     });
     candidatesCreated += upsertResult.candidatesCreated;
+    candidatesPromoted += upsertResult.candidatesPromoted;
+    candidatesRefreshed += upsertResult.candidatesRefreshed;
     ignoredCreated += upsertResult.ignoredCreated;
     needsReviewCreated += upsertResult.needsReviewCreated;
     newestMessage = pickNewerMessage(newestMessage, getNewestMessage(page.messages));
@@ -134,6 +145,8 @@ async function scanSingleTelegramChannelSubscription(
 
   return {
     candidatesCreated,
+    candidatesPromoted,
+    candidatesRefreshed,
     ignoredCreated,
     messagesSeen,
     needsReviewCreated,
@@ -267,9 +280,7 @@ function getMaxPagesPerChannel() {
     10,
   );
 
-  return Number.isFinite(parsed) && parsed > 0
-    ? parsed
-    : DEFAULT_MAX_PAGES_PER_CHANNEL;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
 function getRequiredSupabaseAdminClient() {

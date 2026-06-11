@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { buildCandidateRows, type XPostDiscovery } from "./candidate-rows";
-import { upsertPosts } from "./repository";
+import { upsertPosts } from "./post-repository";
 import type { XMedia, XPost, XUser } from "./types";
 
 export async function upsertDiscoveredPostsByAuthor({

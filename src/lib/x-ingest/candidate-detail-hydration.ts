@@ -13,18 +13,17 @@ import type {
 } from "./candidate-detail-types";
 import { dedupeCandidates, findAuthor } from "./candidate-detail-utils";
 import { getXIngestConfig } from "./config";
-import { getMediaForPost } from "./normalize";
+import { insertDiscoveredAccounts } from "./account-storage-repository";
 import {
   createEmptyIngestCounters,
   createIngestRun,
   finishIngestRun,
-  insertDiscoveredAccounts,
-  upsertMedia,
-  upsertPostMedia,
-  upsertPosts,
-} from "./repository";
+} from "./ingest-run-repository";
+import { upsertMedia, upsertPostMedia } from "./media-repository";
+import { getMediaForPost } from "./normalize-text";
+import { upsertPosts } from "./post-repository";
 import { createMediaMap, createPostMap, dedupeMedia } from "./run-media";
-import { fetchPostsByIds } from "./x-api";
+import { fetchPostsByIds } from "./x-api-tweets";
 
 const DETAIL_HYDRATION_STRATEGY = "candidate_detail_hydration";
 const DEFAULT_PENDING_HYDRATION_LIMIT = 50;

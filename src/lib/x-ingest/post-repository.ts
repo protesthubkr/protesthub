@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { getPostText, getPostUrl } from "./normalize";
+import { getPostText, getPostUrl } from "./normalize-text";
 import { dedupePostsById } from "./repository-utils";
 import type { XPost, XUser } from "./types";
 

@@ -2,7 +2,7 @@ import { analyzePastEventNotice } from "@/lib/event-date-filter";
 import {
   getCandidateReasons,
   shouldReviewCandidate,
-} from "@/lib/x-ingest/normalize";
+} from "@/lib/x-ingest/normalize-rules";
 import type { XPost } from "@/lib/x-ingest/types";
 import { overlapsPublishedEvent } from "./review-promotion-overlap";
 import type {

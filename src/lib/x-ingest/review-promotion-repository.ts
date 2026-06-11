@@ -2,7 +2,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
-import { getCandidateReasons } from "@/lib/x-ingest/normalize";
+import { getCandidateReasons } from "@/lib/x-ingest/normalize-rules";
 import {
   createCandidatePost,
 } from "./review-promotion-decision";

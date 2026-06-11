@@ -1,4 +1,4 @@
-import type { ReviewCandidate } from "@/lib/admin-candidates";
+import type { ReviewCandidate } from "@/lib/admin-candidates/types";
 import { getIssueKeyFromValue } from "@/lib/issues";
 import { REGION_OPTIONS } from "@/lib/regions";
 import type { EventDate, IssueKey } from "@/lib/types";

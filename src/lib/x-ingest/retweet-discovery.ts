@@ -1,7 +1,7 @@
-import { getPostUrl, getReferencedPostIds } from "./normalize";
+import { getPostUrl, getReferencedPostIds } from "./normalize-text";
 import { dedupeMedia } from "./run-media";
 import type { XMedia, XPost, XUser } from "./types";
-import { fetchPostsByIds } from "./x-api";
+import { fetchPostsByIds } from "./x-api-tweets";
 import type { XPostDiscovery } from "./candidate-rows";
 
 export type RetweetedOriginals = {

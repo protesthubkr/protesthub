@@ -2,8 +2,8 @@ import type {
   CandidateReviewScope,
   CandidateStatusFilter,
   ReviewCandidate,
-} from "@/lib/admin-candidates";
-import { CANDIDATE_STATUS_LABELS } from "@/lib/admin-candidates";
+} from "@/lib/admin-candidates/types";
+import { CANDIDATE_STATUS_LABELS } from "@/lib/admin-candidates/filters";
 import { formatKoreanDateTime } from "@/lib/format";
 import { getSourceViewLabel } from "@/lib/review-candidate-source";
 import { StatusButtonRow } from "./candidate-status-forms";

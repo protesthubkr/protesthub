@@ -1,7 +1,7 @@
 import type {
   CandidateReviewScope,
   CandidateStatusFilter,
-} from "@/lib/admin-candidates";
+} from "@/lib/admin-candidates/types";
 import type { TelegramChannelSubscription } from "@/lib/telegram/channel-subscription-types";
 import { ManualTelegramLinkForm } from "./manual-telegram-link-form";
 import { ManualXPostForm } from "./manual-x-post-form";

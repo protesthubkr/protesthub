@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import type {
   CandidateReviewScope,
   CandidateStatusFilter,
-} from "@/lib/admin-candidates";
+} from "@/lib/admin-candidates/types";
 import type { TelegramChannelSubscription } from "@/lib/telegram/channel-subscription-types";
 import { AdminActionMessage, AdminSubmitButton } from "./admin-form-controls";
 import type { TelegramChannelControlState } from "./action-states";

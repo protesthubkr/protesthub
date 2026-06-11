@@ -1,4 +1,4 @@
-﻿import type { CandidateStatus } from "@/lib/admin-candidates";
+import type { CandidateStatus } from "@/lib/admin-candidates/types";
 import { analyzePastEventNotice } from "@/lib/event-date-filter";
 import { runOpenAiPosterOcr, type OcrImage } from "@/lib/ocr/openai";
 import { getOcrCandidateReasons } from "@/lib/ocr/signals";

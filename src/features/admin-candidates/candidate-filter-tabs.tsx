@@ -3,9 +3,11 @@ import {
   CANDIDATE_REVIEW_SCOPES,
   CANDIDATE_STATUS_FILTERS,
   CANDIDATE_STATUS_LABELS,
-  type CandidateReviewScope,
-  type CandidateStatusFilter,
-} from "@/lib/admin-candidates";
+} from "@/lib/admin-candidates/filters";
+import type {
+  CandidateReviewScope,
+  CandidateStatusFilter,
+} from "@/lib/admin-candidates/types";
 import { getAdminCandidatesHref } from "./navigation";
 
 export function CandidateStatusTabs({

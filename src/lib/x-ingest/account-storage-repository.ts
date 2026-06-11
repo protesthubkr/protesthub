@@ -29,6 +29,43 @@ export async function upsertAccounts(
   }
 }
 
+export async function markUnfollowedAccounts(
+  supabase: SupabaseClient,
+  currentFollowingAccountIds: string[],
+) {
+  const currentFollowingIdSet = new Set(currentFollowingAccountIds);
+  const existingFollowingIds = await getStoredFollowingAccountIds(supabase);
+  const unfollowedIds = existingFollowingIds.filter(
+    (accountId) => !currentFollowingIdSet.has(accountId),
+  );
+
+  if (unfollowedIds.length === 0) {
+    return 0;
+  }
+
+  let updated = 0;
+  const now = new Date().toISOString();
+
+  for (const chunk of chunkArray(unfollowedIds, 100)) {
+    const { data, error } = await supabase
+      .from("x_accounts")
+      .update({
+        is_following: false,
+        last_seen_at: now,
+      })
+      .in("x_user_id", chunk)
+      .select("x_user_id");
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    updated += data?.length ?? 0;
+  }
+
+  return updated;
+}
+
 export async function insertDiscoveredAccounts(
   supabase: SupabaseClient,
   accounts: XUser[],
@@ -63,6 +100,30 @@ export async function insertDiscoveredAccounts(
   }
 }
 
+export async function getStoredFollowingAccountIds(supabase: SupabaseClient) {
+  const accountIds: string[] = [];
+
+  for (let from = 0; ; from += 1000) {
+    const to = from + 999;
+    const { data, error } = await supabase
+      .from("x_accounts")
+      .select("x_user_id")
+      .eq("is_following", true)
+      .range(from, to);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    const rows = (data as { x_user_id: string }[] | null) ?? [];
+    accountIds.push(...rows.map((row) => row.x_user_id));
+
+    if (rows.length < 1000) {
+      return accountIds;
+    }
+  }
+}
+
 export async function getCollectibleStoredAccounts(
   supabase: SupabaseClient,
   maxAccounts: number,
@@ -90,4 +151,14 @@ export async function getCollectibleStoredAccounts(
     verified: row.is_verified ?? undefined,
     raw: row.raw_payload,
   })) satisfies XUser[];
+}
+
+function chunkArray<T>(items: T[], size: number) {
+  const chunks: T[][] = [];
+
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+
+  return chunks;
 }

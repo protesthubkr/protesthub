@@ -5,7 +5,7 @@ import {
   createEmptyIngestCounters,
   createIngestRun,
   finishIngestRun,
-} from "@/lib/x-ingest/repository";
+} from "@/lib/x-ingest/ingest-run-repository";
 import {
   createManualTelegramMediaKey,
   getExistingManualTelegramCandidate,
