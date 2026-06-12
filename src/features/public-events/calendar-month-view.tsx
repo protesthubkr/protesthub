@@ -126,9 +126,8 @@ export function CalendarMonthView({
             텔레그램 브리핑 채널 입장하기
           </a>
         </span>
-        <span className="calendar-contact-line">
-          정보 제보/수정 요청{" "}
-          <a href="mailto:badplankr@gmail.com">badplankr@gmail.com</a>
+        <span className="calendar-contact-line calendar-contact-brand">
+          by <a href="https://www.badplan.kr">badplan</a>
         </span>
       </div>
     </section>

@@ -506,6 +506,18 @@ button:disabled {
   transform: rotate(-45deg);
 }
 
+.calendar-contact-brand {
+  color: #000;
+  font-family: "Malgun Gothic", "맑은 고딕", sans-serif;
+  font-weight: 400;
+}
+
+.calendar-contact-brand a {
+  color: #000;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
 .calendar-contact a:hover,
 .calendar-contact a:focus-visible {
   text-decoration: underline;
