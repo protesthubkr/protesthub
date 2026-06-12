@@ -1,18 +1,23 @@
 import { getKoreanDateKey } from "./date-key";
 
 export function formatShortDate(date: string) {
-  const parsed = new Date(`${date}T00:00:00+09:00`);
-  return `${parsed.getMonth() + 1}/${parsed.getDate()}`;
+  const { month, day } = parseDateKey(date);
+  return `${month}/${day}`;
 }
 
 export function formatKoreanDate(date: string) {
-  const parsed = new Date(`${date}T00:00:00+09:00`);
+  const { year, month, day } = parseDateKey(date);
   const weekday = new Intl.DateTimeFormat("ko-KR", {
     weekday: "short",
-    timeZone: "Asia/Seoul",
-  }).format(parsed);
+    timeZone: "UTC",
+  }).format(new Date(Date.UTC(year, month - 1, day)));
 
-  return `${parsed.getMonth() + 1}/${parsed.getDate()} ${weekday}`;
+  return `${month}/${day} ${weekday}`;
+}
+
+function parseDateKey(date: string) {
+  const [year, month, day] = date.split("-").map(Number);
+  return { year, month, day };
 }
 
 export function formatKoreanMonth(month: string) {
