@@ -25,7 +25,9 @@ src/app/
 
 src/features/public-events/
   home-page-data.ts              공개 화면 서버 데이터 조립. route view, URL query, 목록 window, 캘린더 초깃값을 묶는다.
-  home-page-client.tsx           공개 목록 클라이언트 shell. 필터, 목록, 캘린더 hook을 조립한다.
+  public-event-page-shell.tsx    공개 상단바/필터 shell. 캘린더와 리스트 본문 로직은 import하지 않는다.
+  calendar-page-client.tsx       캘린더 route 전용 client entry. 월 변경과 날짜 선택만 조립한다.
+  list-page-client.tsx           리스트 route 전용 client entry. infinite window와 pull 보강만 조립한다.
   use-event-list-window.ts       목록 추가 로드, sentinel observer, occurrence 누적 상태.
   use-previous-week-pull.ts      미래 날짜 리스트에서 오늘까지 되돌아가는 모바일 pull 보강.
   use-calendar-month-data.ts     캘린더 월 변경 fetch와 calendar URL 반영.
@@ -39,7 +41,8 @@ src/features/public-events/
   filter-sheet.tsx               하단 필터 패널.
   event-timeline.tsx             날짜/시간별 목록 렌더링.
   event-card.tsx                 목록 카드. EventListOccurrence만 받는다.
-  event-detail-client.tsx        상세/취소 상세 화면.
+  event-detail-page.tsx          상세/취소 상세 서버 화면.
+  poster-zoom-client.tsx         상세 페이지 포스터 확대 client island.
   issue-badge.tsx                의제 badge 공통 컴포넌트.
 
 src/features/admin-candidates/
@@ -153,7 +156,7 @@ src/lib/llm/
 3. `public-event-date-policy.ts`가 오늘 이전 날짜/월 query를 오늘 기준으로 보정한다.
 4. `/list`는 기준 날짜부터 1주일 window만, `/`는 해당 월 요약만 조회한다.
 5. `getPublicEventOccurrenceWindow()`, `getPublicEventCalendarMonth()`, `getPublishedOrganizerOptions()`는 가능한 범위에서 `Promise.all`로 병렬 조회한다.
-6. `HomePageClient`는 서버에서 받은 초기값을 각 hook에 넘기고, 직접 fetch/observer 세부 구현을 갖지 않는다.
+6. `calendar-page-client.tsx`와 `list-page-client.tsx`는 route별 client entry다. 공통 상단바/필터는 `public-event-page-shell.tsx`가 맡되, 캘린더와 리스트 본문 hook을 한 파일에 같이 import하지 않는다.
 7. 목록 하단 sentinel이 보이면 `use-event-list-window.ts`가 `/api/events?from=YYYY-MM-DD&...filters`를 호출해 다음 1주일을 붙인다.
 8. 미래 날짜 리스트에서 화면 상단을 아래로 당기면 이전 1주일을 붙이되 오늘 이전으로는 내려가지 않는다.
 9. 캘린더 월 이동은 `use-calendar-month-data.ts`가 `/api/events/calendar?month=YYYY-MM&...filters`를 호출하고 `/`의 `month` query를 갱신한다.

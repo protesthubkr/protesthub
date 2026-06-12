@@ -127,7 +127,7 @@ export function CalendarMonthView({
           </a>
         </span>
         <span className="calendar-contact-line calendar-contact-brand">
-          by <a href="https://www.badplan.kr">badplan</a>
+          by <a href="https://www.badplan.kr">badplan.kr</a>
         </span>
       </div>
     </section>

@@ -15,17 +15,17 @@
 | 작업 | 먼저 볼 파일 |
 | --- | --- |
 | 공개 캘린더 초기 로드 | `src/app/page.tsx`, `src/features/public-events/home-page-data.ts`, `src/lib/events.ts` |
-| 공개 리스트 route | `src/app/list/page.tsx`, `src/features/public-events/home-page-data.ts`, `src/features/public-events/home-page-client.tsx` |
+| 공개 리스트 route | `src/app/list/page.tsx`, `src/features/public-events/home-page-data.ts`, `src/features/public-events/list-page-client.tsx` |
 | 공개 조회 날짜 정책 | `src/lib/public-event-date-policy.ts`, `src/lib/date-key.ts`, `src/features/public-events/home-page-data.ts` |
 | 공개 목록 추가 로드 | `src/features/public-events/use-event-list-window.ts`, `src/features/public-events/use-previous-week-pull.ts`, `src/app/api/events/route.ts`, `src/lib/events.ts`, `src/lib/event-query-model.ts` |
 | 캘린더 월 조회 | `src/features/public-events/use-calendar-month-data.ts`, `src/app/api/events/calendar/route.ts`, `src/lib/events.ts`, `src/lib/event-query-model.ts`, `src/lib/public-event-date-policy.ts` |
-| 리스트/캘린더 전환 | `src/features/public-events/home-page-client.tsx`, `view-mode-switch.tsx`, `filters.ts` |
+| 리스트/캘린더 전환 | `src/features/public-events/public-event-page-shell.tsx`, `view-mode-switch.tsx`, `filters.ts` |
 | 필터 동작 | `src/features/public-events/filters.ts`, `use-home-filter-state.ts` |
 | 날짜/시간 목록 표시 | `src/features/public-events/event-list-model.ts`, `event-timeline.tsx` |
 | 월 캘린더 표시 | `src/features/public-events/calendar-month-model.ts`, `calendar-month-view.tsx` |
 | 목록 카드 | `src/features/public-events/event-card.tsx` |
-| 상세 페이지 | `src/app/events/[id]/page.tsx`, `event-detail-client.tsx` |
-| UI 원칙/시각 위계 | `docs/ui-principles.md`, `src/app/globals.css` |
+| 상세 페이지 | `src/app/events/[id]/page.tsx`, `event-detail-page.tsx`, `poster-zoom-client.tsx` |
+| UI 원칙/시각 위계 | `docs/ui-principles.md`, `src/app/globals.css`, `src/app/admin/candidates/admin.css` |
 | 검수 카드 | `src/features/admin-candidates/candidate-card.tsx`, `candidate-processing-forms.tsx`, `candidate-status-forms.tsx`, `structured-event-summary.tsx`, `detail-hydration-action.tsx` |
 | 공개 폼 기본값 | `src/features/admin-candidates/publish-defaults.ts` |
 | 검수 서버 액션 공통 | `src/features/admin-candidates/action-form-data.ts`, `action-states.ts`, `action-utils.ts` |
@@ -84,6 +84,9 @@
 - OpenAI 호출, prompt, schema, 모델/env 설정, 응답 파싱, 저장 포맷을 한 파일에 합치지 않는다.
 - `src/app` route는 가능한 한 import와 prop 전달만 남긴다.
 - `server-only` 성격의 모듈은 클라이언트 컴포넌트에서 import하지 않는다.
+- 공개 route client entry는 캘린더와 리스트를 분리한다. `calendar-page-client.tsx`는 리스트 hook을, `list-page-client.tsx`는 캘린더 hook을 import하지 않는다.
+- 상세 페이지는 서버 컴포넌트를 기본으로 두고, 포스터 확대처럼 상호작용이 필요한 조각만 client island로 둔다.
+- admin-only CSS는 `src/app/admin/candidates/admin.css`에 둔다. public route에 필요한 토큰/공통 스타일만 `globals.css`에 남긴다.
 - 검수 화면 서버 액션은 기능별 파일로 나눈다. 수동 추가는 `manual-candidate-actions.ts`, 수집 제어는 `x-ingest-actions.ts`/`telegram-channel-actions.ts`, 후보 보강/OCR/구조화는 `candidate-processing-actions.ts`, 상태 변경은 `candidate-status-actions.ts`, 공개 저장은 `publication-actions.ts`에 둔다.
 - 서버 액션 공통 FormData 파싱은 `action-form-data.ts`, action state 타입은 `action-states.ts`, 서버 전용 helper는 `action-utils.ts`에 둔다.
 - 공개/비공개 저장 규칙은 `candidate-publication.ts`, OCR update 생성은 `candidate-ocr.ts`에 둔다.

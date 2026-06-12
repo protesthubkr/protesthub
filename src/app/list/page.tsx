@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { HomePageClient } from "@/features/public-events/home-page-client";
+import { ListPageClient } from "@/features/public-events/list-page-client";
 import {
   getPublicEventsHomePageData,
   type HomeSearchParams,
@@ -15,8 +15,10 @@ export default async function ListPage({
 }: {
   searchParams: ListSearchParamsPromise;
 }) {
-  const { searchSignature, ...clientProps } =
-    await getPublicEventsHomePageData(await searchParams, "list");
+  const clientProps = await getPublicEventsHomePageData(
+    await searchParams,
+    "list",
+  );
 
   return (
     <Suspense
@@ -26,7 +28,14 @@ export default async function ListPage({
         </main>
       }
     >
-      <HomePageClient key={searchSignature} {...clientProps} />
+      <ListPageClient
+        calendarMonth={clientProps.calendarMonth}
+        filters={clientProps.filters}
+        initialWindow={clientProps.initialWindow}
+        listStartDate={clientProps.listStartDate}
+        organizers={clientProps.organizers}
+        todayDate={clientProps.todayDate}
+      />
     </Suspense>
   );
 }

@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { HomePageClient } from "@/features/public-events/home-page-client";
+import { CalendarPageClient } from "@/features/public-events/calendar-page-client";
 import {
   getPublicEventsHomePageData,
   type HomeSearchParams,
@@ -15,8 +15,10 @@ export default async function Home({
 }: {
   searchParams: HomeSearchParamsPromise;
 }) {
-  const { searchSignature, ...clientProps } =
-    await getPublicEventsHomePageData(await searchParams, "calendar");
+  const clientProps = await getPublicEventsHomePageData(
+    await searchParams,
+    "calendar",
+  );
 
   return (
     <Suspense
@@ -26,7 +28,13 @@ export default async function Home({
         </main>
       }
     >
-      <HomePageClient key={searchSignature} {...clientProps} />
+      <CalendarPageClient
+        calendarMonth={clientProps.calendarMonth}
+        filters={clientProps.filters}
+        initialCalendar={clientProps.initialCalendar}
+        organizers={clientProps.organizers}
+        todayDate={clientProps.todayDate}
+      />
     </Suspense>
   );
 }

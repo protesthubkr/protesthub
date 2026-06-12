@@ -1,0 +1,894 @@
+﻿.admin-shell a:focus-visible,
+.admin-shell button:focus-visible,
+.admin-shell input:focus-visible,
+.admin-shell select:focus-visible,
+.admin-shell textarea:focus-visible,
+.admin-raw-details summary:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.admin-shell {
+  width: min(100%, 1040px);
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: var(--space-5) var(--page-gutter) var(--space-8);
+}
+
+.admin-header {
+  display: grid;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+
+.admin-header h1,
+.admin-empty h1 {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 26px;
+  font-weight: var(--font-weight-heavy);
+  line-height: 34px;
+}
+
+.admin-header p,
+.admin-empty p,
+.admin-muted {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-body);
+  line-height: 24px;
+}
+
+.admin-kicker {
+  margin: 0 0 var(--space-1);
+  color: var(--color-text-subtle);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-bold);
+  line-height: 18px;
+}
+
+.admin-status-tabs,
+.admin-scope-tabs {
+  display: flex;
+  gap: var(--space-2);
+  overflow-x: auto;
+  padding-bottom: var(--space-3);
+  scrollbar-width: none;
+}
+
+.admin-status-tabs::-webkit-scrollbar,
+.admin-scope-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.admin-status-tabs a,
+.admin-scope-tabs a {
+  display: inline-flex;
+  min-height: 40px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  padding: 0 13px;
+  text-decoration: none;
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease,
+    color 150ms ease;
+}
+
+.admin-status-tabs a.is-active,
+.admin-scope-tabs a.is-active {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-primary-text);
+}
+
+.admin-status-tabs span,
+.admin-scope-tabs a {
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+}
+
+.admin-status-tabs strong {
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-bold);
+}
+
+.admin-control-panels {
+  display: grid;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.admin-manual-add-panel {
+  display: grid;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  padding: var(--space-4);
+  box-shadow: var(--shadow-card);
+}
+
+.admin-control-panels .admin-manual-add-panel {
+  margin-bottom: 0;
+}
+
+.admin-manual-add-panel h2 {
+  margin: 0;
+  color: var(--color-text);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-bold);
+  line-height: 24px;
+}
+
+.admin-panel-heading-row {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.admin-panel-heading-row form {
+  align-self: start;
+}
+
+.admin-manual-add-panel p,
+.admin-manual-add-form label {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-small);
+  line-height: 20px;
+}
+
+.admin-manual-add-form {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.admin-ingest-control-form {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.admin-ingest-control-actions {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.admin-manual-add-row {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.admin-manual-add-row input,
+.admin-manual-add-form textarea {
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--font-size-small);
+}
+
+.admin-manual-add-row input {
+  min-height: var(--touch-target);
+  padding: 0 12px;
+}
+
+.admin-manual-add-form textarea {
+  min-height: 104px;
+  padding: 10px 12px;
+  resize: vertical;
+}
+
+.admin-manual-add-row input:focus,
+.admin-manual-add-form textarea:focus {
+  border-color: var(--color-primary);
+}
+
+.admin-manual-add-row button {
+  min-height: var(--touch-target);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-md);
+  background: var(--color-primary);
+  color: var(--color-primary-text);
+  padding: 0 14px;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-bold);
+}
+
+.admin-button-dark {
+  min-height: var(--touch-target);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-text);
+  color: var(--color-primary-text);
+  padding: 0 14px;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-bold);
+}
+
+.admin-ingest-control-actions button {
+  min-height: var(--touch-target);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-text);
+  color: var(--color-primary-text);
+  padding: 0 14px;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-bold);
+}
+
+.admin-ingest-control-actions button[value="stored_accounts"] {
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.admin-manual-add-row button:disabled,
+.admin-ingest-control-actions button:disabled,
+.admin-button-dark:disabled {
+  opacity: 0.62;
+  cursor: wait;
+}
+
+.admin-manual-add-message {
+  min-height: 20px;
+}
+
+.admin-telegram-subscription-panel {
+  gap: var(--space-4);
+}
+
+.admin-telegram-subscription-list {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.admin-telegram-subscription-row {
+  display: grid;
+  gap: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  padding: var(--space-3);
+}
+
+.admin-telegram-subscription-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text);
+}
+
+.admin-telegram-subscription-row a {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-small);
+  text-decoration: none;
+}
+
+.admin-telegram-subscription-row p {
+  margin-top: var(--space-1);
+}
+
+.admin-subscription-status {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  color: var(--color-text-muted);
+  padding: 0 8px;
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-bold);
+}
+
+.admin-subscription-status.is-active {
+  border-color: #bbf7d0;
+  background: #ecfdf3;
+  color: #166534;
+}
+
+.admin-subscription-error {
+  color: var(--color-danger) !important;
+}
+
+.admin-telegram-subscription-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.admin-telegram-subscription-actions form {
+  display: contents;
+}
+
+.admin-telegram-subscription-actions button {
+  min-height: 36px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  padding: 0 10px;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+}
+
+.admin-telegram-subscription-actions button:disabled {
+  opacity: 0.52;
+  cursor: not-allowed;
+}
+
+.admin-manual-add-message.is-error {
+  color: var(--color-danger);
+  font-weight: var(--font-weight-bold);
+}
+
+.admin-error,
+.admin-empty {
+  margin-top: var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  padding: var(--space-5);
+}
+
+.admin-error {
+  border-color: #fecaca;
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-bold);
+}
+
+.admin-empty {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.admin-empty h2 {
+  margin: 0;
+  color: var(--color-text);
+  font-size: var(--font-size-title);
+  font-weight: var(--font-weight-bold);
+  line-height: 25px;
+}
+
+.admin-candidate-list {
+  display: grid;
+  gap: var(--space-4);
+  margin-top: var(--space-3);
+}
+
+.admin-load-more-sentinel {
+  display: flex;
+  min-height: 72px;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+  line-height: 20px;
+  text-align: center;
+}
+
+.admin-load-more-sentinel a {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-text);
+  padding: 0 var(--space-4);
+  text-decoration: none;
+}
+
+.admin-candidate-card {
+  display: grid;
+  gap: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  padding: var(--space-4);
+  box-shadow: var(--shadow-card);
+}
+
+.admin-candidate-header {
+  display: grid;
+  gap: var(--space-3);
+  align-items: flex-start;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.admin-candidate-header-actions {
+  display: flex;
+  max-width: 100%;
+  flex-wrap: nowrap;
+  gap: 6px;
+  align-items: center;
+  justify-content: flex-start;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+}
+
+.admin-candidate-header-actions::-webkit-scrollbar {
+  display: none;
+}
+
+.admin-candidate-header-actions .admin-source-link,
+.admin-candidate-header-actions .admin-action-row button {
+  min-height: 40px;
+  padding: 0 10px;
+  font-size: var(--font-size-caption);
+}
+
+.admin-candidate-header h2 {
+  margin: var(--space-2) 0 var(--space-1);
+  color: var(--color-text);
+  font-size: var(--font-size-title);
+  font-weight: var(--font-weight-bold);
+  line-height: 25px;
+}
+
+.admin-candidate-header p {
+  margin: 0;
+  color: var(--color-text-subtle);
+  font-size: var(--font-size-small);
+  line-height: 20px;
+}
+
+.admin-status-pill {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+  padding: 0 9px;
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-bold);
+}
+
+.admin-source-link,
+.admin-ocr-form button,
+.admin-ocr-run-form button,
+.admin-publish-form button,
+.admin-unpublish-form button,
+.admin-action-row button {
+  min-height: var(--touch-target);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-md);
+  background: var(--color-primary);
+  color: var(--color-primary-text);
+  padding: 0 12px;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-bold);
+  text-decoration: none;
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease,
+    color 150ms ease,
+    transform 150ms ease;
+}
+
+.admin-source-link {
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+}
+
+.admin-candidate-grid {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.admin-candidate-section {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.admin-candidate-section h3,
+.admin-ocr-form label,
+.admin-publish-form label,
+.admin-publish-form legend {
+  margin: 0;
+  color: var(--color-text);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-bold);
+  line-height: 20px;
+}
+
+.admin-post-text {
+  margin: 0;
+  color: var(--color-text);
+  font-size: var(--font-size-body);
+  line-height: 24px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.admin-media-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.admin-media-grid a {
+  display: grid;
+  min-height: 120px;
+  overflow: hidden;
+  place-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+  text-decoration: none;
+}
+
+.admin-media-grid img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-height: 240px;
+  object-fit: cover;
+}
+
+.admin-reason-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.admin-reason-list span {
+  display: inline-flex;
+  min-height: 26px;
+  align-items: center;
+  border-radius: var(--radius-pill);
+  background: #eef2ff;
+  color: #3730a3;
+  padding: 0 10px;
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-semibold);
+}
+
+.admin-structured-event {
+  display: grid;
+  gap: var(--space-3);
+  border: 1px solid #bae6fd;
+  border-radius: var(--radius-md);
+  background: #f0f9ff;
+  padding: var(--space-3);
+}
+
+.admin-structured-event-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.admin-structured-event h3 {
+  margin: 0;
+  color: var(--color-text);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-bold);
+  line-height: 22px;
+}
+
+.admin-structured-event-header span {
+  flex: 0 0 auto;
+  color: #0369a1;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-bold);
+  line-height: 20px;
+}
+
+.admin-structured-event dl {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.admin-structured-event dl div {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  gap: var(--space-2);
+}
+
+.admin-structured-event dt,
+.admin-structured-event dd,
+.admin-structured-event p {
+  margin: 0;
+  font-size: var(--font-size-small);
+  line-height: 20px;
+}
+
+.admin-structured-event dt {
+  color: var(--color-text-subtle);
+  font-weight: var(--font-weight-bold);
+}
+
+.admin-structured-event dd,
+.admin-structured-event p {
+  color: var(--color-text);
+}
+
+.admin-raw-details {
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-3);
+}
+
+.admin-raw-details summary {
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+}
+
+.admin-raw-details pre {
+  overflow: auto;
+  margin: var(--space-2) 0 0;
+  border-radius: var(--radius-md);
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: var(--space-3);
+  font-family: var(--font-family-mono);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.admin-publish-panel {
+  border: 1px solid #bbf7d0;
+  border-radius: var(--radius-md);
+  background: var(--color-success-bg);
+  padding: var(--space-3);
+}
+
+.admin-publish-panel summary {
+  width: fit-content;
+  min-height: 40px;
+  border: 1px solid var(--color-success);
+  border-radius: var(--radius-md);
+  background: var(--color-success);
+  color: #ffffff;
+  cursor: pointer;
+  padding: 9px 12px;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-bold);
+  line-height: 20px;
+  list-style: none;
+}
+
+.admin-publish-panel summary::-webkit-details-marker {
+  display: none;
+}
+
+.admin-publish-form {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.admin-unpublish-form {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  border-top: 1px solid #bbf7d0;
+  padding-top: var(--space-3);
+}
+
+.admin-unpublish-form button {
+  width: fit-content;
+  border-color: var(--color-danger);
+  background: var(--color-danger);
+  color: #ffffff;
+}
+
+.admin-unpublish-form span {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-small);
+  line-height: 20px;
+}
+
+.admin-publish-grid {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.admin-publish-form label {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.admin-publish-form input,
+.admin-publish-form select,
+.admin-publish-form textarea {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  color: var(--color-text);
+  padding: 8px 10px;
+  font: inherit;
+  font-size: var(--font-size-small);
+  line-height: 20px;
+}
+
+.admin-publish-form textarea {
+  resize: vertical;
+}
+
+.admin-publish-form fieldset {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+  margin: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+}
+
+.admin-publish-date-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  gap: var(--space-2);
+}
+
+.admin-checkbox-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.admin-checkbox-list label {
+  display: flex;
+  min-height: 36px;
+  align-items: center;
+  gap: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  padding: 0 10px;
+}
+
+.admin-checkbox-list input {
+  width: 16px;
+  min-height: 16px;
+  flex: 0 0 auto;
+  padding: 0;
+}
+
+.admin-publish-form button {
+  justify-self: start;
+  border-color: var(--color-success);
+  background: var(--color-success);
+}
+
+.admin-ocr-form {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.admin-ocr-form textarea {
+  width: 100%;
+  resize: vertical;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  color: var(--color-text);
+  padding: var(--space-3);
+  font: inherit;
+  line-height: 22px;
+}
+
+.admin-ocr-form button {
+  justify-self: start;
+}
+
+.admin-ocr-run-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.admin-ocr-run-form button:disabled {
+  border-color: var(--color-border);
+  background: var(--color-surface-muted);
+  color: var(--color-text-subtle);
+  cursor: not-allowed;
+}
+
+.admin-ocr-run-form span {
+  color: var(--color-text-subtle);
+  font-size: var(--font-size-small);
+  line-height: 20px;
+}
+
+.admin-action-row {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  gap: 6px;
+}
+
+.admin-action-row form {
+  display: contents;
+}
+
+.admin-action-row button {
+  border-color: var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+}
+
+.admin-action-row button:active,
+.admin-source-link:active,
+.admin-ocr-form button:active,
+.admin-ocr-run-form button:active,
+.admin-publish-form button:active,
+.admin-unpublish-form button:active {
+  transform: translateY(1px);
+}
+
+@media (min-width: 760px) {
+  .admin-shell {
+    padding-right: var(--space-6);
+    padding-left: var(--space-6);
+  }
+
+  .admin-header {
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 420px);
+    align-items: end;
+  }
+
+  .admin-panel-heading-row,
+  .admin-telegram-subscription-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+  }
+
+  .admin-manual-add-panel {
+    grid-template-columns: minmax(180px, 0.8fr) minmax(0, 1.2fr);
+    align-items: end;
+  }
+
+  .admin-manual-add-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .admin-ingest-control-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-candidate-card {
+    padding: var(--space-5);
+  }
+
+  .admin-candidate-header {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .admin-candidate-header-actions {
+    justify-content: flex-end;
+  }
+
+  .admin-candidate-grid {
+    grid-template-columns: minmax(0, 1.2fr) minmax(260px, 0.8fr);
+    align-items: start;
+  }
+
+  .admin-publish-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

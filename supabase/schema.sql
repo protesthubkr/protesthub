@@ -513,7 +513,7 @@ with params as (
     coalesce(p_region_filters, '{}'::text[]) as region_filters,
     coalesce(p_organizer_filters, '{}'::text[]) as organizer_filters
 ),
-filtered_occurrences as (
+filtered_window_occurrences as (
   select
     e.id,
     e.title,
@@ -524,11 +524,12 @@ filtered_occurrences as (
     e.primary_issue,
     d.event_date as occurrence_date,
     d.start_time as occurrence_start_time
-  from event_dates d
+  from params p
+  join event_dates d
+    on d.event_date >= p.window_start_date
+   and d.event_date < p.window_end_date
   join public_events e on e.id = d.event_id
-  cross join params p
   where e.status = 'published'
-    and d.event_date >= p.window_start_date
     and (
       cardinality(p.issue_filters) = 0
       or e.issue_tags && p.issue_filters
@@ -559,16 +560,29 @@ select
         )
         order by fo.occurrence_date, fo.occurrence_start_time nulls last, fo.id
       )
-      from filtered_occurrences fo
-      where fo.occurrence_date >= p.window_start_date
-        and fo.occurrence_date < p.window_end_date
+      from filtered_window_occurrences fo
     ),
     '[]'::jsonb
   ) as events,
   exists (
     select 1
-    from filtered_occurrences fo
-    where fo.occurrence_date >= p.window_end_date
+    from params p
+    join event_dates d on d.event_date >= p.window_end_date
+    join public_events e on e.id = d.event_id
+    where e.status = 'published'
+      and (
+        cardinality(p.issue_filters) = 0
+        or e.issue_tags && p.issue_filters
+      )
+      and (
+        cardinality(p.region_filters) = 0
+        or e.region = any(p.region_filters)
+      )
+      and (
+        cardinality(p.organizer_filters) = 0
+        or e.source_account_name = any(p.organizer_filters)
+      )
+    limit 1
   ) as has_more_events,
   p.window_end_date as next_from_date,
   p.window_end_date as window_end_date,

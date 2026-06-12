@@ -1,7 +1,4 @@
-﻿"use client";
-
 import Link from "next/link";
-import { useState } from "react";
 import {
   formatKoreanDate,
   formatKoreanDateTime,
@@ -9,10 +6,9 @@ import {
 } from "@/lib/format";
 import type { PublicEvent } from "@/lib/types";
 import { IssueBadge } from "./issue-badge";
+import { PosterZoomClient } from "./poster-zoom-client";
 
-export function EventDetailClient({ event }: { event: PublicEvent }) {
-  const [isPosterOpen, setIsPosterOpen] = useState(false);
-
+export function EventDetailPage({ event }: { event: PublicEvent }) {
   return (
     <main className="detail-shell">
       <DetailTopbar event={event} />
@@ -21,25 +17,11 @@ export function EventDetailClient({ event }: { event: PublicEvent }) {
         <EventFactList event={event} sourceLabel="출처" />
 
         {event.posterImageUrl ? (
-          <section className="detail-section">
-            <h2>포스터</h2>
-            <button
-              aria-label="포스터 확대 보기"
-              className="poster-button"
-              type="button"
-              onClick={() => setIsPosterOpen(true)}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={event.posterImageUrl}
-                alt={`${event.title} 포스터`}
-                decoding="async"
-                fetchPriority="low"
-                loading="lazy"
-              />
-            </button>
-            <SourcePostLink href={event.sourcePostUrl} label="원본 보기" />
-          </section>
+          <PosterZoomClient
+            imageUrl={event.posterImageUrl}
+            sourcePostUrl={event.sourcePostUrl}
+            title={event.title}
+          />
         ) : (
           <section className="detail-section detail-source-section">
             <h2>원본 출처</h2>
@@ -51,14 +33,6 @@ export function EventDetailClient({ event }: { event: PublicEvent }) {
           최종 확인 {formatKoreanDateTime(event.lastCheckedAt)}
         </p>
       </article>
-
-      {isPosterOpen && event.posterImageUrl ? (
-        <PosterZoomModal
-          imageUrl={event.posterImageUrl}
-          title={event.title}
-          onClose={() => setIsPosterOpen(false)}
-        />
-      ) : null}
     </main>
   );
 }
@@ -153,39 +127,5 @@ function SourcePostLink({ href, label }: { href: string; label: string }) {
     >
       {label}
     </a>
-  );
-}
-
-function PosterZoomModal({
-  imageUrl,
-  title,
-  onClose,
-}: {
-  imageUrl: string;
-  title: string;
-  onClose: () => void;
-}) {
-  return (
-    <div className="poster-modal-backdrop" role="presentation" onClick={onClose}>
-      <div
-        aria-label="포스터 확대 보기"
-        aria-modal="true"
-        className="poster-modal"
-        role="dialog"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <button className="poster-modal-close" type="button" onClick={onClose}>
-          닫기
-        </button>
-        <div className="poster-zoom-scroll">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={imageUrl}
-            alt={`${title} 포스터 확대 이미지`}
-            decoding="async"
-          />
-        </div>
-      </div>
-    </div>
   );
 }

@@ -17,6 +17,7 @@ import type { EventCalendarMonth, EventFilters } from "./types";
 
 const UNFILTERED_CALENDAR_MONTH_CACHE_TTL_MS = 5 * 60 * 1000;
 const UNFILTERED_CALENDAR_MONTH_CACHE_MAX_ENTRIES = 24;
+const PUBLISHED_ORGANIZER_OPTIONS_CACHE_TTL_MS = 5 * 60 * 1000;
 
 type CalendarMonthCacheEntry = {
   expiresAt: number;
@@ -27,6 +28,10 @@ const unfilteredCalendarMonthCache = new Map<
   string,
   CalendarMonthCacheEntry
 >();
+let publishedOrganizerOptionsCache: {
+  expiresAt: number;
+  promise: Promise<string[]>;
+} | null = null;
 
 function getRequiredSupabaseClient() {
   const supabase = getSupabaseClient();
@@ -96,6 +101,10 @@ export async function getPublicEventCalendarMonth({
 
 export function clearPublicEventCalendarCache() {
   unfilteredCalendarMonthCache.clear();
+}
+
+export function clearPublicEventOrganizerCache() {
+  publishedOrganizerOptionsCache = null;
 }
 
 async function queryPublicEventCalendarMonth({
@@ -242,6 +251,31 @@ function pruneUnfilteredCalendarMonthCache() {
 }
 
 export async function getPublishedOrganizerOptions() {
+  const now = Date.now();
+
+  if (
+    publishedOrganizerOptionsCache &&
+    publishedOrganizerOptionsCache.expiresAt > now
+  ) {
+    return publishedOrganizerOptionsCache.promise;
+  }
+
+  const promise = queryPublishedOrganizerOptions();
+  publishedOrganizerOptionsCache = {
+    expiresAt: now + PUBLISHED_ORGANIZER_OPTIONS_CACHE_TTL_MS,
+    promise,
+  };
+
+  promise.catch(() => {
+    if (publishedOrganizerOptionsCache?.promise === promise) {
+      publishedOrganizerOptionsCache = null;
+    }
+  });
+
+  return promise;
+}
+
+async function queryPublishedOrganizerOptions() {
   const supabase = getRequiredSupabaseClient();
   const { data, error } = await supabase
     .from("public_events")

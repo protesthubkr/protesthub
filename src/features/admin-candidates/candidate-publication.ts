@@ -1,6 +1,9 @@
 import { revalidatePath } from "next/cache";
 import type { CandidateStatus } from "@/lib/admin-candidates/types";
-import { clearPublicEventCalendarCache } from "@/lib/events";
+import {
+  clearPublicEventCalendarCache,
+  clearPublicEventOrganizerCache,
+} from "@/lib/events";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 
 type AdminSupabaseClient = NonNullable<ReturnType<typeof getSupabaseAdminClient>>;
@@ -143,6 +146,7 @@ export function removePublishedEventPayload(payload: Record<string, unknown>) {
 
 export function revalidateAdminAndPublicPaths(eventId: string) {
   clearPublicEventCalendarCache();
+  clearPublicEventOrganizerCache();
   revalidatePath("/");
   revalidatePath("/list");
   revalidatePath(`/events/${eventId}`);
