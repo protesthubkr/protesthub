@@ -1,6 +1,9 @@
 import "server-only";
 
-import { broadcastEventToTelegram } from "./broadcast";
+import {
+  broadcastEventToTelegram,
+  broadcastNoEventsToTelegram,
+} from "./broadcast";
 import {
   getDefaultTelegramBroadcastTargetDate,
   getEventForOccurrenceDate,
@@ -9,11 +12,16 @@ import {
 import {
   getTelegramBroadcastDryRunOutcome,
   getTelegramBroadcastPayloadHash,
+  getTelegramNoEventsBroadcastDryRunOutcome,
+  getTelegramNoEventsBroadcastPayloadHash,
 } from "./event-broadcast-payload";
 import {
+  claimTelegramDailyBroadcast,
   claimTelegramEventBroadcast,
   getRequiredSupabaseAdminClient,
   getTelegramBroadcastChannelId,
+  markTelegramDailyBroadcastFailed,
+  markTelegramDailyBroadcastSent,
   markTelegramEventBroadcastFailed,
   markTelegramEventBroadcastSent,
 } from "./event-broadcast-repository";
@@ -22,7 +30,7 @@ export {
   getPendingTelegramBroadcastTargets,
 } from "./event-broadcast-targets";
 import {
-  getPendingTelegramBroadcastTargets,
+  getPendingTelegramBroadcastTargetBatch,
   getPublishedEventById,
 } from "./event-broadcast-targets";
 import type {
@@ -61,23 +69,30 @@ export async function broadcastPendingTelegramEvents(
 ) {
   const targetDate =
     options.targetDate ?? getDefaultTelegramBroadcastTargetDate();
-  const targets = await getPendingTelegramBroadcastTargets({
+  const batch = await getPendingTelegramBroadcastTargetBatch({
     ...options,
     targetDate,
   });
+  const { targets } = batch;
 
   if (options.dryRun) {
     return {
       dryRun: true,
-      outcomes: targets.map(getTelegramBroadcastDryRunOutcome),
+      outcomes: batch.hasOccurrences
+        ? targets.map(getTelegramBroadcastDryRunOutcome)
+        : [getTelegramNoEventsBroadcastDryRunOutcome(targetDate)],
       targetDate,
     };
   }
 
   const outcomes: TelegramBroadcastOutcome[] = [];
 
-  for (const target of targets) {
-    outcomes.push(await broadcastClaimedTargetToTelegram(target));
+  if (batch.hasOccurrences) {
+    for (const target of targets) {
+      outcomes.push(await broadcastClaimedTargetToTelegram(target));
+    }
+  } else {
+    outcomes.push(await broadcastClaimedNoEventsToTelegram(targetDate));
   }
 
   return {
@@ -85,6 +100,59 @@ export async function broadcastPendingTelegramEvents(
     outcomes,
     targetDate,
   };
+}
+
+async function broadcastClaimedNoEventsToTelegram(
+  targetDate: string,
+): Promise<TelegramBroadcastOutcome> {
+  const supabase = getRequiredSupabaseAdminClient();
+  const channelId = getTelegramBroadcastChannelId();
+  const payloadHash = getTelegramNoEventsBroadcastPayloadHash(targetDate);
+  const claim = await claimTelegramDailyBroadcast(supabase, {
+    broadcastType: "no_events",
+    channelId,
+    payloadHash,
+    targetDate,
+  });
+
+  if (!claim) {
+    return {
+      broadcastType: "no_events",
+      occurrenceDate: targetDate,
+      reason: "already_claimed_or_sent",
+      status: "skipped",
+    };
+  }
+
+  try {
+    const result = await broadcastNoEventsToTelegram();
+
+    await markTelegramDailyBroadcastSent(supabase, {
+      broadcastId: claim.id,
+      result,
+    });
+
+    return {
+      broadcastType: "no_events",
+      messageId: result.messageId,
+      method: result.method,
+      occurrenceDate: targetDate,
+      status: "sent",
+    };
+  } catch (error) {
+    const errorMessage = getErrorMessage(error);
+    await markTelegramDailyBroadcastFailed(supabase, {
+      broadcastId: claim.id,
+      errorMessage,
+    });
+
+    return {
+      broadcastType: "no_events",
+      errorMessage,
+      occurrenceDate: targetDate,
+      status: "failed",
+    };
+  }
 }
 
 async function broadcastClaimedTargetToTelegram(

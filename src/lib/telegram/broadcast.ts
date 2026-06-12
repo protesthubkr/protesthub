@@ -29,6 +29,19 @@ export type TelegramBroadcastResult = {
   messageId: number;
 };
 
+export function formatTelegramNoEventsMessage() {
+  return [
+    "집시캘린더ㅋ 내일의 집회 브리핑 채널입니다.",
+    "",
+    "브리핑해드릴 내일 집회는 없지만,",
+    "오늘도 안전하고 힘차게 연대해요!",
+  ].join("\n");
+}
+
+export async function broadcastNoEventsToTelegram() {
+  return sendTelegramMessage(formatTelegramNoEventsMessage());
+}
+
 export async function broadcastEventToTelegram(event: PublicEvent) {
   if (event.posterImageUrl) {
     return sendTelegramPhoto({

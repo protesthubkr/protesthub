@@ -21,6 +21,12 @@ import {
 export async function getPendingTelegramBroadcastTargets(
   options: TelegramBroadcastBatchOptions = {},
 ) {
+  return (await getPendingTelegramBroadcastTargetBatch(options)).targets;
+}
+
+export async function getPendingTelegramBroadcastTargetBatch(
+  options: TelegramBroadcastBatchOptions = {},
+) {
   const supabase = getRequiredSupabaseAdminClient();
   const channelId = getTelegramBroadcastChannelId();
   const limit = options.limit ?? DEFAULT_BROADCAST_LIMIT;
@@ -46,7 +52,11 @@ export async function getPendingTelegramBroadcastTargets(
   );
 
   if (eventIds.length === 0) {
-    return [];
+    return {
+      hasOccurrences: false,
+      targetDate,
+      targets: [],
+    };
   }
 
   const { data: eventRows, error: eventError } = await supabase
@@ -79,7 +89,7 @@ export async function getPendingTelegramBroadcastTargets(
     ((eventRows ?? []) as SupabaseEventCardRow[]).map((row) => [row.id, row]),
   );
 
-  return eventIds
+  const targets = eventIds
     .map((eventId) => rowsByEventId.get(eventId))
     .filter((row): row is SupabaseEventCardRow => Boolean(row))
     .filter((row) => !blockedEventIds.has(row.id))
@@ -88,6 +98,12 @@ export async function getPendingTelegramBroadcastTargets(
       event: getEventForOccurrenceDate(mapEventCardRow(row), targetDate),
       occurrenceDate: targetDate,
     }));
+
+  return {
+    hasOccurrences: true,
+    targetDate,
+    targets,
+  };
 }
 
 export async function getPendingTelegramBroadcastEvents(

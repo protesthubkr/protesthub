@@ -3,7 +3,11 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import type { TelegramBroadcastResult } from "./broadcast";
-import type { TelegramEventBroadcastRow } from "./event-broadcast-types";
+import type {
+  TelegramDailyBroadcastRow,
+  TelegramDailyBroadcastType,
+  TelegramEventBroadcastRow,
+} from "./event-broadcast-types";
 
 export function getRequiredSupabaseAdminClient() {
   const supabase = getSupabaseAdminClient();
@@ -56,6 +60,37 @@ export async function claimTelegramEventBroadcast(
   return data as TelegramEventBroadcastRow | null;
 }
 
+export async function claimTelegramDailyBroadcast(
+  supabase: SupabaseClient,
+  {
+    broadcastType,
+    channelId,
+    payloadHash,
+    targetDate,
+  }: {
+    broadcastType: TelegramDailyBroadcastType;
+    channelId: string;
+    payloadHash: string;
+    targetDate: string;
+  },
+) {
+  const { data, error } = await supabase.rpc(
+    "claim_telegram_daily_broadcast",
+    {
+      p_broadcast_type: broadcastType,
+      p_channel_id: channelId,
+      p_payload_hash: payloadHash,
+      p_target_date: targetDate,
+    },
+  );
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data as TelegramDailyBroadcastRow | null;
+}
+
 export async function markTelegramEventBroadcastSent(
   supabase: SupabaseClient,
   {
@@ -85,6 +120,35 @@ export async function markTelegramEventBroadcastSent(
   }
 }
 
+export async function markTelegramDailyBroadcastSent(
+  supabase: SupabaseClient,
+  {
+    broadcastId,
+    result,
+  }: {
+    broadcastId: string;
+    result: TelegramBroadcastResult;
+  },
+) {
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from("telegram_daily_broadcasts")
+    .update({
+      error_message: null,
+      locked_at: null,
+      sent_at: now,
+      status: "sent",
+      telegram_message_id: result.messageId,
+      telegram_method: result.method,
+      updated_at: now,
+    })
+    .eq("id", broadcastId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
 export async function markTelegramEventBroadcastFailed(
   supabase: SupabaseClient,
   {
@@ -97,6 +161,31 @@ export async function markTelegramEventBroadcastFailed(
 ) {
   const { error } = await supabase
     .from("telegram_event_broadcasts")
+    .update({
+      error_message: errorMessage,
+      locked_at: null,
+      status: "failed",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", broadcastId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+export async function markTelegramDailyBroadcastFailed(
+  supabase: SupabaseClient,
+  {
+    broadcastId,
+    errorMessage,
+  }: {
+    broadcastId: string;
+    errorMessage: string;
+  },
+) {
+  const { error } = await supabase
+    .from("telegram_daily_broadcasts")
     .update({
       error_message: errorMessage,
       locked_at: null,

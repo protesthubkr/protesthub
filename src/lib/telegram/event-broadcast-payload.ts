@@ -1,5 +1,6 @@
 import { createHash } from "crypto";
 import {
+  formatTelegramNoEventsMessage,
   formatTelegramEventMessage,
   type TelegramBroadcastResult,
 } from "./broadcast";
@@ -24,6 +25,18 @@ export function getTelegramBroadcastPayloadHash(
     .digest("hex");
 }
 
+export function getTelegramNoEventsBroadcastPayloadHash(targetDate: string) {
+  return createHash("sha256")
+    .update(
+      JSON.stringify({
+        broadcastType: "no_events",
+        message: formatTelegramNoEventsMessage(),
+        targetDate,
+      }),
+    )
+    .digest("hex");
+}
+
 export function getTelegramBroadcastDryRunOutcome(
   target: TelegramBroadcastTarget,
 ): TelegramBroadcastDryRunOutcome {
@@ -35,6 +48,19 @@ export function getTelegramBroadcastDryRunOutcome(
     occurrenceDate: target.occurrenceDate,
     status: "dry_run",
     title: target.event.title,
+  };
+}
+
+export function getTelegramNoEventsBroadcastDryRunOutcome(
+  targetDate: string,
+): TelegramBroadcastDryRunOutcome {
+  return {
+    broadcastType: "no_events",
+    message: formatTelegramNoEventsMessage(),
+    method: "sendMessage",
+    occurrenceDate: targetDate,
+    status: "dry_run",
+    title: "내일 집회 없음",
   };
 }
 
