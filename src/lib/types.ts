@@ -21,6 +21,7 @@ export type PublicEvent = {
   venue: string;
   address: string;
   region: string;
+  organizerName?: string;
   sourceAccountName: string;
   sourcePostUrl: string;
   cancelSourceUrl?: string;
@@ -37,6 +38,7 @@ export type EventListOccurrence = {
   title: string;
   venue: string;
   region: string;
+  organizerName?: string;
   sourceAccountName: string;
   issueTags: IssueKey[];
   primaryIssue: IssueKey;

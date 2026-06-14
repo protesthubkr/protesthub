@@ -59,6 +59,8 @@
 - 날짜 범위, 의제, 지역, 주최 필터는 서버 조회에서 적용한다.
 - 클라이언트에서 전체 이벤트 배열을 받은 뒤 필터링하거나 날짜 window를 계산하는 구조로 되돌리지 않는다.
 - organizer 옵션은 별도 가벼운 조회로 가져온다.
+- `public_events.organizer_name`은 관리자가 선택적으로 적는 실제 주최명이다. 값이 없으면 공개 목록/필터에서는 기존 데이터 호환을 위해 `source_account_name`을 표시명 fallback으로 쓴다.
+- `source_account_name`과 `source_post_url`은 원문 출처 계정/URL이다. UI나 저장 로직에서 이를 새 주최명으로 덮어쓰지 않는다.
 - 상세 페이지는 `getEventById(id)` 단건 조회만 사용한다.
 - 운영 DB에는 `get_public_event_occurrence_window()` RPC, `public_event_occurrences` view, 관련 index가 적용되어야 한다. DB 객체가 없으면 fallback 없이 조회 실패로 드러나야 한다.
 

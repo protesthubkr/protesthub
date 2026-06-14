@@ -21,6 +21,7 @@ export function mapPublicEventRow(row: PublicEventRow): PublicEvent {
     venue: row.venue,
     address: row.address,
     region: row.region,
+    organizerName: row.organizer_name?.trim() || undefined,
     sourceAccountName: row.source_account_name,
     sourcePostUrl: row.source_post_url,
     cancelSourceUrl: row.cancel_source_url ?? undefined,

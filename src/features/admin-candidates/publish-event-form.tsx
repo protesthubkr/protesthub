@@ -70,6 +70,22 @@ export function PublishEventForm({
           </label>
         </div>
 
+        <div className="admin-publish-grid">
+          <label>
+            주최명 (선택)
+            <input
+              defaultValue={defaults.organizerName}
+              name="organizer_name"
+              placeholder={candidate.sourceName}
+              type="text"
+            />
+          </label>
+          <label>
+            출처
+            <input defaultValue={candidate.sourceName} disabled type="text" />
+          </label>
+        </div>
+
         <fieldset>
           <legend>일정</legend>
           {defaults.dateRows.map((date, index) => (

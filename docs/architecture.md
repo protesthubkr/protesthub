@@ -188,6 +188,7 @@ public_event_occurrences
   title
   venue
   region
+  organizer_name
   source_account_name
   issue_tags
   primary_issue
@@ -220,7 +221,8 @@ public_event_occurrences
 - Telegram 후보의 `source_record_id`는 `telegram:<channel>:<message_id>` 형식이다.
 - 후보 이미지와 OCR 대상 media는 `source_media`에 저장한다. X media도 이 테이블을 사용한다.
 - 후보 생성/검수 사유는 `review_reason`에 저장한다.
-- 공개 이벤트 저장 시에는 후보의 `source_name`, `source_url`을 `public_events.source_account_name`, `public_events.source_post_url`에 복사한다. 공개 테이블의 컬럼명은 기존 필터/view와 연결되어 있어 아직 유지한다.
+- 공개 이벤트 저장 시에는 후보의 `source_name`, `source_url`을 `public_events.source_account_name`, `public_events.source_post_url`에 복사한다. 이는 원문 출처 계정/URL이다.
+- `public_events.organizer_name`은 관리자가 선택적으로 적는 실제 주최명이다. 공개 목록/필터에서는 이 값이 있으면 우선 사용하고, 없으면 기존 공개 데이터 호환을 위해 `source_account_name`을 fallback 표시명으로 쓴다.
 
 ## Telegram 링크 수동 추가
 

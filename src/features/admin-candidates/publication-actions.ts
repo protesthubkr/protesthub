@@ -48,6 +48,8 @@ export async function publishCandidateEvent(formData: FormData) {
   const title = getTrimmedRequiredString(formData, "title");
   const venue = getTrimmedRequiredString(formData, "venue");
   const address = getOptionalString(formData, "address")?.trim() ?? "";
+  const organizerName =
+    getOptionalString(formData, "organizer_name")?.trim() || null;
   const region = getValidRegion(formData);
   const issueTags = getValidIssueTags(formData);
   const primaryIssue = getValidPrimaryIssue(formData, issueTags);
@@ -65,6 +67,7 @@ export async function publishCandidateEvent(formData: FormData) {
         venue,
         address,
         region,
+        organizer_name: organizerName,
         source_account_name: candidate.source_name,
         source_post_url: candidate.source_url,
         cancel_source_url: null,

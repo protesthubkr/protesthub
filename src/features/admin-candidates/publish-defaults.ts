@@ -13,6 +13,7 @@ type PublishFormDefaults = {
   address: string;
   dateRows: PublishDateRow[];
   issueKeys: IssueKey[];
+  organizerName: string;
   posterImageUrl: string;
   primaryIssue: IssueKey | "";
   region: string;
@@ -34,6 +35,10 @@ export function getPublishFormDefaults(
       ? getPublishPublicDateRows(candidate.publicEvent.dates)
       : getPublishDateRows(structuredEvent),
     issueKeys,
+    organizerName:
+      candidate.publicEvent?.organizerName ??
+      structuredEvent?.organizers[0]?.trim() ??
+      "",
     posterImageUrl:
       candidate.publicEvent?.posterImageUrl ?? getPosterImageUrl(candidate),
     primaryIssue: candidate.publicEvent

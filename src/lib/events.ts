@@ -152,7 +152,7 @@ async function queryPublicEventCalendarMonth({
   }
 
   if (filters.organizers.length > 0) {
-    query = query.in("source_account_name", filters.organizers);
+    query = query.in("organizer_name", filters.organizers);
   }
 
   const { data, error } = await query;
@@ -279,8 +279,9 @@ async function queryPublishedOrganizerOptions() {
   const supabase = getRequiredSupabaseClient();
   const { data, error } = await supabase
     .from("public_events")
-    .select("source_account_name")
+    .select("organizer_name,source_account_name")
     .eq("status", "published")
+    .order("organizer_name", { ascending: true })
     .order("source_account_name", { ascending: true });
 
   if (error) {
@@ -288,7 +289,9 @@ async function queryPublishedOrganizerOptions() {
   }
 
   return getUniqueOrganizers(
-    ((data ?? []) as OrganizerRow[]).map((row) => row.source_account_name),
+    ((data ?? []) as OrganizerRow[]).map(
+      (row) => row.organizer_name?.trim() || row.source_account_name,
+    ),
   );
 }
 

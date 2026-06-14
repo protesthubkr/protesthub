@@ -16,6 +16,7 @@ export type SupabaseEventCardRow = {
   venue: string;
   address: string;
   region: string;
+  organizer_name: string | null;
   source_account_name: string;
   source_post_url: string;
   cancel_source_url: string | null;
@@ -32,6 +33,7 @@ type SupabaseEventOccurrenceRow = {
   title: string;
   venue: string;
   region: string;
+  organizer_name: string | null;
   source_account_name: string;
   issue_tags: IssueKey[];
   primary_issue: IssueKey;
@@ -56,6 +58,7 @@ export type SupabaseCalendarOccurrenceRow = {
 };
 
 export type OrganizerRow = {
+  organizer_name: string | null;
   source_account_name: string;
 };
 
@@ -66,6 +69,7 @@ export function mapEventCardRow(row: SupabaseEventCardRow): PublicEvent {
     venue: row.venue,
     address: row.address,
     region: row.region,
+    organizerName: normalizeOptionalText(row.organizer_name),
     sourceAccountName: row.source_account_name,
     sourcePostUrl: row.source_post_url,
     cancelSourceUrl: row.cancel_source_url ?? undefined,
@@ -87,6 +91,7 @@ function mapOccurrenceRow(row: SupabaseEventOccurrenceRow): EventListOccurrence 
     title: row.title,
     venue: row.venue,
     region: row.region,
+    organizerName: getOrganizerDisplayName(row),
     sourceAccountName: row.source_account_name,
     issueTags: row.issue_tags,
     primaryIssue: row.primary_issue,
@@ -209,4 +214,16 @@ function normalizeDateValue(date: string) {
 
 function normalizeTimeValue(time: string | null) {
   return time ? time.slice(0, 5) : null;
+}
+
+function normalizeOptionalText(value: string | null) {
+  const trimmed = value?.trim() ?? "";
+  return trimmed || undefined;
+}
+
+function getOrganizerDisplayName(row: {
+  organizer_name: string | null;
+  source_account_name: string;
+}) {
+  return normalizeOptionalText(row.organizer_name) ?? row.source_account_name;
 }

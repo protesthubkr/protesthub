@@ -86,6 +86,7 @@ export type PublicEventRow = {
   venue: string;
   address: string;
   region: string;
+  organizer_name: string | null;
   source_account_name: string;
   source_post_url: string;
   cancel_source_url: string | null;

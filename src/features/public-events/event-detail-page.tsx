@@ -108,6 +108,12 @@ function EventFactList({
           <dd>{event.address}</dd>
         </div>
       ) : null}
+      {event.organizerName ? (
+        <div className="detail-fact-row">
+          <dt>주최</dt>
+          <dd>{event.organizerName}</dd>
+        </div>
+      ) : null}
       <div className="detail-fact-row">
         <dt>{sourceLabel}</dt>
         <dd>{event.sourceAccountName}</dd>

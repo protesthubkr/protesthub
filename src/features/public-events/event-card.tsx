@@ -6,6 +6,8 @@ import { IssueBadge } from "./issue-badge";
 
 export function EventCard({ event }: { event: EventListOccurrence }) {
   const primaryIssue = ISSUE_BY_KEY[event.primaryIssue];
+  const organizerLabel = event.organizerName ? "주최" : "출처";
+  const organizerDisplayName = event.organizerName ?? event.sourceAccountName;
 
   return (
     <Link
@@ -25,8 +27,8 @@ export function EventCard({ event }: { event: EventListOccurrence }) {
       </div>
       <dl className="event-meta-list">
         <div>
-          <dt>주최</dt>
-          <dd>{event.sourceAccountName}</dd>
+          <dt>{organizerLabel}</dt>
+          <dd>{organizerDisplayName}</dd>
         </div>
         <div>
           <dt>장소</dt>

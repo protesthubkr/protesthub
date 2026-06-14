@@ -13,6 +13,7 @@ create table if not exists public_events (
   venue text not null,
   address text not null,
   region text not null,
+  organizer_name text,
   source_account_id uuid references source_accounts(id),
   source_account_name text not null,
   source_post_url text not null,
@@ -57,6 +58,13 @@ create index if not exists public_events_published_region_id_idx
 
 create index if not exists public_events_published_source_account_id_idx
   on public_events (source_account_name, id)
+  where status = 'published';
+
+create index if not exists public_events_published_organizer_display_idx
+  on public_events (
+    (coalesce(nullif(btrim(organizer_name), ''), source_account_name)),
+    id
+  )
   where status = 'published';
 
 create index if not exists public_events_published_issue_tags_idx
@@ -438,6 +446,7 @@ select
   e.venue,
   e.address,
   e.region,
+  e.organizer_name,
   e.source_account_name,
   e.source_post_url,
   e.cancel_source_url,
@@ -469,6 +478,7 @@ select
   e.title,
   e.venue,
   e.region,
+  coalesce(nullif(btrim(e.organizer_name), ''), e.source_account_name) as organizer_name,
   e.source_account_name,
   e.issue_tags,
   e.primary_issue,
@@ -519,6 +529,7 @@ filtered_window_occurrences as (
     e.title,
     e.venue,
     e.region,
+    coalesce(nullif(btrim(e.organizer_name), ''), e.source_account_name) as organizer_name,
     e.source_account_name,
     e.issue_tags,
     e.primary_issue,
@@ -540,7 +551,7 @@ filtered_window_occurrences as (
     )
     and (
       cardinality(p.organizer_filters) = 0
-      or e.source_account_name = any(p.organizer_filters)
+      or coalesce(nullif(btrim(e.organizer_name), ''), e.source_account_name) = any(p.organizer_filters)
     )
 )
 select
@@ -552,6 +563,7 @@ select
           'title', fo.title,
           'venue', fo.venue,
           'region', fo.region,
+          'organizer_name', fo.organizer_name,
           'source_account_name', fo.source_account_name,
           'issue_tags', fo.issue_tags,
           'primary_issue', fo.primary_issue,
@@ -580,7 +592,7 @@ select
       )
       and (
         cardinality(p.organizer_filters) = 0
-        or e.source_account_name = any(p.organizer_filters)
+        or coalesce(nullif(btrim(e.organizer_name), ''), e.source_account_name) = any(p.organizer_filters)
       )
     limit 1
   ) as has_more_events,
