@@ -1,5 +1,6 @@
 import "server-only";
 
+import { addDays } from "@/lib/format";
 import {
   mapEventCardRow,
   type SupabaseEventCardRow,
@@ -34,11 +35,13 @@ type OccurrenceRow = {
   occurrence_start_time: string | null;
 };
 
-export async function getTomorrowTelegramBroadcastPreview(): Promise<TelegramBroadcastPreview> {
+const BROADCAST_PREVIEW_LOOKAHEAD_DAYS = 31;
+
+export async function getNextTelegramBroadcastPreview(): Promise<TelegramBroadcastPreview> {
   const targetDate = getDefaultTelegramBroadcastTargetDate();
 
   try {
-    return await getTelegramBroadcastPreview(targetDate);
+    return await getNextActionableTelegramBroadcastPreview(targetDate);
   } catch (error) {
     return {
       errorMessage: error instanceof Error ? error.message : String(error),
@@ -48,6 +51,25 @@ export async function getTomorrowTelegramBroadcastPreview(): Promise<TelegramBro
       targetDate,
     };
   }
+}
+
+export const getTomorrowTelegramBroadcastPreview =
+  getNextTelegramBroadcastPreview;
+
+async function getNextActionableTelegramBroadcastPreview(startDate: string) {
+  let currentDate = startDate;
+
+  for (let index = 0; index < BROADCAST_PREVIEW_LOOKAHEAD_DAYS; index += 1) {
+    const preview = await getTelegramBroadcastPreview(currentDate);
+
+    if (!isCompletedPreview(preview)) {
+      return preview;
+    }
+
+    currentDate = addDays(currentDate, 1);
+  }
+
+  return getTelegramBroadcastPreview(currentDate);
 }
 
 async function getTelegramBroadcastPreview(
@@ -229,4 +251,12 @@ function getPreviewState(
 
 function getUniqueEventIds(eventIds: string[]) {
   return Array.from(new Set(eventIds));
+}
+
+function isCompletedPreview(preview: TelegramBroadcastPreview) {
+  return (
+    !preview.errorMessage &&
+    preview.items.length > 0 &&
+    preview.items.every((item) => item.previewState === "sent")
+  );
 }

@@ -6,7 +6,7 @@ import {
   parseCandidateStatusFilter,
 } from "@/lib/admin-candidates/filters";
 import { getTelegramChannelSubscriptions } from "@/lib/telegram/channel-subscription-repository";
-import { getTomorrowTelegramBroadcastPreview } from "@/lib/telegram/event-broadcast-preview";
+import { getNextTelegramBroadcastPreview } from "@/lib/telegram/event-broadcast-preview";
 import { AdminControlPanels } from "./admin-control-panels";
 import { AdminUnauthorized } from "./admin-unauthorized";
 import { CandidateCard } from "./candidate-card";
@@ -43,7 +43,7 @@ export async function AdminCandidatesPage({
   ] = await Promise.all([
       getReviewCandidates(status, scope, page),
       getTelegramChannelSubscriptions(),
-      getTomorrowTelegramBroadcastPreview(),
+      getNextTelegramBroadcastPreview(),
     ]);
   const isOcrConfigured = Boolean(process.env.OPENAI_API_KEY);
 

@@ -246,6 +246,7 @@ public_event_occurrences
 8. 대상 날짜의 공개 일정 자체가 0건이면 `telegram_daily_broadcasts`와 `claim_telegram_daily_broadcast`로 날짜별 중복을 막고, 일정 없음 브리핑을 1회 발송한다.
 9. 공개 데이터 변경으로 payload hash가 달라지면 기존 `sent` row도 다시 claim할 수 있다. 이 경우 새 메시지를 중복 발송하지 않고 `telegram_message_id` 기준으로 기존 Telegram 메시지를 edit한다.
 10. 관리자 화면의 브리핑 미리보기는 `event-broadcast-preview.ts`에서 실제 발송 포맷과 같은 formatter를 사용해 생성한다.
+11. 관리자 미리보기는 기본 대상일부터 확인하되, 해당 날짜의 모든 메시지가 현재 payload 기준 `sent`이면 다음 날짜로 넘어간다. `ready`, `changed`, `failed`, `pending` 항목이 있으면 그 날짜를 보여준다.
 
 ## Telegram 채널 구독 수집
 

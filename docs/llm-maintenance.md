@@ -98,7 +98,7 @@
 - 텔레그램 수동 링크 추가는 `manual-link.ts`를 진입점으로 두되, 링크 파싱은 `manual-link-parser.ts`, preview 수집은 `manual-link-preview.ts`, 후보/media 저장은 `manual-link-repository.ts`에 둔다.
 - 텔레그램 브리핑 발송은 `event-broadcasts.ts`를 진입점으로 두되, 대상 조회는 `event-broadcast-targets.ts`, claim/상태 저장은 `event-broadcast-repository.ts`, payload hash/dry-run은 `event-broadcast-payload.ts`, 날짜 정책은 `event-broadcast-dates.ts`에 둔다.
 - 공개 데이터 변경으로 payload hash가 바뀐 브리핑은 기존 Telegram 메시지를 edit한다. 같은 `event_id + channel_id + occurrence_date`에 대해 새 메시지를 중복 발송하지 않는다.
-- 관리자 미리보기는 `event-broadcast-preview.ts`에서 만들며 실제 발송 formatter를 재사용해야 한다.
+- 관리자 미리보기는 `event-broadcast-preview.ts`에서 만들며 실제 발송 formatter를 재사용해야 한다. 이미 현재 payload로 `sent` 완료된 날짜는 건너뛰고 다음 발송/수정 가능 날짜를 보여준다.
 - 사용처 없는 export, 오래된 호환 wrapper, 기본 scaffold asset은 제거한다.
 
 ## 리팩터링 종료 기준
