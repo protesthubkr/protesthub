@@ -15,8 +15,12 @@ import {
 import {
   DEFAULT_BROADCAST_LIMIT,
   type TelegramBroadcastBatchOptions,
+  type TelegramBroadcastTarget,
   type TelegramEventBroadcastRow,
 } from "./event-broadcast-types";
+import { getTelegramBroadcastPayloadHash } from "./event-broadcast-payload";
+
+const PENDING_BROADCAST_STALE_MS = 15 * 60 * 1000;
 
 export async function getPendingTelegramBroadcastTargets(
   options: TelegramBroadcastBatchOptions = {},
@@ -68,36 +72,55 @@ export async function getPendingTelegramBroadcastTargetBatch(
     throw new Error(eventError.message);
   }
 
+  const rowsByEventId = new Map(
+    ((eventRows ?? []) as SupabaseEventCardRow[]).map((row) => [row.id, row]),
+  );
+
+  const targetCandidates = eventIds
+    .map((eventId) => rowsByEventId.get(eventId))
+    .filter((row): row is SupabaseEventCardRow => Boolean(row))
+    .map((row) => ({
+      event: getEventForOccurrenceDate(mapEventCardRow(row), targetDate),
+      occurrenceDate: targetDate,
+    }));
   const { data: broadcastRows, error: broadcastError } = await supabase
     .from("telegram_event_broadcasts")
-    .select("event_id,status,occurrence_date")
+    .select(
+      [
+        "id",
+        "event_id",
+        "occurrence_date",
+        "channel_id",
+        "status",
+        "telegram_message_id",
+        "telegram_method",
+        "payload_hash",
+        "error_message",
+        "attempt_count",
+        "locked_at",
+        "sent_at",
+        "created_at",
+        "updated_at",
+      ].join(","),
+    )
     .eq("channel_id", channelId)
     .eq("occurrence_date", targetDate)
-    .in("event_id", eventIds)
-    .in("status", ["pending", "sent"]);
+    .in("event_id", eventIds);
 
   if (broadcastError) {
     throw new Error(broadcastError.message);
   }
 
-  const blockedEventIds = new Set(
-    (
-      (broadcastRows ?? []) as Pick<TelegramEventBroadcastRow, "event_id">[]
-    ).map((row) => row.event_id),
+  const broadcastRowsByEventId = new Map(
+    ((broadcastRows ?? []) as unknown as TelegramEventBroadcastRow[]).map(
+      (row) => [row.event_id, row],
+    ),
   );
-  const rowsByEventId = new Map(
-    ((eventRows ?? []) as SupabaseEventCardRow[]).map((row) => [row.id, row]),
-  );
-
-  const targets = eventIds
-    .map((eventId) => rowsByEventId.get(eventId))
-    .filter((row): row is SupabaseEventCardRow => Boolean(row))
-    .filter((row) => !blockedEventIds.has(row.id))
-    .slice(0, limit)
-    .map((row) => ({
-      event: getEventForOccurrenceDate(mapEventCardRow(row), targetDate),
-      occurrenceDate: targetDate,
-    }));
+  const targets = targetCandidates
+    .filter((target) =>
+      shouldBroadcastTarget(target, broadcastRowsByEventId.get(target.event.id)),
+    )
+    .slice(0, limit);
 
   return {
     hasOccurrences: true,
@@ -132,4 +155,31 @@ export async function getPublishedEventById(eventId: string) {
 
 function getUniqueEventIds(eventIds: string[]) {
   return Array.from(new Set(eventIds));
+}
+
+function shouldBroadcastTarget(
+  target: TelegramBroadcastTarget,
+  broadcastRow: TelegramEventBroadcastRow | undefined,
+) {
+  if (!broadcastRow) {
+    return true;
+  }
+
+  if (broadcastRow.status === "failed") {
+    return true;
+  }
+
+  if (broadcastRow.payload_hash !== getTelegramBroadcastPayloadHash(target)) {
+    return true;
+  }
+
+  return broadcastRow.status === "pending" && isPendingBroadcastStale(
+    broadcastRow,
+  );
+}
+
+function isPendingBroadcastStale(row: TelegramEventBroadcastRow) {
+  const timestamp =
+    row.locked_at ?? row.updated_at ?? row.created_at ?? new Date().toISOString();
+  return Date.now() - new Date(timestamp).getTime() > PENDING_BROADCAST_STALE_MS;
 }

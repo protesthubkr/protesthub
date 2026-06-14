@@ -42,6 +42,13 @@ export async function broadcastNoEventsToTelegram() {
   return sendTelegramMessage(formatTelegramNoEventsMessage());
 }
 
+export async function editNoEventsTelegramBroadcast(messageId: number) {
+  return editTelegramMessage({
+    messageId,
+    text: formatTelegramNoEventsMessage(),
+  });
+}
+
 export async function broadcastEventToTelegram(event: PublicEvent) {
   if (event.posterImageUrl) {
     return sendTelegramPhoto({
@@ -55,6 +62,43 @@ export async function broadcastEventToTelegram(event: PublicEvent) {
 
   return sendTelegramMessage(formatTelegramEventMessage(event), {
     replyMarkup: getTelegramEventButtons(event),
+  });
+}
+
+export async function editEventTelegramBroadcast({
+  event,
+  messageId,
+  method,
+}: {
+  event: PublicEvent;
+  messageId: number;
+  method: TelegramMethod;
+}) {
+  if (method === "sendPhoto") {
+    if (event.posterImageUrl) {
+      return editTelegramPhotoMedia({
+        caption: formatTelegramEventMessage(event, {
+          maxLength: TELEGRAM_PHOTO_CAPTION_LIMIT,
+        }),
+        messageId,
+        photoUrl: event.posterImageUrl,
+        replyMarkup: getTelegramEventButtons(event),
+      });
+    }
+
+    return editTelegramPhotoCaption({
+      caption: formatTelegramEventMessage(event, {
+        maxLength: TELEGRAM_PHOTO_CAPTION_LIMIT,
+      }),
+      messageId,
+      replyMarkup: getTelegramEventButtons(event),
+    });
+  }
+
+  return editTelegramMessage({
+    messageId,
+    replyMarkup: getTelegramEventButtons(event),
+    text: formatTelegramEventMessage(event),
   });
 }
 
@@ -101,6 +145,31 @@ export async function sendTelegramMessage(
   } satisfies TelegramBroadcastResult;
 }
 
+async function editTelegramMessage({
+  messageId,
+  replyMarkup,
+  text,
+}: {
+  messageId: number;
+  replyMarkup?: TelegramInlineKeyboardMarkup;
+  text: string;
+}) {
+  const payload = await callTelegramApi("editMessageText", {
+    chat_id: getTelegramChatId(),
+    disable_web_page_preview: true,
+    message_id: messageId,
+    reply_markup: replyMarkup,
+    text: truncateTelegramMessage(text),
+  });
+
+  assertTelegramEditSucceeded(payload, "editMessageText");
+
+  return {
+    method: "sendMessage",
+    messageId,
+  } satisfies TelegramBroadcastResult;
+}
+
 export async function sendTelegramPhoto({
   caption,
   photoUrl,
@@ -144,6 +213,110 @@ export async function sendTelegramPhoto({
     method: "sendPhoto",
     messageId: payload.result.message_id,
   } satisfies TelegramBroadcastResult;
+}
+
+async function editTelegramPhotoCaption({
+  caption,
+  messageId,
+  replyMarkup,
+}: {
+  caption: string;
+  messageId: number;
+  replyMarkup?: TelegramInlineKeyboardMarkup;
+}) {
+  const payload = await callTelegramApi("editMessageCaption", {
+    caption: truncateTelegramPhotoCaption(caption),
+    chat_id: getTelegramChatId(),
+    message_id: messageId,
+    reply_markup: replyMarkup,
+  });
+
+  assertTelegramEditSucceeded(payload, "editMessageCaption");
+
+  return {
+    method: "sendPhoto",
+    messageId,
+  } satisfies TelegramBroadcastResult;
+}
+
+async function editTelegramPhotoMedia({
+  caption,
+  messageId,
+  photoUrl,
+  replyMarkup,
+}: {
+  caption: string;
+  messageId: number;
+  photoUrl: string;
+  replyMarkup?: TelegramInlineKeyboardMarkup;
+}) {
+  const payload = await callTelegramApi("editMessageMedia", {
+    chat_id: getTelegramChatId(),
+    media: {
+      caption: truncateTelegramPhotoCaption(caption),
+      media: photoUrl,
+      type: "photo",
+    },
+    message_id: messageId,
+    reply_markup: replyMarkup,
+  });
+
+  assertTelegramEditSucceeded(payload, "editMessageMedia");
+
+  return {
+    method: "sendPhoto",
+    messageId,
+  } satisfies TelegramBroadcastResult;
+}
+
+async function callTelegramApi(method: string, body: Record<string, unknown>) {
+  const botToken = getTelegramBotToken();
+  const response = await fetch(`${TELEGRAM_API_URL}${botToken}/${method}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  const payload = (await response.json()) as TelegramApiResponse;
+
+  if (!response.ok || !payload.ok) {
+    throw new Error(
+      payload.description ?? `Telegram ${method} failed: ${response.status}`,
+    );
+  }
+
+  return payload;
+}
+
+function assertTelegramEditSucceeded(
+  payload: TelegramApiResponse,
+  method: string,
+) {
+  if (!payload.ok) {
+    throw new Error(payload.description ?? `Telegram ${method} failed`);
+  }
+}
+
+function getTelegramBotToken() {
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+
+  if (!botToken) {
+    throw new Error("Telegram is not configured. Set TELEGRAM_BOT_TOKEN.");
+  }
+
+  return botToken;
+}
+
+function getTelegramChatId() {
+  const chatId = process.env.TELEGRAM_CHANNEL_ID;
+
+  if (!chatId) {
+    throw new Error("Telegram is not configured. Set TELEGRAM_CHANNEL_ID.");
+  }
+
+  return chatId;
 }
 
 export function formatTelegramEventMessage(

@@ -244,6 +244,94 @@
   gap: var(--space-4);
 }
 
+.admin-telegram-preview-panel {
+  align-items: start;
+}
+
+.admin-telegram-preview-list {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.admin-telegram-preview-card {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  padding: var(--space-3);
+}
+
+.admin-telegram-preview-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.admin-telegram-preview-card h3 {
+  margin: 0 0 var(--space-1);
+  color: var(--color-text);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-bold);
+  line-height: 20px;
+}
+
+.admin-telegram-preview-card p {
+  margin: 0;
+  color: var(--color-text-subtle);
+  font-size: var(--font-size-caption);
+  line-height: 18px;
+}
+
+.admin-telegram-preview-status {
+  display: inline-flex;
+  min-height: 26px;
+  flex: 0 0 auto;
+  align-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+  padding: 0 9px;
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-bold);
+}
+
+.admin-telegram-preview-status.is-ready {
+  border-color: #bbf7d0;
+  background: #ecfdf3;
+  color: #166534;
+}
+
+.admin-telegram-preview-status.is-changed {
+  border-color: #fde68a;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.admin-telegram-preview-status.is-failed {
+  border-color: #fecaca;
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+.admin-telegram-preview-message {
+  overflow-x: auto;
+  margin: 0;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+  color: var(--color-text);
+  padding: var(--space-3);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-small);
+  line-height: 20px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .admin-telegram-subscription-list {
   display: grid;
   gap: var(--space-2);

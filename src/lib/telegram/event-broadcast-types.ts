@@ -110,3 +110,23 @@ export type TelegramBroadcastDryRunOutcome =
       status: "dry_run";
       title: string;
     };
+
+export type TelegramBroadcastPreviewState =
+  | "changed"
+  | "failed"
+  | "pending"
+  | "ready"
+  | "sent";
+
+export type TelegramBroadcastPreviewItem = TelegramBroadcastDryRunOutcome & {
+  payloadHash: string;
+  previewState: TelegramBroadcastPreviewState;
+};
+
+export type TelegramBroadcastPreview = {
+  errorMessage?: string;
+  generatedAt: string;
+  hasOccurrences: boolean;
+  items: TelegramBroadcastPreviewItem[];
+  targetDate: string;
+};

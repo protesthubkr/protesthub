@@ -6,6 +6,7 @@ import {
   parseCandidateStatusFilter,
 } from "@/lib/admin-candidates/filters";
 import { getTelegramChannelSubscriptions } from "@/lib/telegram/channel-subscription-repository";
+import { getTomorrowTelegramBroadcastPreview } from "@/lib/telegram/event-broadcast-preview";
 import { AdminControlPanels } from "./admin-control-panels";
 import { AdminUnauthorized } from "./admin-unauthorized";
 import { CandidateCard } from "./candidate-card";
@@ -35,10 +36,14 @@ export async function AdminCandidatesPage({
     return <AdminUnauthorized />;
   }
 
-  const [{ candidates, counts, error, hasMoreCandidates }, subscriptions] =
-    await Promise.all([
+  const [
+    { candidates, counts, error, hasMoreCandidates },
+    subscriptions,
+    telegramBroadcastPreview,
+  ] = await Promise.all([
       getReviewCandidates(status, scope, page),
       getTelegramChannelSubscriptions(),
+      getTomorrowTelegramBroadcastPreview(),
     ]);
   const isOcrConfigured = Boolean(process.env.OPENAI_API_KEY);
 
@@ -61,6 +66,7 @@ export async function AdminCandidatesPage({
         scope={scope}
         secret={secret}
         subscriptions={subscriptions}
+        telegramBroadcastPreview={telegramBroadcastPreview}
       />
 
       <CandidateStatusTabs

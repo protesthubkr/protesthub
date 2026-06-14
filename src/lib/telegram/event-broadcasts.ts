@@ -3,6 +3,8 @@ import "server-only";
 import {
   broadcastEventToTelegram,
   broadcastNoEventsToTelegram,
+  editEventTelegramBroadcast,
+  editNoEventsTelegramBroadcast,
 } from "./broadcast";
 import {
   getDefaultTelegramBroadcastTargetDate,
@@ -125,7 +127,9 @@ async function broadcastClaimedNoEventsToTelegram(
   }
 
   try {
-    const result = await broadcastNoEventsToTelegram();
+    const result = claim.telegram_message_id
+      ? await editNoEventsTelegramBroadcast(claim.telegram_message_id)
+      : await broadcastNoEventsToTelegram();
 
     await markTelegramDailyBroadcastSent(supabase, {
       broadcastId: claim.id,
@@ -178,7 +182,14 @@ async function broadcastClaimedTargetToTelegram(
   }
 
   try {
-    const result = await broadcastEventToTelegram(target.event);
+    const result =
+      claim.telegram_message_id && claim.telegram_method
+        ? await editEventTelegramBroadcast({
+            event: target.event,
+            messageId: claim.telegram_message_id,
+            method: claim.telegram_method,
+          })
+        : await broadcastEventToTelegram(target.event);
 
     await markTelegramEventBroadcastSent(supabase, {
       broadcastId: claim.id,

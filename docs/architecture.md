@@ -244,6 +244,8 @@ public_event_occurrences
 6. 실제 Telegram API 호출과 메시지/버튼 포맷은 `broadcast.ts`가 담당한다.
 7. 메시지 본문은 제목, 날짜/시간, 장소만 유지한다. 상세 정보는 상세페이지/원본 버튼으로 보낸다.
 8. 대상 날짜의 공개 일정 자체가 0건이면 `telegram_daily_broadcasts`와 `claim_telegram_daily_broadcast`로 날짜별 중복을 막고, 일정 없음 브리핑을 1회 발송한다.
+9. 공개 데이터 변경으로 payload hash가 달라지면 기존 `sent` row도 다시 claim할 수 있다. 이 경우 새 메시지를 중복 발송하지 않고 `telegram_message_id` 기준으로 기존 Telegram 메시지를 edit한다.
+10. 관리자 화면의 브리핑 미리보기는 `event-broadcast-preview.ts`에서 실제 발송 포맷과 같은 formatter를 사용해 생성한다.
 
 ## Telegram 채널 구독 수집
 

@@ -226,8 +226,6 @@ begin
   on conflict on constraint telegram_event_broadcasts_unique_event_channel_occurrence
   do update
     set status = 'pending',
-        telegram_message_id = null,
-        telegram_method = null,
         payload_hash = excluded.payload_hash,
         error_message = null,
         attempt_count = telegram_event_broadcasts.attempt_count + 1,
@@ -235,6 +233,7 @@ begin
         sent_at = null,
         updated_at = now()
     where telegram_event_broadcasts.status = 'failed'
+      or telegram_event_broadcasts.payload_hash is distinct from excluded.payload_hash
       or (
         telegram_event_broadcasts.status = 'pending'
         and coalesce(
@@ -296,8 +295,6 @@ begin
   on conflict on constraint telegram_daily_broadcasts_unique_type_channel_date
   do update
     set status = 'pending',
-        telegram_message_id = null,
-        telegram_method = null,
         payload_hash = excluded.payload_hash,
         error_message = null,
         attempt_count = telegram_daily_broadcasts.attempt_count + 1,
@@ -305,6 +302,7 @@ begin
         sent_at = null,
         updated_at = now()
     where telegram_daily_broadcasts.status = 'failed'
+      or telegram_daily_broadcasts.payload_hash is distinct from excluded.payload_hash
       or (
         telegram_daily_broadcasts.status = 'pending'
         and coalesce(
